@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Menu builder prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar" id="topbar"></header>
+
+      <main class="workspace">
+        <aside class="panel pos" aria-label="POS items">
+          <div class="pos-head" id="pos-head"></div>
+          <div class="pos-search">
+            <label class="search-field">
+              <svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <span class="sr-only">Search POS items</span>
+              <input id="pos-search" type="search" placeholder="Search by name or POS ID" autocomplete="off" />
+              <kbd>/</kbd>
+            </label>
+          </div>
+          <div class="pos-scroll"><div id="pos-tree" role="tree" aria-label="POS items"></div></div>
+        </aside>
+
+        <section class="canvas" id="canvas" aria-label="Menu">
+          <div class="canvas-head" id="canvas-head"></div>
+          <div class="canvas-scroll" id="canvas-scroll">
+            <div id="canvas-tree" class="tree" role="tree" aria-label="Menu structure"></div>
+            <div class="drop-end-line" aria-hidden="true"></div>
+          </div>
+          <footer class="canvas-foot">
+            <span class="legend"><span class="kind-glyph kind-category"></span>Category</span>
+            <span class="legend"><span class="kind-glyph kind-product"></span>Product</span>
+            <span class="legend"><span class="kind-glyph kind-group"></span>Product group</span>
+            <span class="foot-spacer"></span>
+            <span class="foot-keys"><kbd>↑</kbd><kbd>↓</kbd> Move <kbd>←</kbd><kbd>→</kbd> Collapse <kbd>⌘Z</kbd> Undo</span>
+            <span class="foot-save">Changes save automatically in this browser</span>
+          </footer>
+          <div class="drag-hint" id="drag-hint" data-show="false" aria-live="polite"></div>
+        </section>
+
+        <aside class="panel inspector" aria-label="Settings">
+          <div id="inspector-head"></div>
+          <div id="inspector-tabs"></div>
+          <div class="inspector-scroll" id="inspector-scroll"><div id="inspector-body"></div></div>
+        </aside>
+      </main>
+    </div>
+
+    <div id="popover-root"></div>
+    <div id="modal-root"></div>
+    <div id="toast-root" aria-live="polite"></div>
+    <div id="drag-ghost" aria-hidden="true"></div>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
