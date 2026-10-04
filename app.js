@@ -4,6 +4,9 @@
   const C = window.MENU_CONSTANTS;
   const SUG = window.MENU_SUGGESTIONS;
   const STORAGE_KEY = 'menu-builder-prototype-v3';
+  const DATASET_KEY = 'menu-builder-prototype-dataset';
+  const DATASETS = { example: { pos: window.POS_SEED }, ...(window.POS_DATASETS || {}) };
+  const BASE_MODIFIER_CODES = C.modifierCodes;
   const CHILD_KIND = { menu: 'category', category: 'product', product: 'group', group: 'product' };
   const SEG = { category: 'c', product: 'p', group: 'g' };
   const SEG_KIND = { c: 'category', p: 'product', g: 'group' };
@@ -244,6 +247,7 @@
   /* ---------- state ---------- */
 
   const S = { data: null, ui: null };
+  let dataset = 'example';
   const hist = { past: [], future: [], key: null, at: 0 };
   const T = {
     drag: null,
@@ -259,6 +263,7 @@
     flashExt: new Set(),
     posSearchExpanded: {},
     posLoading: null,
+    posScrollTo: null,
     focusName: false,
     focusRow: null,
     allergenQuery: '',
@@ -530,6 +535,8 @@
   const isCustomVersion = (ent) => isVirtual(ent) && (ent.ptype === 'linked' || ent.gtype === 'linked');
   const isChoiceGroup = (g) => !!g && g.gtype === 'standalone' && (g.role === 'choice' || rulesOf(g).type === 2);
   const storeGroup = () => C.storeGroups.find((g) => g.id === S.ui.storeGroupId) || C.storeGroups[0];
+  const storeGroups = () => C.storeGroups.filter((g) => DATASETS[g.dataset]);
+  const datasetOf = (storeGroupId) => (storeGroups().find((g) => g.id === storeGroupId) || storeGroups()[0]).dataset;
   let priceCache = new Map();
   const posMenu = () => S.data.pos.menus.find((m) => m.id === S.ui.posMenuId) || S.data.pos.menus[0];
   const roundPrice = (v, f) => Math.round(v * f * 20) / 20;
@@ -709,14 +716,85 @@
 
   /* ---------- seed and persistence ---------- */
 
+  function useDataset(ds) {
+    dataset = DATASETS[ds] ? ds : 'example';
+    C.modifierCodes = DATASETS[dataset].modifierCodes || BASE_MODIFIER_CODES;
+  }
+
+  const storageKey = () => (dataset === 'example' ? STORAGE_KEY : `${STORAGE_KEY}-${dataset}`);
+
   function seed() {
+    const src = DATASETS[dataset];
     S.data = {
-      pos: JSON.parse(JSON.stringify(window.POS_SEED)),
+      pos: JSON.parse(JSON.stringify(src.pos)),
       entities: { category: {}, product: {}, group: {} },
       menus: [],
       placements: {},
       ignored: {},
     };
+    if (!S.data.pos.syncedAt) S.data.pos.syncedAt = Date.now() - 1000 * 60 * 18;
+    if (src.menu) seedImported(src);
+    else seedExample();
+  }
+
+  function seedImported(src) {
+    const E = S.data.entities;
+    const { categories, ...settings } = src.menu;
+    const menu = newMenu(settings);
+    S.data.menus.push(menu);
+    const extId = (kind, ext) => (findByExt(kind, ext) || {}).id;
+
+    const productFor = (posId) => findByExt('product', posId) || buildProduct(posId);
+    const groupFor = (posId) => findByExt('group', posId) || buildGroup(posId);
+
+    function buildGroup(posId) {
+      const def = src.groups[posId] || {};
+      const g = newPosEntity(posId);
+      if (def.name) g.name = def.name;
+      if (def.internalName) g.internalName = def.internalName;
+      g.ruleOverrides = { ...(def.rules || {}) };
+      g.children = (def.options || []).map((pid) => productFor(pid).id);
+      for (const [pid, qty] of Object.entries(def.preselected || {})) if (extId('product', pid)) g.preselected[extId('product', pid)] = qty;
+      return g;
+    }
+
+    function buildProduct(posId) {
+      const { groups = [], sections = [], included = [], codes, name, ...fields } = src.products[posId] || {};
+      const p = newPosEntity(posId);
+      if (name) Object.assign(p, { name, syncName: false });
+      Object.assign(p, fields);
+      p.children = groups.map((gid) => groupFor(gid).id);
+      p.sections = sections.map(([label]) => ({ id: uid('sec'), name: label }));
+      sections.forEach(([, gids], i) => gids.forEach((gid) => extId('group', gid) && (p.groupSection[extId('group', gid)] = p.sections[i].id)));
+      p.included = included
+        .map(([gid, pid]) => ({ gid: extId('group', gid), pid: extId('product', pid), locked: false }))
+        .filter((x) => x.gid && x.pid);
+      if (codes) Object.assign(p, { isModifierCodeRequired: true, modifierCodes: C.modifierCodes.map(([v]) => v), preselectedCode: C.modifierCodes[0][0] });
+      return p;
+    }
+
+    for (const c of categories) {
+      const cat = newPosEntity(c.pos);
+      const catPath = childPath(menu.id, 'category', cat.id);
+      menu.children.push(cat.id);
+      for (const item of c.products) {
+        let ent;
+        if (item.container) {
+          const sizes = newGroup({ gtype: 'standalone', role: 'choice', type: 2, name: 'Size', min: 1, max: 1, children: item.sizes.map((pid) => productFor(pid).id) });
+          E.group[sizes.id] = sizes;
+          ent = newProduct({ ptype: 'size', name: item.container, children: [sizes.id] });
+          E.product[ent.id] = ent;
+        } else {
+          ent = productFor(item.pos);
+          ent.originCategoryExt = c.pos;
+        }
+        cat.children.push(ent.id);
+        if (item.hidden) S.data.placements[childPath(catPath, 'product', ent.id)] = { hidden: true };
+      }
+    }
+  }
+
+  function seedExample() {
     const lunch = newMenu({
       name: 'Lunch',
       internalName: 'Lunch — all stores',
@@ -835,15 +913,15 @@
       posQuery: '',
       canvasQuery: '',
       tabs: {},
-      storeGroupId: C.storeGroups[0].id,
-      posMenuId: S.data.pos.menus[0].id,
+      storeGroupId: storeGroups().find((g) => g.dataset === dataset).id,
+      posMenuId: S.data.menus[0].posExt || S.data.pos.menus[0].id,
       sizeHintDismissed: {},
     };
   }
 
   function load() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(storageKey());
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && parsed.version === 2) {
@@ -859,6 +937,8 @@
           normalizeAll();
           S.ui = { ...defaultUi(), ...parsed.ui, posQuery: '', canvasQuery: '' };
           if (S.ui.tabs.group === 'rules') S.ui.tabs.group = 'options';
+          if (datasetOf(S.ui.storeGroupId) !== dataset) S.ui.storeGroupId = defaultUi().storeGroupId;
+          focusPosCategory();
           return;
         }
       }
@@ -868,6 +948,14 @@
     seed();
     normalizeAll();
     S.ui = defaultUi();
+    focusPosCategory();
+  }
+
+  function focusPosCategory() {
+    const id = DATASETS[dataset].posFocus;
+    if (!id) return;
+    if (!(id in S.ui.posExpanded)) S.ui.posExpanded[id] = true;
+    T.posScrollTo = id;
   }
 
   function migratePreselections(groupIds) {
@@ -890,23 +978,50 @@
   }
 
   let persistTimer = null;
+  function persistNow() {
+    clearTimeout(persistTimer);
+    try {
+      const { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed } = S.ui;
+      localStorage.setItem(
+        storageKey(),
+        JSON.stringify({
+          version: 2,
+          data: S.data,
+          ui: { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed },
+        }),
+      );
+      localStorage.setItem(DATASET_KEY, dataset);
+    } catch (_) {
+      toast('Couldn’t save changes. Browser storage is full — remove some images', 'error');
+    }
+  }
+
   function schedulePersist() {
     clearTimeout(persistTimer);
-    persistTimer = setTimeout(() => {
-      try {
-        const { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed } = S.ui;
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({
-            version: 2,
-            data: S.data,
-            ui: { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed },
-          }),
-        );
-      } catch (_) {
-        toast('Couldn’t save changes. Browser storage is full — remove some images', 'error');
-      }
-    }, 400);
+    persistTimer = setTimeout(persistNow, 400);
+  }
+
+  function switchDataset(ds, storeGroupId) {
+    closePopover();
+    closeModal(true);
+    useDataset(ds);
+    Object.assign(hist, { past: [], future: [], key: null, at: 0 });
+    Object.assign(T, { posSearchExpanded: {}, openCard: null, openStoreGroup: null, storeKey: null, focusRow: null });
+    T.flashPaths.clear();
+    T.flashExt.clear();
+    load();
+    S.ui.storeGroupId = storeGroupId;
+    $('#pos-search').value = '';
+    render();
+    persistNow();
+  }
+
+  function initialDataset() {
+    try {
+      return localStorage.getItem(DATASET_KEY);
+    } catch (_) {
+      return null;
+    }
   }
 
   /* ---------- history ---------- */
@@ -1356,9 +1471,16 @@
     const sets = {};
     const re1 = new RegExp(`^(${SIZE_RE_TOKENS})\\s+(.+)$`, 'i');
     const re2 = new RegExp(`^(.+?)\\s*[-(]\\s*(${SIZE_RE_TOKENS})\\)?$`, 'i');
+    const inContainer = new Set(
+      category.children.flatMap((pid) => {
+        const c = entity('product', pid);
+        const g = c && c.ptype === 'size' ? sizeGroupOf(c) : null;
+        return g ? g.children : [];
+      }),
+    );
     for (const pid of category.children) {
       const p = entity('product', pid);
-      if (!p || p.ptype !== 'pos') continue;
+      if (!p || p.ptype !== 'pos' || inContainer.has(pid)) continue;
       const name = nameOf('product', p);
       let size;
       let base;
@@ -2495,7 +2617,7 @@
 
   function applyPosSync() {
     const items = S.data.pos.items;
-    const first = !S.data.pos.syncCount;
+    const first = !S.data.pos.syncCount && !!items['pos-truffle'];
     commit(() => {
       if (first) {
         items['pos-truffle'].price = 19;
@@ -3005,6 +3127,11 @@
         el.select && el.select();
       }
     }
+    if (T.posScrollTo && !T.posLoading) {
+      const row = document.querySelector(`#pos-tree .pos-row[data-pos-path="${cssEsc(T.posScrollTo)}"]`);
+      T.posScrollTo = null;
+      if (row) row.scrollIntoView({ block: 'start' });
+    }
     if (T.flashPaths.has(S.ui.selected)) {
       const row = document.querySelector(`.row[data-path="${cssEsc(S.ui.selected)}"]`);
       if (row) row.scrollIntoView({ block: 'nearest' });
@@ -3078,7 +3205,7 @@
       <div class="pos-store">
         <label class="sr-only" for="store-group">POS store group</label>
         <div class="select-wrap">
-          <select id="store-group" class="input" data-focus-key="store-group" ${loading ? 'disabled' : ''}>${C.storeGroups
+          <select id="store-group" class="input" data-focus-key="store-group" ${loading ? 'disabled' : ''}>${storeGroups()
             .map((g) => `<option value="${g.id}"${g.id === storeGroup().id ? ' selected' : ''}>${esc(g.name)} · ${esc(g.pos)}</option>`)
             .join('')}</select>${icon('chevDown', 14)}
         </div>
@@ -5836,10 +5963,11 @@
                 kind: 'danger',
                 onClick: () => {
                   closeModal();
-                  localStorage.removeItem(STORAGE_KEY);
+                  localStorage.removeItem(storageKey());
                   seed();
                   normalizeAll();
                   S.ui = defaultUi();
+                  focusPosCategory();
                   hist.past = [];
                   hist.future = [];
                   render();
@@ -6647,8 +6775,15 @@
   document.addEventListener('change', (e) => {
     const t = e.target;
     if (t.id === 'store-group') {
-      S.ui.storeGroupId = t.value;
-      loadPos('store-group', render);
+      const next = datasetOf(t.value);
+      if (next === dataset) {
+        S.ui.storeGroupId = t.value;
+        loadPos('store-group', render);
+      } else {
+        persistNow();
+        S.ui.storeGroupId = t.value;
+        loadPos('store-group', () => switchDataset(next, t.value));
+      }
     } else if (t.matches('select[data-bind], input[type="time"][data-bind], input[type="datetime-local"][data-bind]')) {
       commit(() => setBind(t.dataset.bind, t.value));
     } else if (t.matches('input[type="file"][data-image]')) {
@@ -6956,6 +7091,7 @@
 
   /* ---------- init ---------- */
 
+  useDataset(initialDataset());
   load();
   render();
   setInterval(() => {

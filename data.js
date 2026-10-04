@@ -204,7 +204,7 @@ window.MENU_SUGGESTIONS = {
 window.MENU_CONSTANTS = {
   orderTypes: [
     ['dine_in', 'Dine-in'],
-    ['preorder', 'Preorder'],
+    ['preorder', 'Dine-in (QS)'],
     ['take_out', 'Takeout'],
     ['delivery', 'Delivery'],
     ['curbside', 'Curbside'],
@@ -300,8 +300,9 @@ window.MENU_CONSTANTS = {
   ],
   prepUnits: ['oz', 'lb', 'g', 'kg', 'ml', 'l', 'cups', 'ea'],
   storeGroups: [
-    { id: 'sg-corporate', name: 'Corporate stores', pos: 'PAR POS' },
-    { id: 'sg-airport', name: 'Airport concessions', pos: 'PAR POS' },
+    { id: 'sg-corporate', name: 'Corporate stores', pos: 'PAR POS', dataset: 'example' },
+    { id: 'sg-airport', name: 'Airport concessions', pos: 'PAR POS', dataset: 'example' },
+    { id: 'sg-cravewave', name: 'Cravewave Pizza', pos: 'PAR Brink', dataset: 'cravewave' },
   ],
   groupTypes: {
     1: { label: 'Modifier', help: 'Extras and choices that change the product.' },
