@@ -1,0 +1,31 @@
+---
+description: The menu-app repo is the source of truth for every setting, rule and piece of copy in this prototype
+alwaysApply: true
+---
+
+# menu-app is the source of truth
+
+This prototype re-creates Management Center (MC) menu building with better UX. It lives next to `../menu-app`, which defines what is real.
+
+## Before adding or changing a setting
+
+- Find how MC does it in `../menu-app/frontend-migration/libs/management-center-app/feature-menu-products` and the components in `../menu-app/frontend-migration/libs/admin-ui`.
+- Check backend entities in `../menu-app/backend/libs/core/src/Entities` for field names, enums and numeric state values. Never guess them.
+- If the prototype has something MC or the backend doesn't support, flag it and ask whether to keep it.
+
+## Copy
+
+- Follow `../menu-app/docs/design/ux-copy-principles.md` for every label, help text, error and dialog.
+- When existing prototype copy or MC copy conflicts with the principles, ask before changing it. State the conflict, the principle, and the proposed wording.
+
+## This repo is public
+
+- Re-create behaviour and wording; never copy MC source files, internal docs, credentials, or real customer and store data into this repo.
+
+## Prototype conventions
+
+- Plain JS, no build step: `index.html`, `app.js`, `styles.css`, `data.js`.
+- Reuse existing CSS tokens and helpers in `app.js` before adding new ones.
+- No comments that narrate the code.
+- Verify in the browser: `python3 -m http.server 5178 --bind 127.0.0.1`, then open `http://127.0.0.1:5178/`.
+- Pushing to `main` publishes to https://ddrlacic.github.io/menu-builder-prototype/ within about a minute.
