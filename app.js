@@ -544,6 +544,8 @@
   const datasetOf = (storeGroupId) => (storeGroups().find((g) => g.id === storeGroupId) || storeGroups()[0]).dataset;
   let priceCache = new Map();
   let halfCache = new Map();
+  const storePriceCache = new WeakMap();
+  let dataVersion = 0;
   const posMenu = () => S.data.pos.menus.find((m) => m.id === S.ui.posMenuId) || S.data.pos.menus[0];
   const roundPrice = (v, f) => Math.round(v * f * 20) / 20;
 
@@ -553,7 +555,16 @@
       .map(([id]) => id);
   }
 
+  let extIndex = { data: null, version: -1, byKind: {} };
   function findByExt(kind, ext) {
+    if (extIndex.data !== S.data || extIndex.version !== dataVersion) extIndex = { data: S.data, version: dataVersion, byKind: {} };
+    if (!extIndex.byKind[kind]) {
+      const map = new Map();
+      for (const e of Object.values(S.data.entities[kind])) if (!map.has(e.externalId)) map.set(e.externalId, e);
+      extIndex.byKind[kind] = map;
+    }
+    const hit = extIndex.byKind[kind].get(ext);
+    if (hit && S.data.entities[kind][hit.id] === hit && hit.externalId === ext) return hit;
     return Object.values(S.data.entities[kind]).find((e) => e.externalId === ext) || null;
   }
 
@@ -1029,7 +1040,9 @@
     try {
       fn();
       normalizeAll();
+      dataVersion++;
     } catch (err) {
+      dataVersion++;
       if (err instanceof Abort) {
         S.data = JSON.parse(snapshot);
         if (err.message) toast(err.message, 'error');
@@ -1531,10 +1544,31 @@
     return { kind: src.kind, note: src.note, value: priceAt(src, store) };
   }
 
+  function priceInputs(src) {
+    if (src.kind === 'none') return 'none';
+    if (src.kind === 'from') return `from(${src.sizes.map(priceInputs).join(';')})`;
+    const g = src.kind === 'modifier' ? posItemById(src.group) : null;
+    const it = posItemById(src.own);
+    return JSON.stringify([
+      g && g.childPrices ? g.childPrices[src.own] : null,
+      it ? it.price : null,
+      src.ent && src.ent.reviewed ? src.ent.reviewed.price : null,
+      (S.data.pos.priceGaps || {})[src.own] || null,
+    ]);
+  }
+
+  function storePriceStats(src, stores = menuStores(activeMenu())) {
+    if (!storePriceCache.has(stores)) storePriceCache.set(stores, new Map());
+    const byInputs = storePriceCache.get(stores);
+    const key = priceInputs(src);
+    if (!byInputs.has(key)) byInputs.set(key, statsOf((s) => priceAt(src, s), stores));
+    return byInputs.get(key);
+  }
+
   function priceStats(path) {
     if (priceCache.has(path)) return priceCache.get(path);
     const src = priceSource(path);
-    const st = src.kind === 'none' ? { ...src, priced: 0, total: 0, missingStores: [] } : { ...src, ...statsOf((s) => priceAt(src, s)) };
+    const st = src.kind === 'none' ? { ...src, priced: 0, total: 0, missingStores: [] } : { ...src, ...storePriceStats(src) };
     priceCache.set(path, st);
     return st;
   }
@@ -1690,6 +1724,14 @@
 
   /* ---------- derived context ---------- */
 
+  let ctxKey = [];
+  function derivedCtx() {
+    const key = [S.data, dataVersion, activeMenu().id, JSON.stringify(S.ui.halfHintDismissed)];
+    if (ctx && key.every((v, i) => v === ctxKey[i])) return ctx;
+    ctxKey = key;
+    return computeCtx();
+  }
+
   function computeCtx() {
     priceCache = new Map();
     halfCache = new Map();
@@ -1829,9 +1871,9 @@
         if (Object.values(ent.optionSettings).some((s) => lengthError(s.name))) gAdd('error', `${label}: an option name is longer than ${TEXT_LIMIT} characters`, 'options');
         if (ent.sections.some((s) => !s.name.trim())) gAdd('error', `${label}: add a name to each option section`, 'options');
         else if (ent.sections.some((s) => lengthError(s.name))) gAdd('error', `${label}: a section name is longer than ${TEXT_LIMIT} characters`, 'options');
-        const preAt = (pid) => preselectedAt(childPath(path, 'product', pid));
-        const pre = ent.children.reduce((s, pid) => s + preAt(pid), 0);
-        if (ent.children.some((pid) => preAt(pid) > optionMaxOf(ent, pid, r))) gAdd('error', `${label}: an option is preselected more times than it can be picked`, 'options', null);
+        const preList = ent.children.map((pid) => preselectedAt(childPath(path, 'product', pid)));
+        const pre = preList.reduce((s, n) => s + n, 0);
+        if (ent.children.some((pid, i) => preList[i] > optionMaxOf(ent, pid, r))) gAdd('error', `${label}: an option is preselected more times than it can be picked`, 'options', null);
         else if (max != null && pre > max) gAdd('error', `${label}: ${pre} options preselected, but the maximum is ${max}`, 'options', null);
         if (r.type === 2 && count && pre !== 1) gAdd('error', `${label}: preselect exactly one ${isChoiceGroup(ent) ? 'product' : 'size'}`, 'options', null);
         if (placement(path).hidden && r.min > 0)
@@ -2845,11 +2887,13 @@
           onClick: () => {
             closeModal();
             m.status = 'publishing';
+            dataVersion++;
             render();
             setTimeout(() => {
               m.status = 'published';
               m.publishedAt = Date.now();
               m.publishedStoreIds = menuStores(m).map((s) => s.id);
+              dataVersion++;
               render();
               toast('Menu successfully published');
             }, 1400);
@@ -3377,7 +3421,7 @@
     const focus = captureFocus();
     const menu = activeMenu();
     if (!S.ui.selected || !pathExists(S.ui.selected) || parsePath(S.ui.selected).menuId !== menu.id) S.ui.selected = menu.id;
-    ctx = computeCtx();
+    ctx = derivedCtx();
     renderTopbar();
     renderPos();
     renderCanvas();
