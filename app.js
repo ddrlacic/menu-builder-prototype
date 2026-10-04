@@ -426,6 +426,11 @@
     return p.sections.some((x) => x.id === s) ? s : p.sections.length ? p.sections[0].id : null;
   };
 
+  const sectionOfOption = (g, pid) => {
+    const s = g.optionSection[pid];
+    return g.sections.some((x) => x.id === s) ? s : g.sections.length ? g.sections[0].id : null;
+  };
+
   function normalizeProduct(p) {
     if (!p.modifierCodes || !p.prep) return;
     if (p.foodType === '') p.foodType = null;
@@ -442,21 +447,78 @@
     for (const map of [p.substitutes, p.halfWhole]) for (const k of Object.keys(map)) if (!optionKeyValid(p, k)) delete map[k];
   }
 
-  const newGroup = (o = {}) => ({
-    ...baseEntity(),
-    id: uid('grp'),
-    name: 'New group',
-    gtype: 'pos',
-    posGroupExt: null,
-    posRules: null,
-    type: 1,
-    min: 0,
-    max: null,
-    maxSingle: 1,
-    freeCount: 0,
-    isSubstitutionContainer: false,
-    ...o,
+  const groupDefaults = () => ({
+    reportingId: '',
+    metadata: [],
+    ruleOverrides: {},
+    preselected: {},
+    optionSettings: {},
+    sections: [],
+    optionSection: {},
+    swaps: {},
+    halves: {},
   });
+
+  function newGroup(o = {}) {
+    const { stores, ...base } = baseEntity();
+    return {
+      ...base,
+      id: uid('grp'),
+      name: 'New group',
+      gtype: 'pos',
+      posGroupExt: null,
+      posRules: null,
+      type: 1,
+      min: 0,
+      max: null,
+      maxSingle: 1,
+      freeCount: 0,
+      isSubstitutionContainer: false,
+      ...groupDefaults(),
+      ...o,
+    };
+  }
+
+  function migrateGroup(g) {
+    const d = groupDefaults();
+    for (const k of Object.keys(d)) if (g[k] === undefined) g[k] = d[k];
+    delete g.stores;
+    if (g.syncName) {
+      const p = posItem(g);
+      g.name = p ? p.name : (g.reviewed && g.reviewed.name) || g.name;
+    }
+    g.syncName = false;
+    if (g.gtype === 'standalone' && g.role === 'choice') g.type = 2;
+  }
+
+  const hasOwn = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
+
+  function normalizeGroup(g) {
+    if (!g.optionSettings) return;
+    const kids = new Set(g.children);
+    for (const map of [g.preselected, g.optionSettings, g.optionSection, g.swaps, g.halves]) for (const k of Object.keys(map)) if (!kids.has(k)) delete map[k];
+    for (const [pid, s] of Object.entries(g.optionSettings)) {
+      if (s.name != null && !String(s.name).trim()) delete s.name;
+      if (!isNum(s.maxQty)) delete s.maxQty;
+      if (s.hiddenCodes && !s.hiddenCodes.length) delete s.hiddenCodes;
+      if (!Object.keys(s).length) delete g.optionSettings[pid];
+    }
+    for (const [pid, ids] of Object.entries(g.swaps)) {
+      const valid = ids.filter((id, i) => id !== pid && kids.has(id) && ids.indexOf(id) === i);
+      if (valid.length) g.swaps[pid] = valid;
+      else delete g.swaps[pid];
+    }
+    for (const [pid, h] of Object.entries(g.halves)) if (!h.left && !h.right) delete g.halves[pid];
+    const sectionIds = new Set(g.sections.map((s) => s.id));
+    for (const [pid, sid] of Object.entries(g.optionSection)) if (!sectionIds.has(sid)) delete g.optionSection[pid];
+    if (g.gtype === 'pos') {
+      const base = posRulesOf(g);
+      for (const k of Object.keys(g.ruleOverrides)) if (!(k in base) || ruleValue(k, g.ruleOverrides[k]) === base[k]) delete g.ruleOverrides[k];
+    }
+    if (rulesOf(g).type === 2 && g.children.length && !g.children.some((pid) => g.preselected[pid] > 0)) {
+      g.preselected = { [g.children[0]]: 1 };
+    }
+  }
 
   /* ---------- POS lookups ---------- */
 
@@ -638,6 +700,7 @@
     else
       ent = newGroup({
         ...base,
+        syncName: false,
         posRules: { groupType: item.groupType || 1, min: item.min || 0, max: isNum(item.max) ? item.max : null, maxSingle: item.maxSingle || 1, free: item.free || 0 },
       });
     S.data.entities[kind][ent.id] = ent;
@@ -751,10 +814,10 @@
     platters.isBundle = true;
     catering.children.push(platters.id);
 
-    const burgersPath = `${lunch.id}>c:${burgers.id}`;
     const popularPath = `${lunch.id}>c:${popular.id}`;
-    S.data.placements[`${burgersPath}>p:${truffle.id}>g:${grp('pos-g-temp').id}>p:${prod('pos-m-medium').id}`] = { preselected: 1 };
+    grp('pos-g-temp').preselected = { [prod('pos-m-medium').id]: 1 };
     S.data.placements[`${popularPath}>p:${brunch.id}>g:${addons.id}>p:${prod('pos-m-egg').id}`] = { preselected: 1 };
+    sauces.optionSettings = { [prod('pos-m-aioli').id]: { name: 'House truffle aioli' } };
     brunch.availability = { ...newAvailability(), active: true, slots: [{ days: [0, 6], from: '11:00', to: '14:00' }] };
     truffle.metadata = [{ key: 'Badge', value: 'Chef’s pick' }];
     prod('pos-m-bacon').modifierCodes = ['no', 'light', 'extra', 'side'];
@@ -790,8 +853,12 @@
           Object.values(S.data.entities.product).forEach(migrateProduct);
           for (const [k, pl] of Object.entries(S.data.placements)) if (/^[^>]+>c:[^>]+$/.test(k)) delete pl.schedule;
           migrateProductSchedules();
-          Object.values(S.data.entities.product).forEach(normalizeProduct);
+          const oldGroups = new Set(Object.values(S.data.entities.group).filter((g) => g.preselected === undefined).map((g) => g.id));
+          Object.values(S.data.entities.group).forEach(migrateGroup);
+          migratePreselections(oldGroups);
+          normalizeAll();
           S.ui = { ...defaultUi(), ...parsed.ui, posQuery: '', canvasQuery: '' };
+          if (S.ui.tabs.group === 'rules') S.ui.tabs.group = 'options';
           return;
         }
       }
@@ -799,7 +866,27 @@
       /* fall through to seed */
     }
     seed();
+    normalizeAll();
     S.ui = defaultUi();
+  }
+
+  function migratePreselections(groupIds) {
+    for (const [k, pl] of Object.entries(S.data.placements)) {
+      if (!isNum(pl.preselected)) continue;
+      const segs = k.split('>');
+      if (segs.length < 2) continue;
+      const [prev, last] = segs.slice(-2);
+      if (!last.startsWith('p:') || !prev.startsWith('g:') || !groupIds.has(prev.slice(2))) continue;
+      const g = S.data.entities.group[prev.slice(2)];
+      if (!g || rulesOf(g).type === 1) continue;
+      if (pl.preselected > 0 && !Object.values(g.preselected).some((v) => v > 0)) g.preselected = { [last.slice(2)]: 1 };
+      delete pl.preselected;
+    }
+  }
+
+  function normalizeAll() {
+    Object.values(S.data.entities.group).forEach(normalizeGroup);
+    Object.values(S.data.entities.product).forEach(normalizeProduct);
   }
 
   let persistTimer = null;
@@ -828,7 +915,7 @@
     const snapshot = JSON.stringify(S.data);
     try {
       fn();
-      Object.values(S.data.entities.product).forEach(normalizeProduct);
+      normalizeAll();
     } catch (err) {
       if (err instanceof Abort) {
         S.data = JSON.parse(snapshot);
@@ -1011,26 +1098,110 @@
     return posChildren(sizes[0]).filter((gid) => sizes.every((s) => posChildren(s).includes(gid)));
   }
 
-  function rulesOf(g) {
-    if (g.gtype === 'pos') {
-      const src = posItem(g) || g.posRules || {};
-      const r = g.posRules || {};
-      return {
-        type: src.groupType || r.groupType || 1,
-        min: src.min || 0,
-        max: isNum(src.max) ? src.max : null,
-        maxSingle: src.maxSingle || 1,
-        freeCount: src.free || 0,
-      };
-    }
-    const nvpg = g.gtype === 'linked' ? posItemById(g.posGroupExt) : null;
+  const RULE_KEYS = ['min', 'max', 'maxSingle', 'freeCount'];
+
+  function ruleValue(k, v) {
+    if (k === 'max') return isNum(v) && v > 0 ? v : null;
+    if (k === 'maxSingle') return isNum(v) && v > 0 ? v : 1;
+    return isNum(v) && v > 0 ? v : 0;
+  }
+
+  function groupTypeOf(g) {
+    if (g.gtype === 'pos') return (posItem(g) || {}).groupType || (g.posRules || {}).groupType || 1;
+    if (g.gtype === 'linked') return (posItemById(g.posGroupExt) || {}).groupType || 1;
+    return g.type || 1;
+  }
+
+  function posRulesOf(g) {
+    const src = posItem(g) || {};
+    const r = g.posRules || {};
+    const pick = (a, b) => (a !== undefined ? a : b);
     return {
-      type: nvpg ? nvpg.groupType || 1 : g.type || 1,
-      min: g.min || 0,
-      max: isNum(g.max) ? g.max : null,
-      maxSingle: g.maxSingle || 1,
-      freeCount: g.freeCount || 0,
+      min: ruleValue('min', pick(src.min, r.min)),
+      max: ruleValue('max', pick(src.max, r.max)),
+      maxSingle: ruleValue('maxSingle', pick(src.maxSingle, r.maxSingle)),
+      freeCount: ruleValue('freeCount', pick(src.free, r.free)),
     };
+  }
+
+  function rulesOf(g) {
+    const type = groupTypeOf(g);
+    if (type !== 1) return { type, min: 1, max: 1, maxSingle: 1, freeCount: 0, fixed: true };
+    const base = g.gtype === 'pos' ? posRulesOf(g) : Object.fromEntries(RULE_KEYS.map((k) => [k, ruleValue(k, g[k])]));
+    const o = g.gtype === 'pos' ? g.ruleOverrides || {} : {};
+    const r = { type };
+    RULE_KEYS.forEach((k) => (r[k] = hasOwn(o, k) ? ruleValue(k, o[k]) : base[k]));
+    if (g.isSubstitutionContainer) Object.assign(r, { min: 0, max: null, freeCount: 0 });
+    return r;
+  }
+
+  function rawRule(g, k) {
+    if (g.gtype !== 'pos') return g[k];
+    return hasOwn(g.ruleOverrides, k) ? g.ruleOverrides[k] : posRulesOf(g)[k];
+  }
+
+  function ruleErrors(g) {
+    const raw = Object.fromEntries(RULE_KEYS.map((k) => [k, rawRule(g, k)]));
+    const bad = (v, lo) => isNum(v) && (!Number.isInteger(v) || v < lo || v > QTY_MAX);
+    const r = rulesOf(g);
+    const e = {
+      min: bad(raw.min, 0) ? `Enter a whole number from 0 to ${QTY_MAX}` : '',
+      max: bad(raw.max, 1) ? `Enter a whole number from 1 to ${QTY_MAX}, or leave it empty for no limit` : '',
+      maxSingle: bad(raw.maxSingle, 1) ? `Enter a whole number from 1 to ${QTY_MAX}` : '',
+      freeCount: bad(raw.freeCount, 0) ? `Enter a whole number from 0 to ${QTY_MAX}` : '',
+    };
+    if (!e.min && !e.max && r.max != null && r.min > r.max) e.max = 'Maximum needs to be at least the minimum';
+    if (!e.maxSingle && !e.max && r.max != null && r.maxSingle > r.max) e.maxSingle = 'Per option cannot be higher than the maximum';
+    return e;
+  }
+
+  const ruleOverridden = (g) => g.gtype === 'pos' && RULE_KEYS.some((k) => hasOwn(g.ruleOverrides, k));
+
+  function optionMaxError(v, groupMax) {
+    if (!isNum(v)) return '';
+    if (!Number.isInteger(v) || v < 1 || v > QTY_MAX) return `Enter a whole number from 1 to ${QTY_MAX}`;
+    return groupMax != null && v > groupMax ? `Cannot be higher than the group maximum of ${groupMax}` : '';
+  }
+
+  function optionMaxOf(g, pid, r = rulesOf(g)) {
+    const s = g.optionSettings && g.optionSettings[pid];
+    return r.type === 1 && s && isNum(s.maxQty) ? s.maxQty : r.maxSingle;
+  }
+
+  function optionName(g, pid) {
+    const s = g && g.optionSettings && g.optionSettings[pid];
+    return (s && s.name && s.name.trim()) || nameOf('product', entity('product', pid));
+  }
+
+  const groupHiddenCodes = (g, pid) => (g && g.optionSettings && g.optionSettings[pid] && g.optionSettings[pid].hiddenCodes) || [];
+
+  const groupParents = (gid) => Object.values(S.data.entities.product).filter((p) => p.children.includes(gid));
+
+  function siblingPosGroups(g) {
+    const out = new Set([g.id]);
+    groupParents(g.id).forEach((p) =>
+      p.children.forEach((gid) => {
+        const x = entity('group', gid);
+        if (x && x.gtype === 'pos') out.add(gid);
+      }),
+    );
+    return [...out].map((gid) => entity('group', gid));
+  }
+
+  function substitutesAt(p, gid, pid) {
+    const key = `${gid}:${pid}`;
+    if (hasOwn(p.substitutes, key)) return { ids: p.substitutes[key], own: true };
+    const g = entity('group', gid);
+    return { ids: (g && g.swaps && g.swaps[pid]) || [], own: false };
+  }
+
+  const halvesSupported = (g) => !!g && g.gtype === 'pos' && !g.isSubstitutionContainer && rulesOf(g).type === 1;
+
+  function halvesAt(p, gid, pid) {
+    const key = `${gid}:${pid}`;
+    if (hasOwn(p.halfWhole, key)) return { h: p.halfWhole[key], own: true };
+    const g = entity('group', gid);
+    return { h: (halvesSupported(g) && g.halves[pid]) || {}, own: false };
   }
 
   function priceSource(path) {
@@ -1319,8 +1490,7 @@
         else if (isNum(ent.minQty) && isNum(ent.maxQty) && ent.maxQty < ent.minQty) pAdd('error', `${name}: maximum quantity is lower than the minimum`, 'ordering');
         if (ent.isAlcoholic && !isNum(ent.alcoholVol)) pAdd('warning', `${name}: alcohol percentage is missing`, 'dietary');
         if (rangeError(ent.caloriesFrom, ent.caloriesTo) || rangeError(ent.servingFrom, ent.servingTo, 1)) pAdd('error', `${name}: fix the calories or serves range`, 'dietary');
-        const pl = placement(path);
-        if (ent.isModifierCodeRequired && ent.modifierCodes.length && (pl.hiddenCodes || []).length >= ent.modifierCodes.length)
+        if (ent.isModifierCodeRequired && ent.modifierCodes.length && ent.modifierCodes.every((c) => hiddenCodesAt(path).includes(c)))
           add(path, 'error', `${name}: a modifier code is required, but all codes are hidden here`, undefined, 'ordering');
         if (ent.upsell.products.length && !ent.upsell.title.trim()) pAdd('error', `${name}: add an upsell title`, 'ordering');
         if (ent.included.length && !ent.includedName.trim()) pAdd('error', `${name}: add a name for the included ingredients`, 'ordering');
@@ -1347,16 +1517,36 @@
       }
       if (kind === 'group') {
         const r = rulesOf(ent);
+        const label = name || 'Group';
+        const gAdd = (level, text, tab, dedupe = key) => add(path, level, text, dedupe, tab);
         const count = ent.children.length;
         const max = limitOf(r.max);
-        const posHint = ent.gtype === 'pos' ? ' Check the group settings in POS' : '';
-        if (max != null && r.min > max) add(path, 'error', `${name}: minimum is higher than the maximum.${posHint}`, key);
-        else if (!count) add(path, r.min > 0 || r.type === 3 ? 'error' : 'warning', `${name} has no products. Add at least one`, key);
-        else if (r.min > count * Math.max(1, r.maxSingle))
-          add(path, 'error', `${name} needs at least ${r.min} choices, but has only ${plural(count, 'option', 'options')}`, key);
-        if (max != null && r.freeCount > max) add(path, 'warning', `${name}: more free choices than the maximum`, key);
-        const pre = ent.children.reduce((s, pid) => s + preselectedAt(childPath(path, 'product', pid)), 0);
-        if (max != null && pre > max) add(path, 'error', `${name}: ${pre} options preselected, but the maximum is ${max}`);
+        if (!(ent.name || '').trim()) gAdd('error', 'Add a group name', 'general');
+        if ((ent.name || '').length > TEXT_LIMIT) gAdd('error', `${label}: name is longer than ${TEXT_LIMIT} characters`, 'general');
+        if ((ent.internalName || '').length > TEXT_LIMIT) gAdd('error', `${label}: internal name is longer than ${TEXT_LIMIT} characters`, 'general');
+        if ((ent.reportingId || '').length > TEXT_LIMIT) gAdd('error', `${label}: external ID is longer than ${TEXT_LIMIT} characters`, 'general');
+        if (ent.gtype === 'linked' && !posItemById(ent.posGroupExt)) gAdd('error', `${label}: its POS group was deleted on POS. Link it to another group, or unlink it`, 'general');
+        const ruleErr = !r.fixed && !ent.isSubstitutionContainer && Object.values(ruleErrors(ent)).find(Boolean);
+        if (ruleErr) gAdd('error', `${label}: ${lcFirst(ruleErr)}`, 'options');
+        else if (!count) gAdd(r.min > 0 || r.type === 3 ? 'error' : 'warning', `${label} has no products. Add at least one`, 'options');
+        else if (r.min > ent.children.reduce((s, pid) => s + optionMaxOf(ent, pid, r), 0))
+          gAdd('error', `${label} needs at least ${r.min} choices, but has only ${plural(count, 'option', 'options')}`, 'options');
+        if (!ruleErr && max != null && r.freeCount > max) gAdd('warning', `${label}: more free choices than the maximum`, 'options');
+        if (Object.values(ent.optionSettings).some((s) => isNum(s.maxQty) && optionMaxError(s.maxQty, null))) gAdd('error', `${label}: an option maximum is not a whole number from 1 to ${QTY_MAX}`, 'options');
+        else if (max != null && ent.children.some((pid) => optionMaxOf(ent, pid, r) > max)) gAdd('error', `${label}: an option allows more than the group maximum of ${max}`, 'options');
+        if (Object.values(ent.optionSettings).some((s) => lengthError(s.name))) gAdd('error', `${label}: an option name is longer than ${TEXT_LIMIT} characters`, 'options');
+        if (ent.sections.some((s) => !s.name.trim())) gAdd('error', `${label}: add a name to each option section`, 'options');
+        else if (ent.sections.some((s) => lengthError(s.name))) gAdd('error', `${label}: a section name is longer than ${TEXT_LIMIT} characters`, 'options');
+        const preAt = (pid) => preselectedAt(childPath(path, 'product', pid));
+        const pre = ent.children.reduce((s, pid) => s + preAt(pid), 0);
+        if (ent.children.some((pid) => preAt(pid) > optionMaxOf(ent, pid, r))) gAdd('error', `${label}: an option is preselected more times than it can be picked`, 'options', null);
+        else if (max != null && pre > max) gAdd('error', `${label}: ${pre} options preselected, but the maximum is ${max}`, 'options', null);
+        if (r.type === 2 && count && pre !== 1) gAdd('error', `${label}: preselect exactly one ${isChoiceGroup(ent) ? 'product' : 'size'}`, 'options', null);
+        if (placement(path).hidden && r.min > 0)
+          gAdd('error', r.fixed ? `${label} always needs a choice, so it cannot be hidden here. Show it` : `${label} is required, so it cannot be hidden here. Show it, or set the minimum to 0`, 'advanced', null);
+        if (halvesSupported(ent) && Object.values(ent.halves).some((h) => !h.left !== !h.right)) gAdd('warning', `${label}: some toppings have only one half set`, 'halves');
+        if (ent.metadata.some((t) => !t.key.trim() || !t.value.trim())) gAdd('error', `${label}: each metadata tag needs a key and a value`, 'advanced');
+        else if (ent.metadata.some((t) => lengthError(t.key) || lengthError(t.value))) gAdd('error', `${label}: a metadata tag is longer than ${TEXT_LIMIT} characters`, 'advanced');
       }
     });
 
@@ -1380,7 +1570,29 @@
     return !!(posG && posG.autoAdded && posG.autoAdded.includes(ent.externalId));
   }
 
-  const preselectedAt = (path) => Math.max(placement(path).preselected || 0, isAutoAdded(path) ? 1 : 0);
+  function groupOfOption(path) {
+    const info = parsePath(path);
+    if (info.kind !== 'product' || !info.parentPath) return null;
+    const pi = parsePath(info.parentPath);
+    return pi.kind === 'group' ? entity('group', pi.id) : null;
+  }
+
+  function hiddenCodesAt(path) {
+    const g = groupOfOption(path);
+    return [...new Set([...groupHiddenCodes(g, parsePath(path).id), ...(placement(path).hiddenCodes || [])])];
+  }
+
+  const preselectOverridden = (path) => {
+    const g = groupOfOption(path);
+    return !!g && rulesOf(g).type === 1 && isNum(placement(path).preselected);
+  };
+
+  function preselectedAt(path) {
+    const pl = placement(path);
+    const g = groupOfOption(path);
+    const own = g ? (preselectOverridden(path) ? pl.preselected : g.preselected[parsePath(path).id] || 0) : pl.preselected || 0;
+    return Math.max(own, isAutoAdded(path) ? 1 : 0);
+  }
 
   function childOnCanvas(kind, path, ent, cid) {
     const ck = CHILD_KIND[kind];
@@ -1652,7 +1864,7 @@
 
   function createChoiceProduct(categoryPath) {
     commit(() => {
-      const g = newGroup({ gtype: 'standalone', role: 'choice', name: 'Choose one', min: 1, max: 1 });
+      const g = newGroup({ gtype: 'standalone', role: 'choice', type: 2, name: 'Choose one', min: 1, max: 1 });
       S.data.entities.group[g.id] = g;
       const np = insertNew(categoryPath, 'product', newProduct({ ptype: 'size', name: 'New choice product', children: [g.id] }));
       S.ui.expanded[childPath(np, 'group', g.id)] = true;
@@ -1787,8 +1999,8 @@
   }
 
   function openSubstitutePicker(p, key) {
-    const [, originId] = key.split(':');
-    const chosen = p.substitutes[key] || [];
+    const [gid, originId] = key.split(':');
+    const chosen = substitutesAt(p, gid, originId).ids;
     const seen = new Set([originId, p.id, ...chosen]);
     const items = productOptions(p)
       .filter((o) => !seen.has(o.pid) && seen.add(o.pid))
@@ -1798,7 +2010,20 @@
       intro: `Options from the groups of ${nameOf('product', p)}.`,
       items,
       empty: 'Every option is already a substitute',
-      onAdd: (pid) => (p.substitutes[key] = [...(p.substitutes[key] || []), pid]),
+      onAdd: (pid) => (p.substitutes[key] = [...substitutesAt(p, gid, originId).ids, pid]),
+    });
+  }
+
+  function openGroupSwapPicker(g, originId) {
+    const chosen = new Set([originId, ...(g.swaps[originId] || [])]);
+    openListPicker({
+      title: `Add substitutes for ${optionName(g, originId)}`,
+      intro: `Options in ${nameOf('group', g)}. To offer an option from another group, add the substitute on the product instead.`,
+      items: g.children
+        .filter((pid) => !chosen.has(pid) && entity('product', pid) && entity('product', pid).ptype !== 'container')
+        .map((pid) => ({ id: pid, name: optionName(g, pid), alt: entity('product', pid).internalName || '', meta: '', price: '' })),
+      empty: `Every option in ${nameOf('group', g)} is already a substitute`,
+      onAdd: (pid) => (g.swaps[originId] = [...(g.swaps[originId] || []), pid]),
     });
   }
 
@@ -1836,18 +2061,20 @@
     });
   }
 
-  function toggleProductPlace(p, kind, id) {
+  const toggleProductPlace = (p, kind, id) => togglePlace('product', p, kind, id);
+
+  function togglePlace(childKind, child, kind, id) {
     const parent = entity(kind, id);
     const name = nameOf(kind, parent);
-    if (!parent.children.includes(p.id)) {
-      commit(() => parent.children.push(p.id));
+    if (!parent.children.includes(child.id)) {
+      commit(() => parent.children.push(child.id));
       toast(`Added to ${name}`, 'success', { action: { label: 'Undo', onClick: undo } });
       return;
     }
-    const seg = `${SEG[kind]}:${id}>p:${p.id}`;
+    const seg = `${SEG[kind]}:${id}>${SEG[childKind]}:${child.id}`;
     const inSeg = (k) => k.endsWith(`>${seg}`) || k.includes(`>${seg}>`);
     commit(() => {
-      parent.children = parent.children.filter((c) => c !== p.id);
+      parent.children = parent.children.filter((c) => c !== child.id);
       for (const k of Object.keys(S.data.placements)) if (inSeg(k)) delete S.data.placements[k];
       if (inSeg(S.ui.selected)) {
         const at = S.ui.selected.indexOf(`>${seg}`);
@@ -1855,6 +2082,133 @@
       }
     });
     toast(`Removed from ${name}`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function dropOptions(g, pids) {
+    if (!pids.length) return;
+    const segs = pids.map((pid) => `g:${g.id}>p:${pid}`);
+    const hit = (k) => segs.some((s) => k.endsWith(`>${s}`) || k.includes(`>${s}>`));
+    g.children = g.children.filter((pid) => !pids.includes(pid));
+    for (const k of Object.keys(S.data.placements)) if (hit(k)) delete S.data.placements[k];
+    if (hit(S.ui.selected)) S.ui.selected = S.ui.selected.slice(0, S.ui.selected.indexOf(`>g:${g.id}>`) + `>g:${g.id}`.length);
+  }
+
+  function posGroupChoices(g) {
+    const own = new Set(groupParents(g.id).flatMap((p) => posChildren(posIdOf('product', p))));
+    return Object.entries(S.data.pos.items)
+      .filter(([id, it]) => it.type === 'group' && id !== g.posGroupExt)
+      .sort(([a], [b]) => own.has(b) - own.has(a))
+      .map(([id, it]) => ({
+        id,
+        name: posLabel(id),
+        alt: it.name,
+        meta: `${C.groupTypes[it.groupType || 1].label} · ${plural((it.children || []).length, 'option', 'options')} · ${id}`,
+        price: own.has(id) ? 'On this product' : '',
+      }));
+  }
+
+  function openGroupLinkPicker(g) {
+    const changing = g.gtype === 'linked';
+    openPicker({
+      title: changing ? 'Change the linked POS group' : 'Link to a POS group',
+      intro: 'Choices then ring up on POS as options of this group, at its POS prices. Options that are not in the POS group are removed.',
+      placeholder: 'Search by group name or POS ID',
+      items: posGroupChoices(g),
+      noMatch: ['No matching POS groups', 'Try a different name or POS ID.'],
+      onPick: (posId) => {
+        closeModal(true);
+        linkGroup(g, posId);
+      },
+    });
+  }
+
+  function linkGroup(g, posId) {
+    const allowed = posChildren(posId);
+    const dropped = g.children.filter((pid) => {
+      const x = entity('product', pid);
+      return !x || (x.ptype !== 'container' && !(x.source === 'pos' && allowed.includes(x.externalId)));
+    });
+    const apply = () => {
+      commit(() => {
+        g.gtype = 'linked';
+        g.posGroupExt = posId;
+        delete g.role;
+        dropOptions(g, dropped);
+      });
+      toast(`Linked to ${posLabel(posId)}`, 'success', { action: { label: 'Undo', onClick: undo } });
+    };
+    if (!dropped.length) return apply();
+    openModal({
+      title: `Link to ${posLabel(posId)}?`,
+      body: `<p>${plural(dropped.length, 'option is', 'options are')} not in ${esc(posLabel(posId))} on POS, so ${dropped.length === 1 ? 'it is' : 'they are'} removed from this group: ${esc(listJoin(dropped.map((pid) => nameOf('product', entity('product', pid)))))}.</p>`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        { label: 'Link group', kind: 'primary', onClick: () => { closeModal(); apply(); } },
+      ],
+    });
+  }
+
+  function unlinkGroup(g) {
+    const was = posLabel(g.posGroupExt);
+    const dropped = g.children.filter((pid) => {
+      const x = entity('product', pid);
+      return x && x.source === 'pos' && !posCategoriesOf(x.externalId).length;
+    });
+    openModal({
+      title: `Unlink from ${was}?`,
+      body: `<p>It becomes an add-on group. Each choice is then added to the order as its own item, at its own POS price.</p>
+        ${dropped.length ? `<p>${plural(dropped.length, 'option is', 'options are')} sold only as options on POS, so ${dropped.length === 1 ? 'it is' : 'they are'} removed: ${esc(listJoin(dropped.map((pid) => nameOf('product', entity('product', pid)))))}.</p>` : ''}`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        {
+          label: 'Unlink group',
+          kind: 'primary',
+          onClick: () => {
+            closeModal();
+            commit(() => {
+              g.gtype = 'standalone';
+              g.posGroupExt = null;
+              g.type = 1;
+              dropOptions(g, dropped);
+            });
+            toast(`Unlinked from ${was}`, 'success', { action: { label: 'Undo', onClick: undo } });
+          },
+        },
+      ],
+    });
+  }
+
+  function confirmDeleteGroup(g, path) {
+    const parents = groupParents(g.id);
+    openModal({
+      title: `Delete ${nameOf('group', g)}?`,
+      body: `<ul class="modal-list">
+          <li>It is removed from ${parents.length > 1 ? `${parents.length} products: ` : ''}${esc(listJoin(parents.map((p) => nameOf('product', p))))}, with its settings there.</li>
+          <li>Its options are not deleted.</li>
+          <li>${g.source === 'pos' ? 'It stays on POS. You can add it back from POS items.' : 'It exists only in this menu builder, so nothing changes on POS.'}</li>
+        </ul>
+        ${parents.length > 1 ? '<button type="button" class="check-toggle" role="checkbox" aria-checked="false" data-action="delete-ack"><span class="check" aria-hidden="true"></span>Yes, I understand</button>' : ''}`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        {
+          label: 'Delete group',
+          kind: 'danger',
+          onClick: () => {
+            closeModal();
+            commit(() => {
+              parents.forEach((p) => (p.children = p.children.filter((c) => c !== g.id)));
+              for (const k of Object.keys(S.data.placements)) if (k.split('>').includes(`g:${g.id}`)) delete S.data.placements[k];
+              delete S.data.entities.group[g.id];
+              S.ui.selected = parsePath(path).parentPath;
+            });
+            toast('Group deleted', 'success', { action: { label: 'Undo', onClick: undo } });
+          },
+        },
+      ],
+    });
+    if (parents.length < 2) return;
+    $('#modal-root .modal-foot .btn.danger').disabled = true;
+    $('#modal-root [data-action="delete-ack"]').focus({ preventScroll: true });
   }
 
   function createVirtualGroup(productPath, mode, posGroupId) {
@@ -2266,7 +2620,7 @@
           is_modifier_code_required: e.isModifierCodeRequired,
           modifier_codes: e.modifierCodes,
           preselected_modifier_code: e.preselectedCode,
-          hidden_modifier_codes: pl.hiddenCodes || [],
+          hidden_modifier_codes: hiddenCodesAt(path),
           preselected_quantity: preselectedAt(path),
           nutrition_info: e.nutrition.active ? e.nutrition : null,
           prep_info: e.prep.active
@@ -2285,12 +2639,14 @@
           cross_sell: e.crossSell.map(productRef).filter(Boolean),
           included_ingredients: validIncluded(e).map((i) => ({ product_group_id: i.gid, product_id: i.pid, is_locked: !!i.locked })),
           included_ingredients_group_name: e.included.length ? e.includedName : null,
-          substitutes: Object.entries(e.substitutes)
-            .filter(([, ids]) => ids.length)
-            .map(([k, ids]) => ({ ...optionRef(k), substitutes: ids.map(productRef).filter(Boolean) })),
-          partial_variants: Object.entries(e.halfWhole)
-            .filter(([, h]) => h.left && h.right)
-            .map(([k, h]) => ({ ...optionRef(k), left: productRef(h.left), right: productRef(h.right) })),
+          substitutes: productOptions(e)
+            .map((o) => ({ ...optionRef(o.key), follows_product_group: !substitutesAt(e, o.gid, o.pid).own, ids: substitutesAt(e, o.gid, o.pid).ids }))
+            .filter((x) => x.ids.length || !x.follows_product_group)
+            .map(({ ids, ...x }) => ({ ...x, substitutes: ids.map(productRef).filter(Boolean) })),
+          partial_variants: productOptions(e, { modifierOnly: true })
+            .map((o) => ({ ...optionRef(o.key), follows_product_group: !halvesAt(e, o.gid, o.pid).own, h: halvesAt(e, o.gid, o.pid).h }))
+            .filter((x) => x.h.left && x.h.right)
+            .map(({ h, ...x }) => ({ ...x, left: productRef(h.left), right: productRef(h.right) })),
           sections: e.sections.map((s) => ({ id: s.id, name: s.name, product_group_ids: e.children.filter((gid) => sectionOf(e, gid) === s.id) })),
           venues: Object.fromEntries(
             Object.entries(e.stores).map(([sid, st]) => [
@@ -2302,8 +2658,13 @@
         });
       } else {
         const r = rulesOf(e);
+        const groupOf = (pid) => siblingPosGroups(e).find((x) => x.children.includes(pid));
+        const partRef = (pid) => (productRef(pid) ? { ...productRef(pid), product_group_id: (groupOf(pid) || {}).id || null } : null);
+        delete out.is_original_name_propagated;
         Object.assign(out, {
           type: r.type,
+          external_id: e.reportingId || null,
+          has_image: !!e.image,
           is_virtual_container: isVirtual(e),
           pos_parent_entity_id: e.gtype === 'linked' ? e.posGroupExt : null,
           min_quantity: r.min,
@@ -2311,6 +2672,26 @@
           max_single_quantity: r.maxSingle,
           free_count: r.freeCount,
           is_substitution_container: e.isSubstitutionContainer,
+          metadata: e.metadata,
+          product_settings: e.children.map((pid, i) => {
+            const s = e.optionSettings[pid] || {};
+            return {
+              product_id: pid,
+              position: i,
+              name: (s.name || '').trim() || null,
+              max_quantity: r.type === 1 && isNum(s.maxQty) ? s.maxQty : null,
+              preselected_quantity: e.preselected[pid] || 0,
+              hidden_modifier_codes: s.hiddenCodes || [],
+              section_id: sectionOfOption(e, pid),
+            };
+          }),
+          sections: e.sections.map((s) => ({ id: s.id, name: s.name, product_ids: e.children.filter((pid) => sectionOfOption(e, pid) === s.id) })),
+          substitution_templates: Object.entries(e.swaps).map(([pid, ids]) => ({ product_id: pid, substitutes: ids.map(productRef).filter(Boolean) })),
+          partial_variant_templates: halvesSupported(e)
+            ? Object.entries(e.halves)
+                .filter(([, h]) => h.left && h.right)
+                .map(([pid, h]) => ({ product_id: pid, left: partRef(h.left), right: partRef(h.right) }))
+            : [],
           products: kids('product'),
         });
       }
@@ -2852,7 +3233,8 @@
     const uses = (ctx.usage.get(`${kind}:${id}`) || []).length;
     const issues = ctx.issues.byPath.get(path) || [];
     const issueTone = issues.some((i) => i.level === 'error') ? 'error' : issues.length ? 'warning' : '';
-    const name = nameOf(kind, ent);
+    const ownerGroup = kind === 'product' && parentKind === 'group' ? entity('group', parsePath(info.parentPath).id) : null;
+    const name = ownerGroup ? optionName(ownerGroup, id) : nameOf(kind, ent);
 
     let meta = '';
     if (kind === 'category') {
@@ -2869,8 +3251,8 @@
       const rules = rulesOf(ent);
       const extra =
         ent.gtype === 'linked' ? ` · From ${posLabel(ent.posGroupExt)}` : ent.gtype === 'standalone' && !isChoiceGroup(ent) ? ' · Each one added as its own item' : '';
-      const tag = isChoiceGroup(ent) && rules.type !== 2 ? 'Choice' : C.groupTypes[rules.type].label;
-      meta = `<span class="type-tag type-${rules.type}">${tag}</span>${esc(groupRuleShort(rules) + extra)}`;
+      const tag = isChoiceGroup(ent) ? 'Choice' : C.groupTypes[rules.type].label;
+      meta = `<span class="type-tag type-${rules.type}">${tag}</span>${esc(ent.isSubstitutionContainer ? 'Substitutes only · Hidden from customers' : groupRuleShort(rules) + extra)}`;
     }
 
     const issueDot = issueTone ? `<span class="issue-dot tone-${issueTone}" title="${esc(issues.map((i) => i.text).join('\n'))}"></span>` : '';
@@ -2882,6 +3264,8 @@
     if (isMissingOnPos(ent)) badges.push(`<span class="badge tone-error">Deleted on POS</span>`);
     else if (removedFromPos(path)) badges.push(`<span class="badge tone-warning">Removed on POS</span>`);
     if (pl.hidden) badges.push(`<span class="badge" title="Hidden in this placement">${icon('eyeOff', 12)}Hidden</span>`);
+    if (ownerGroup && name !== nameOf('product', ent)) badges.push(`<span class="badge" title="Product name: ${esc(nameOf('product', ent))}">Renamed</span>`);
+    if (kind === 'group' && ruleOverridden(ent)) badges.push(`<span class="badge" title="Rules differ from POS">${icon('diff', 12)}Custom rules</span>`);
     if (kind === 'product') {
       const av = ent.availability;
       if (av && av.active)
@@ -3038,12 +3422,13 @@
       .join('')}</select>${icon('chevDown', 14)}</div>`;
   }
 
-  function stepper(bind, value, { min = 0, max = 99, label = 'quantity', disabled = false } = {}) {
+  function stepper(bind, value, { min = 0, max = 99, label = 'quantity', disabled = false, keepZero = false, start = null } = {}) {
     const v = value || 0;
+    const extra = `${keepZero ? ' data-keep-zero="1"' : ''}${start != null ? ` data-start="${start}"` : ''}`;
     return `<div class="stepper${disabled ? ' is-disabled' : ''}">
-      <button type="button" class="icon-btn sm" data-action="step" data-bind="${esc(bind)}" data-delta="-1" data-min="${min}" data-max="${max}" aria-label="Decrease ${label}" ${disabled || v <= min ? 'disabled' : ''}>${icon('minus', 14)}</button>
+      <button type="button" class="icon-btn sm" data-action="step" data-bind="${esc(bind)}" data-delta="-1" data-min="${min}" data-max="${max}"${extra} aria-label="Decrease ${label}" ${disabled || v <= min ? 'disabled' : ''}>${icon('minus', 14)}</button>
       <span class="stepper-value tnum">${v}</span>
-      <button type="button" class="icon-btn sm" data-action="step" data-bind="${esc(bind)}" data-delta="1" data-min="${min}" data-max="${max}" aria-label="Increase ${label}" ${disabled || v >= max ? 'disabled' : ''}>${icon('plus', 14)}</button>
+      <button type="button" class="icon-btn sm" data-action="step" data-bind="${esc(bind)}" data-delta="1" data-min="${min}" data-max="${max}"${extra} aria-label="Increase ${label}" ${disabled || v >= max ? 'disabled' : ''}>${icon('plus', 14)}</button>
     </div>`;
   }
 
@@ -3074,11 +3459,11 @@
     );
   }
 
-  function descriptionField(bind, value, id) {
+  function descriptionField(bind, value, id, note = '') {
     const len = (value || '').length;
     return field('Description', inputText(bind, value, { id, multiline: true, rows: 4 }), {
       id,
-      help: `<span class="tnum">${len} / ${DESC_LIMIT}</span>`,
+      help: `${note ? `${esc(note)} ` : ''}<span class="tnum">${len} / ${DESC_LIMIT}</span>`,
       error: len > DESC_LIMIT ? `Use ${DESC_LIMIT} characters or fewer` : '',
     });
   }
@@ -3148,11 +3533,17 @@
       ${storeResults(matchStores(), row, list)}`;
   }
 
-  function nameBlock(kind, ent, { error = '', help = '' } = {}) {
+  function nameBlock(kind, ent, { error = '', help = '', sync = true } = {}) {
     const bind = `e|${kind}|${ent.id}|name`;
     if (ent.source !== 'pos') return field('Name', inputText(bind, ent.name, { id: 'insp-name' }), { id: 'insp-name', error, help });
     const pos = posItem(ent);
     const posName = pos ? pos.name : ent.reviewed ? ent.reviewed.name : '';
+    if (!sync)
+      return field('Name', inputText(bind, ent.name, { id: 'insp-name' }), {
+        id: 'insp-name',
+        error,
+        help: `${help ? `${help} ` : ''}${ent.name === posName ? 'Same as the POS name.' : `POS name: ${esc(posName)}. POS keeps its own name.`}`,
+      });
     const control = ent.syncName
       ? `<div class="input is-readonly" id="insp-name-ro">${esc(nameOf(kind, ent))}${icon('lock', 13)}</div>`
       : inputText(bind, ent.name, { id: 'insp-name' });
@@ -3237,7 +3628,12 @@
   function tabsFor(kind, ent) {
     if (kind === 'menu') return [['general', 'General'], ['ordering', 'Ordering'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
     if (kind === 'category') return [['general', 'General'], ['images', 'Images'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
-    if (kind === 'group') return [['general', 'General'], ['rules', 'Rules'], ['options', 'Options'], ['advanced', 'Advanced']];
+    if (kind === 'group') {
+      const tabs = [['general', 'General'], ['options', 'Options']];
+      if (!isChoiceGroup(ent) && !ent.isSubstitutionContainer) tabs.push(['substitutes', 'Substitutes']);
+      if (halvesSupported(ent)) tabs.push(['halves', 'Half and whole']);
+      return [...tabs, ['advanced', 'Advanced']];
+    }
     return [['general', 'General'], ['dietary', 'Dietary'], ['ordering', 'Ordering'], ['availability', 'Availability'], ['advanced', 'Advanced']];
   }
 
@@ -3292,6 +3688,18 @@
     $('#inspector-tabs').innerHTML = `<div class="tabs" role="tablist">${tabs
       .map(([id, label]) => `<button type="button" role="tab" class="tab" aria-selected="${id === tab}" data-action="tab" data-kind="${kind}" data-tab="${id}">${label}</button>`)
       .join('')}</div>`;
+    const tabBar = $('#inspector-tabs .tabs');
+    const tabFade = () => {
+      tabBar.classList.toggle('fade-start', tabBar.scrollLeft > 1);
+      tabBar.classList.toggle('fade-end', tabBar.scrollLeft + tabBar.clientWidth < tabBar.scrollWidth - 1);
+    };
+    const selTab = tabBar.querySelector('[aria-selected="true"]');
+    if (selTab) {
+      const over = selTab.getBoundingClientRect().right - tabBar.getBoundingClientRect().right;
+      if (over > 0) tabBar.scrollLeft += over + 16;
+    }
+    tabFade();
+    tabBar.addEventListener('scroll', tabFade, { passive: true });
 
     const key = `${path}|${tab}`;
     if (T.storeKey !== key) {
@@ -3899,11 +4307,16 @@
     );
   }
 
+  function followNote(g, own, { customize, reset, key }) {
+    if (own) return `<p class="field-help">Set for this product only. <button type="button" class="link-btn" data-action="${reset}" data-key="${esc(key)}">Use the ${esc(nameOf('group', g))} setting</button></p>`;
+    return `<p class="field-help">Follows ${esc(nameOf('group', g))}. <button type="button" class="link-btn" data-action="${customize}" data-key="${esc(key)}">Change for this product</button></p>`;
+  }
+
   function substitutesSection(p) {
     const opts = productOptions(p);
     if (!opts.length) return section('Substitutes', '<p class="field-help">Add a group with options to this product first.</p>');
     const pb = productBind(p);
-    const subsOf = (o) => (p.substitutes[o.key] || []).filter((id) => entity('product', id));
+    const subsOf = (o) => substitutesAt(p, o.gid, o.pid).ids.filter((id) => entity('product', id));
     const cards = groupCards(
       p,
       opts,
@@ -3914,18 +4327,27 @@
       },
       (o) => {
         const subs = subsOf(o);
+        const { own } = substitutesAt(p, o.gid, o.pid);
+        const fromGroup = (o.g.swaps[o.pid] || []).length > 0;
+        const locked = fromGroup && !own;
+        const chipsHtml = subs
+          .map((sid, i) => {
+            const n = nameOf('product', entity('product', sid));
+            return locked
+              ? `<span class="chip is-on">${esc(n)}</span>`
+              : `<button type="button" class="chip is-on has-remove" data-action="arr-remove" data-bind="${esc(pb(`substitutes.${o.key}`))}" data-index="${i}" aria-label="Remove ${esc(n)}" title="Remove">${esc(n)}${icon('x', 12)}</button>`;
+          })
+          .join('');
         return `<div class="opt-sub-row">
-          <span class="opt-sub-name">${esc(nameOf('product', o.x))}</span>
-          <div class="chips">${subs
-            .map((sid) => {
-              const n = nameOf('product', entity('product', sid));
-              return `<button type="button" class="chip is-on has-remove" data-action="arr-remove" data-bind="${esc(pb(`substitutes.${o.key}`))}" data-index="${subs.indexOf(sid)}" aria-label="Remove ${esc(n)}" title="Remove">${esc(n)}${icon('x', 12)}</button>`;
-            })
-            .join('')}<button type="button" class="chip" data-action="add-substitute" data-key="${esc(o.key)}">${icon('plus', 12)}Add</button></div>
+          <span class="opt-sub-name">${esc(optionName(o.g, o.pid))}</span>
+          <div class="chips">${chipsHtml}${locked ? '' : `<button type="button" class="chip" data-action="add-substitute" data-key="${esc(o.key)}">${icon('plus', 12)}Add</button>`}</div>
+          ${fromGroup ? followNote(o.g, own, { customize: 'sub-customize', reset: 'sub-reset', key: o.key }) : ''}
         </div>`;
       },
     );
-    return section('Substitutes', `<div class="opt-cards">${cards}</div>`, { desc: 'Let customers swap an option for another, like fries for a salad.' });
+    return section('Substitutes', `<div class="opt-cards">${cards}</div>`, {
+      desc: 'Let customers swap an option for another, like fries for a salad. Substitutes set on a group apply here unless you change them for this product.',
+    });
   }
 
   function halfWholeSection(p) {
@@ -3939,24 +4361,30 @@
       opts,
       'half',
       (list) => {
-        const n = list.filter((o) => (p.halfWhole[o.key] || {}).left && (p.halfWhole[o.key] || {}).right).length;
+        const n = list.filter((o) => halvesAt(p, o.gid, o.pid).h.left && halvesAt(p, o.gid, o.pid).h.right).length;
         return n ? `${n} of ${list.length} with halves` : plural(list.length, 'option', 'options');
       },
       (o) => {
-        const h = p.halfWhole[o.key] || {};
-        const name = nameOf('product', o.x);
+        const { h, own } = halvesAt(p, o.gid, o.pid);
+        const name = optionName(o.g, o.pid);
+        const fromGroup = halvesSupported(o.g) && !!o.g.halves[o.pid];
+        const locked = fromGroup && !own;
         const choices = [['', 'Not added'], ...pool.filter((c) => c.pid !== o.pid).map((c) => [c.pid, nameOf('product', c.x)])];
+        const pick = (side, label) =>
+          locked
+            ? field(label, `<div class="input is-readonly">${esc(h[side] ? nameOf('product', entity('product', h[side])) : 'Not added')}</div>`)
+            : field(label, selectInput(pb(`halfWhole.${o.key}.${side}`), h[side] || '', choices, { label: `${label} of ${name}` }));
         return `<div class="opt-sub-row">
           <span class="opt-sub-name">${esc(name)}</span>
-          <div class="grid-2">
-            ${field('Left half', selectInput(pb(`halfWhole.${o.key}.left`), h.left || '', choices, { label: `Left half of ${name}` }))}
-            ${field('Right half', selectInput(pb(`halfWhole.${o.key}.right`), h.right || '', choices, { label: `Right half of ${name}` }))}
-          </div>
-          ${!h.left !== !h.right ? slotError('Add both halves, or remove both') : ''}
+          <div class="grid-2">${pick('left', 'Left half')}${pick('right', 'Right half')}</div>
+          ${!locked && !h.left !== !h.right ? slotError('Add both halves, or remove both') : ''}
+          ${fromGroup ? followNote(o.g, own, { customize: 'half-customize', reset: 'half-reset', key: o.key }) : ''}
         </div>`;
       },
     );
-    return section('Half and whole', `<div class="opt-cards">${cards}</div>`, { desc: 'Let customers put a topping on the left half, the right half, or the whole product.' });
+    return section('Half and whole', `<div class="opt-cards">${cards}</div>`, {
+      desc: 'Let customers put a topping on the left half, the right half, or the whole product. Halves set on a POS group apply here unless you change them for this product.',
+    });
   }
 
   function upsellSection(p) {
@@ -4049,24 +4477,45 @@
       let html = '';
       if (inGroup && p.ptype !== 'container') {
         const auto = isAutoAdded(path);
-        const enabled = C.modifierCodes.filter(([v]) => p.modifierCodes.includes(v));
+        const groupHidden = groupHiddenCodes(parentEnt, p.id);
+        const enabled = C.modifierCodes.filter(([v]) => p.modifierCodes.includes(v) && !groupHidden.includes(v));
         const pr = rulesOf(parentEnt);
+        const groupPre = parentEnt.preselected[p.id] || 0;
+        const overridden = preselectOverridden(path);
+        const optMax = optionMaxOf(parentEnt, p.id, pr);
+        let preField;
+        if (auto) preField = field('Preselected', stepper(`pl|${path}|preselected`, 1, { label: 'preselected quantity', disabled: true }), { pos: true, help: 'POS adds this option automatically, so it’s always preselected.' });
+        else if (pr.type !== 1) {
+          const rule = isChoiceGroup(parentEnt) ? 'Choice groups preselect one product' : pr.type === 2 ? 'Size groups preselect one option' : 'Combo groups preselect one option at most';
+          preField = field('Preselected', `<p class="field-help">${groupPre ? 'Yes' : 'No'}. ${rule} everywhere they are used. Choose it on the Options tab of ${esc(parentName)}.</p>`);
+        }
+        else
+          preField = field('Preselected', stepper(`pl|${path}|preselected`, preselectedAt(path), { max: optMax, label: 'preselected quantity', keepZero: true, start: groupPre }), {
+            scope: here,
+            help: overridden
+              ? `${esc(parentName)} preselects ${groupPre} in other places. <button type="button" class="link-btn" data-action="pre-reset" data-path="${esc(path)}">Use the same here</button>`
+              : `Follows ${esc(parentName)}. A change here applies only to this place.`,
+          });
         html += section(
           `In ${parentName}`,
-          field('Preselected', stepper(`pl|${path}|preselected`, preselectedAt(path), { max: Math.max(1, pr.maxSingle), label: 'preselected quantity', disabled: auto }), {
-            scope: auto ? '' : here,
-            pos: auto,
-            help: auto ? 'POS adds this option automatically, so it’s always preselected.' : 'Selected by default when customers open the product. They can still change it.',
-          }) +
+          preField +
+            field('Name in this group', inputText(`e|group|${parentEnt.id}|optionSettings.${p.id}.name`, (parentEnt.optionSettings[p.id] || {}).name, { id: 'p-grp-name', placeholder: nameOf('product', p) }), {
+              id: 'p-grp-name',
+              error: lengthError((parentEnt.optionSettings[p.id] || {}).name),
+              help: `Customers see this name in ${esc(parentName)}, everywhere it’s used. Leave it empty to use the product name.`,
+            }) +
             (enabled.length
               ? field('Modifier codes shown', chips(`pl|${path}|hiddenCodes`, pl.hiddenCodes || [], enabled, { invert: true }), {
                   scope: here,
+                  help: groupHidden.length ? `Hidden in ${esc(parentName)} everywhere: ${esc(listJoin(groupHidden.map((c) => (C.modifierCodes.find((x) => x[0] === c) || [c, c])[1])))}.` : '',
                   error:
-                    p.isModifierCodeRequired && (pl.hiddenCodes || []).length >= enabled.length
+                    p.isModifierCodeRequired && p.modifierCodes.every((c) => hiddenCodesAt(path).includes(c))
                       ? 'A code is required, so keep at least one visible'
                       : '',
                 })
-              : ''),
+              : groupHidden.length && p.modifierCodes.length
+                ? field('Modifier codes shown', `<p class="field-help">None. All codes are hidden in ${esc(parentName)}.</p>`)
+                : ''),
         );
       }
       html += quantitySection(p);
@@ -4285,10 +4734,9 @@
     });
   }
 
-  function metadataSection(p) {
-    const pb = productBind(p);
-    const base = pb('metadata');
-    const all = Object.values(S.data.entities.product).flatMap((x) => x.metadata || []);
+  function metadataSection(p, kind = 'product') {
+    const base = `e|${kind}|${p.id}|metadata`;
+    const all = [...Object.values(S.data.entities.product), ...Object.values(S.data.entities.group)].flatMap((x) => x.metadata || []);
     const keys = [...new Set([...C.tags.map((t) => t.key), ...all.map((t) => t.key).filter(Boolean)])];
     const draft = T.tagDraft && T.tagDraft.base === base ? T.tagDraft : null;
     const draftKey = draft ? draft.key.trim() : '';
@@ -4332,7 +4780,11 @@
       `<datalist id="tag-keys">${keys.map((k) => `<option value="${esc(k)}"></option>`).join('')}</datalist>
        <datalist id="tag-values">${values.map((v) => `<option value="${esc(v)}"></option>`).join('')}</datalist>
        ${rows ? `<div class="segment-list">${rows}</div>` : ''}${form}`,
-      { desc: p.metadata.length ? 'Integrations read these tags. A Badge tag also shows on the canvas.' : 'Pass extra details to integrations, like a badge or a spice level.' },
+      {
+        desc: p.metadata.length
+          ? `Integrations read these tags.${kind === 'product' ? ' A Badge tag also shows on the canvas.' : ''}`
+          : `Pass extra details to integrations, like ${kind === 'product' ? 'a badge or a spice level' : 'a display style'}.`,
+      },
     );
   }
 
@@ -4364,52 +4816,63 @@
     const here = crumbText(path);
     const rules = rulesOf(g);
     const fromPos = g.gtype === 'pos';
+    const choice = isChoiceGroup(g);
     if (tab === 'general') {
       const t = C.groupTypes[rules.type];
-      return section(
-        '',
-        nameBlock('group', g) +
-          field('Internal name', inputText(gb('internalName'), g.internalName, { id: 'g-int' }), { id: 'g-int', help: 'Only your team sees this.' }) +
-          descriptionField(gb('description'), g.description, 'g-desc') +
-          field('Type', `<div class="type-display"><span class="type-tag type-${rules.type}">${t.label}</span><span>${esc(t.help)}</span></div>`, {
-            help: fromPos || g.gtype === 'linked' ? `${icon('lock', 12)} Set by the POS group.` : `${icon('lock', 12)} Type cannot be changed after the group is created.`,
-          }),
-      );
-    }
-    if (tab === 'rules') {
-      const max = limitOf(rules.max);
-      const mmErr = max != null && rules.min > max ? 'Maximum needs to be at least the minimum' : '';
-      const cells = [
-        ['Minimum', rules.min, '0 makes the group optional.', 'min', 'g-min', 0],
-        ['Maximum', rules.max, 'Empty means no limit.', 'max', 'g-max', 1],
-        ['Per option', rules.maxSingle, 'Times the same option can be picked.', 'maxSingle', 'g-single', 1],
-        ['Free choices', rules.freeCount, 'Included in the price.', 'freeCount', 'g-free', 0],
-      ];
-      const grid = fromPos
-        ? `<div class="rule-grid">${cells
-            .map(([l, v]) => `<div class="rule-cell"><span class="rule-label">${l}</span><span class="rule-value tnum">${isNum(v) && (l !== 'Maximum' || v > 0) ? v : l === 'Maximum' ? 'No limit' : '0'}</span></div>`)
-            .join('')}</div>
-           <p class="field-help">${icon('lock', 12)} Set on POS. To change these rules, update the group on POS.</p>`
-        : `<div class="grid-2">${cells
-            .map(([l, v, help, f, id, min]) => field(l, inputNum(gb(f), v, { int: true, id, min }), { id, help, error: f === 'max' ? mmErr : '' }))
-            .join('')}</div>${g.gtype === 'linked' ? `<p class="field-help">Started from the rules of ${esc(posLabel(g.posGroupExt))} on POS.</p>` : ''}`;
+      const typeTag = choice ? ['Choice', 'Customers pick exactly one product.'] : [t.label, t.help];
+      let posField = '';
+      if (fromPos)
+        posField = field('POS group', `<div class="input is-readonly">${esc(posLabel(g.externalId))}</div>`, { pos: true, help: 'Choices ring up on POS as options of this group.' });
+      else if (g.gtype === 'linked')
+        posField = field(
+          'POS group',
+          `<div class="input is-readonly">${esc(posLabel(g.posGroupExt))}</div>
+          <div class="link-btns field-actions"><button type="button" class="link-btn" data-action="group-change-link">Change</button><button type="button" class="link-btn" data-action="group-unlink">Unlink</button></div>`,
+          { help: 'Choices ring up on POS as options of this group, at its POS prices.' },
+        );
+      else if (!choice)
+        posField = field(
+          'POS group',
+          `<div class="input is-readonly muted">Not linked</div>
+          <div class="link-btns field-actions"><button type="button" class="link-btn" data-action="group-link">Link to a POS group</button></div>`,
+          { help: 'Each choice is added to the order as its own item. Link a POS group to ring up choices as its options instead.' },
+        );
       return (
         section(
-          'Choices',
-          `${grid}
-          <div class="rule-preview">
-            <span class="rule-preview-kicker">${icon('phone', 13)}Customers see</span>
-            <strong>${esc(customerRule(rules))}</strong>
-            <p>${esc(groupRuleSentence(rules))}</p>
-          </div>`,
+          '',
+          nameBlock('group', g, { sync: false, error: lengthError(g.name, 'Add a group name') }) +
+            field('Internal name', inputText(gb('internalName'), g.internalName, { id: 'g-int' }), {
+              id: 'g-int',
+              error: lengthError(g.internalName),
+              help: 'Use it to tell apart groups with the same name. Only your team sees it.',
+            }) +
+            field('Type', `<div class="type-display"><span class="type-tag type-${rules.type}">${typeTag[0]}</span><span>${esc(typeTag[1])}</span></div>`, {
+              help: fromPos
+                ? `${icon('lock', 12)} Set by the POS group.`
+                : g.gtype === 'linked'
+                  ? `${icon('lock', 12)} Follows the linked POS group.`
+                  : choice
+                    ? `${icon('lock', 12)} Type cannot be changed after the group is created.`
+                    : `${icon('lock', 12)} Add-on groups are always Modifier groups. Linking a POS group uses its type instead.`,
+            }) +
+            posField +
+            field('External ID', inputText(gb('reportingId'), g.reportingId, { id: 'g-ext', mono: true }), {
+              id: 'g-ext',
+              error: lengthError(g.reportingId),
+              help: 'Use it to match this group in reports outside this platform.',
+            }) +
+            descriptionField(gb('description'), g.description, 'g-desc', 'Not shown in our ordering apps. Apps built with the Ordering API can show it.') +
+            imageField(gb('image'), g.image),
         ) +
-        section(
-          'Behavior',
-          toggle(gb('isSubstitutionContainer'), g.isSubstitutionContainer, {
-            label: 'Substitution group',
-            help: 'Customers can swap an included item for one of these options.',
-          }),
-        )
+        (rules.type === 1 && !choice
+          ? section(
+              'Behavior',
+              toggle(gb('isSubstitutionContainer'), g.isSubstitutionContainer, {
+                label: 'Substitution group',
+                help: 'Customers do not see this group. Its options can only be offered as substitutes for other options.',
+              }),
+            )
+          : '')
       );
     }
     if (tab === 'options') {
@@ -4429,44 +4892,323 @@
             { desc: 'On POS in this group, but not shown to customers.' },
           )
         : '';
+      const rulesHtml = groupRulesSection(g, gb, rules);
       if (!g.children.length) {
         const hint =
           g.gtype === 'standalone'
             ? 'Drag any POS product here. Each choice is added to the order as its own item, at its POS price.'
             : `Add options from ${esc(posLabel(gpos))}.`;
-        return section('', `<div class="empty-small"><strong>No options yet</strong><span>${hint}</span></div>`) + missingHtml;
+        return rulesHtml + section('Options', `<div class="empty-small"><strong>No options yet</strong><span>${hint}</span></div>`) + missingHtml;
       }
-      const rows = g.children
-        .map((pid) => {
-          const p = entity('product', pid);
-          if (!p) return '';
-          const op = childPath(path, 'product', pid);
-          const opl = placement(op);
-          const auto = isAutoAdded(op);
-          return `<div class="opt-row${opl.hidden ? ' is-muted' : ''}">
-            <button type="button" class="opt-name" data-action="goto" data-path="${esc(op)}">${thumb('product', p, 'thumb-sm')}<span class="opt-name-text"><span class="opt-name-label">${esc(nameOf('product', p))}</span>${auto ? '<span class="opt-name-sub">Auto-added by POS</span>' : p.ptype === 'container' ? '<span class="opt-name-sub">Option folder</span>' : ''}</span></button>
-            <span class="opt-price tnum${priceStats(op).missingStores.length ? ' tone-warning' : ''}" title="${esc(priceStats(op).missingStores.length ? `No POS price at ${plural(priceStats(op).missingStores.length, 'store', 'stores')}` : priceStats(op).note)}">${p.ptype === 'container' ? '<span class="muted">—</span>' : esc(priceText(priceStats(op)))}</span>
-            ${stepper(`pl|${op}|preselected`, preselectedAt(op), { max: Math.max(1, rules.maxSingle), label: `preselected ${nameOf('product', p)}`, disabled: auto || p.ptype === 'container' })}
-            <button type="button" class="switch" role="switch" aria-checked="${!opl.hidden}" aria-label="Show ${esc(nameOf('product', p))}" data-toggle="pl|${esc(op)}|hidden" data-focus-key="pl|${esc(op)}|hidden"><span class="switch-thumb"></span></button>
-          </div>`;
-        })
-        .join('');
-      return (
-        section(
-          '',
-          `<div class="opt-table">
-            <div class="opt-head"><span>Option</span><span>POS price</span><span>Preselected</span><span>Shown</span></div>
-            ${rows}
-          </div>
-          <p class="field-help">${g.gtype === 'standalone' ? 'Each choice is added to the order as its own item.' : 'Prices come from POS.'} Ranges mean the price differs by store. Preselected and shown apply only in ${esc(here)}.</p>`,
-        ) + missingHtml
+      return rulesHtml + groupOptionsSection(g, path, gb, rules) + missingHtml + groupSectionsSection(g, gb);
+    }
+    if (tab === 'substitutes') return groupSwapsSection(g, gb);
+    if (tab === 'halves') return groupHalvesSection(g, gb);
+    const pInfo = parsePath(parsePath(path).parentPath);
+    const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));
+    const pl = placement(path);
+    const lockHide = rules.min > 0 && !pl.hidden;
+    const parents = groupParents(g.id);
+    return (
+      section(
+        'Visibility',
+        toggle(`pl|${path}|hidden`, !pl.hidden, {
+          label: `Show in ${parentName}`,
+          scope: here,
+          disabled: lockHide,
+          help: lockHide
+            ? rules.fixed
+              ? 'Customers always pick one option in this group, so it cannot be hidden.'
+              : 'Required groups cannot be hidden. Set the minimum to 0 first.'
+            : 'Hide it here without removing it. Other places stay as they are.',
+        }),
+      ) +
+      (choice ? '' : groupAppearsInSection(g, path)) +
+      metadataSection(g, 'group') +
+      sourceSection('group', g, path) +
+      removeSection(path, 'group', g) +
+      (choice
+        ? ''
+        : section(
+            '',
+            `<button type="button" class="btn secondary tone-danger" data-action="group-delete" data-path="${esc(path)}">${icon('trash', 15)}Delete group</button>
+            <p class="field-help">${parents.length > 1 ? `Removes it from all ${parents.length} products that use it.` : 'Removes it and its settings.'} Its options are not deleted.</p>`,
+          ))
+    );
+  }
+
+  function groupRulesSection(g, gb, rules) {
+    const preview = `<div class="rule-preview">
+        <span class="rule-preview-kicker">${icon('phone', 13)}Customers see</span>
+        <strong>${esc(customerRule(rules))}</strong>
+        <p>${esc(groupRuleSentence(rules))}</p>
+      </div>`;
+    if (g.isSubstitutionContainer)
+      return section('Rules', callout('info', 'Customers do not see this group, so it has no rules. Its options can be offered as substitutes on the products that use it.'));
+    if (rules.fixed) {
+      const why = isChoiceGroup(g) ? 'Customers always pick exactly one product.' : `${C.groupTypes[rules.type].label} groups always need exactly one choice.`;
+      return section(
+        'Rules',
+        `<div class="rule-grid">${[
+          ['Minimum', 1],
+          ['Maximum', 1],
+          ['Per option', 1],
+          ['Free choices', 0],
+        ]
+          .map(([l, v]) => `<div class="rule-cell"><span class="rule-label">${l}</span><span class="rule-value tnum">${v}</span></div>`)
+          .join('')}</div>
+        <p class="field-help">${icon('lock', 12)} ${why} These rules cannot be changed.</p>${preview}`,
       );
     }
-    return (
-      sourceSection('group', g, path) +
-      section('Stores', storesList('group', g, STORE_STATES), { desc: 'Status at each store. Applies to every menu.' }) +
-      removeSection(path, 'group', g)
+    const fromPos = g.gtype === 'pos';
+    const posR = fromPos ? posRulesOf(g) : null;
+    const errs = ruleErrors(g);
+    const bindOf = (k) => (fromPos ? gb(`ruleOverrides.${k}`) : gb(k));
+    const posText = (k) => (k === 'max' && posR.max == null ? 'no limit' : posR[k]);
+    const cells = [
+      ['Minimum', 'min', 'g-min', 0, '0 makes the group optional.'],
+      ['Maximum', 'max', 'g-max', 1, 'Leave it empty for no limit.'],
+      ['Per option', 'maxSingle', 'g-single', 1, 'Times the same option can be picked.'],
+      ['Free choices', 'freeCount', 'g-free', 0, 'Included in the price.'],
+    ];
+    const grid = cells
+      .map(([l, k, id, min, help]) =>
+        field(l, inputNum(bindOf(k), rawRule(g, k), { int: true, id, min, max: QTY_MAX, placeholder: k === 'max' ? 'No limit' : '' }), {
+          id,
+          help: fromPos && hasOwn(g.ruleOverrides, k) ? `POS: ${posText(k)}. ${help}` : help,
+          error: errs[k],
+        }),
+      )
+      .join('');
+    const note = fromPos
+      ? ruleOverridden(g)
+        ? `<p class="field-help">Changed from the POS rules. <button type="button" class="link-btn" data-action="rules-reset">Reset to POS rules</button></p>`
+        : '<p class="field-help">Same as the POS rules. A change applies to every product that uses this group.</p>'
+      : g.gtype === 'linked'
+        ? `<p class="field-help">Started from the rules of ${esc(posLabel(g.posGroupExt))} on POS.</p>`
+        : '';
+    return section('Rules', `<div class="grid-2">${grid}</div>${note}${preview}`);
+  }
+
+  function groupOptionsSection(g, path, gb, rules) {
+    const here = crumbText(path);
+    const max = limitOf(rules.max);
+    const pick = rules.fixed || max === 1;
+    const rows = g.children
+      .map((pid, i) => {
+        const p = entity('product', pid);
+        if (!p) return '';
+        const op = childPath(path, 'product', pid);
+        const opl = placement(op);
+        const auto = isAutoAdded(op);
+        const folder = p.ptype === 'container';
+        const name = optionName(g, pid);
+        const open = T.openCard === `opt:${pid}`;
+        const pre = g.preselected[pid] || 0;
+        let preCell;
+        if (pick && !folder) {
+          const on = pre > 0;
+          preCell = `<button type="button" class="check-toggle opt-pick" role="radio" aria-checked="${on}" aria-label="Preselect ${esc(name)}" data-action="pre-pick" data-id="${esc(pid)}" ${auto ? 'disabled' : ''}><span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span></button>`;
+        } else preCell = stepper(gb(`preselected.${pid}`), auto ? 1 : pre, { max: optionMaxOf(g, pid, rules), label: `preselected ${name}`, disabled: auto || folder });
+        const subs = [];
+        if (auto) subs.push('Auto-added by POS');
+        else if (folder) subs.push('Option folder');
+        if (name !== nameOf('product', p)) subs.push(`Product: ${nameOf('product', p)}`);
+        if (preselectOverridden(op)) subs.push(`Preselects ${opl.preselected} here`);
+        const row = `<div class="opt-row${opl.hidden ? ' is-muted' : ''}">
+            <button type="button" class="opt-name" data-action="goto" data-path="${esc(op)}">${thumb('product', p, 'thumb-sm')}<span class="opt-name-text"><span class="opt-name-label" title="${esc(name)}">${esc(name)}</span>${subs.length ? `<span class="opt-name-sub">${esc(subs.join(' · '))}</span>` : ''}</span></button>
+            <span class="opt-price tnum${priceStats(op).missingStores.length ? ' tone-warning' : ''}" title="${esc(priceStats(op).missingStores.length ? `No POS price at ${plural(priceStats(op).missingStores.length, 'store', 'stores')}` : priceStats(op).note)}">${folder ? '<span class="muted">—</span>' : esc(priceText(priceStats(op)))}</span>
+            ${preCell}
+            <button type="button" class="switch" role="switch" aria-checked="${!opl.hidden}" aria-label="Show ${esc(name)}" data-toggle="pl|${esc(op)}|hidden" data-focus-key="pl|${esc(op)}|hidden"><span class="switch-thumb"></span></button>
+            <button type="button" class="icon-btn sm opt-expand" data-action="card-open" data-id="opt:${esc(pid)}" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings">${icon('chevDown', 14)}</button>
+          </div>`;
+        return `<div class="opt-item${open ? ' is-open' : ''}">${row}${open ? optionDetail(g, pid, p, op, i, gb, rules, max) : ''}</div>`;
+      })
+      .join('');
+    const preHelp =
+      rules.type === 2
+        ? 'Exactly one option needs to be preselected. It applies everywhere this group is used.'
+        : rules.type === 3
+          ? 'Preselect one option at most. Preselection applies everywhere this group is used.'
+          : `${pick ? 'Preselect one option at most. Preselection applies' : 'Preselected quantities apply'} everywhere this group is used. To change one place only, open the option there.`;
+    return section(
+      'Options',
+      `<div class="opt-table has-expand">
+        <div class="opt-head"><span>Option</span><span>POS price</span><span>Preselected</span><span>Shown</span><span class="sr-only">Settings</span></div>
+        ${rows}
+      </div>
+      <p class="field-help">${g.gtype === 'standalone' ? 'Each choice is added to the order as its own item.' : 'Prices come from POS.'} Ranges mean the price differs by store. ${preHelp} Shown applies only in ${esc(here)}.</p>`,
     );
+  }
+
+  function optionDetail(g, pid, p, op, i, gb, rules, max) {
+    const name = optionName(g, pid);
+    const s = g.optionSettings[pid] || {};
+    const folder = p.ptype === 'container';
+    const hidden = groupHiddenCodes(g, pid);
+    const codes = C.modifierCodes.filter(([v]) => p.modifierCodes.includes(v));
+    let body = field('Name in this group', inputText(gb(`optionSettings.${pid}.name`), s.name, { id: `g-on-${pid}`, placeholder: nameOf('product', p) }), {
+      id: `g-on-${pid}`,
+      error: lengthError(s.name),
+      help: 'Customers see this name in this group. Leave it empty to use the product name.',
+    });
+    if (rules.type === 1 && !folder && max !== 1)
+      body += field('Max per option', inputNum(gb(`optionSettings.${pid}.maxQty`), s.maxQty, { int: true, id: `g-om-${pid}`, min: 1, max: max != null ? max : QTY_MAX, placeholder: String(rules.maxSingle) }), {
+        id: `g-om-${pid}`,
+        error: optionMaxError(s.maxQty, max),
+        help: `Times customers can pick this option. Leave it empty to use the group setting (${rules.maxSingle}).`,
+      });
+    if (rules.type === 1 && codes.length)
+      body += field('Modifier codes shown', chips(gb(`optionSettings.${pid}.hiddenCodes`), hidden, codes, { invert: true }), {
+        error: p.isModifierCodeRequired && codes.every(([v]) => hidden.includes(v)) ? 'A code is required, so keep at least one visible' : '',
+        help: 'Applies everywhere this group is used.',
+      });
+    if (g.sections.length)
+      body += field('Section', selectInput(gb(`optionSection.${pid}`), sectionOfOption(g, pid), g.sections.map((x) => [x.id, x.name || 'Untitled section']), { id: `g-os-${pid}` }), { id: `g-os-${pid}` });
+    body += `<div class="opt-detail-foot">
+        <div class="position-control"><span class="tnum">${i + 1} of ${g.children.length}</span>${moveButtons(gb('children'), i, g.children.length, name)}</div>
+        <button type="button" class="btn ghost sm tone-danger" data-action="remove" data-path="${esc(op)}">${icon('trash', 14)}Remove from group</button>
+      </div>`;
+    return `<div class="opt-detail">${body}</div>`;
+  }
+
+  function groupSectionsSection(g, gb) {
+    const rows = g.sections
+      .map((x, i) => {
+        const n = g.children.filter((pid) => sectionOfOption(g, pid) === x.id).length;
+        const err = !x.name.trim() ? 'Add a section name' : lengthError(x.name);
+        return `<div class="segment-row${err ? ' has-error' : ''}">
+          <div class="segment-inputs is-section">
+            ${inputText(gb(`sections.${i}.name`), x.name, { label: 'Section name' })}
+            <span class="muted tnum">${plural(n, 'option', 'options')}</span>
+            <span class="row-tools">${moveButtons(gb('sections'), i, g.sections.length, x.name || 'section')}${removeButton(gb('sections'), i, x.name || 'section')}</span>
+          </div>
+          ${err ? slotError(err) : ''}
+        </div>`;
+      })
+      .join('');
+    return section('Option sections', `${rows ? `<div class="segment-list">${rows}</div>` : ''}${addButton('opt-section-add', 'Add section')}`, {
+      desc: g.sections.length
+        ? 'Customers see options under these headings. Options without a section go in the first one. Choose the section in each option’s settings.'
+        : 'Split a long list under headings, like Cheese and Veggies.',
+    });
+  }
+
+  function groupSwapsSection(g, gb) {
+    const opts = g.children.filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container');
+    const parents = groupParents(g.id);
+    const own = (p) => opts.filter((pid) => hasOwn(p.substitutes, `${g.id}:${pid}`)).length;
+    const body =
+      opts.length < 2
+        ? '<p class="field-help">Add at least two options to this group first.</p>'
+        : `<div class="opt-cards"><div class="group-card is-open"><div class="group-card-body">${opts
+            .map((pid) => {
+              const subs = (g.swaps[pid] || []).filter((id) => entity('product', id));
+              const name = optionName(g, pid);
+              return `<div class="opt-sub-row">
+                <span class="opt-sub-name">${esc(name)}</span>
+                <div class="chips">${subs
+                  .map((sid, i) => {
+                    const n = optionName(g, sid);
+                    return `<button type="button" class="chip is-on has-remove" data-action="arr-remove" data-bind="${esc(gb(`swaps.${pid}`))}" data-index="${i}" aria-label="Remove ${esc(n)}" title="Remove">${esc(n)}${icon('x', 12)}</button>`;
+                  })
+                  .join('')}<button type="button" class="chip" data-action="swap-add" data-id="${esc(pid)}">${icon('plus', 12)}Add</button></div>
+              </div>`;
+            })
+            .join('')}</div></div></div>`;
+    const applies = parents.length
+      ? `<div class="store-list">${parents
+          .map((p) => {
+            const n = own(p);
+            return `<div class="store-row"><span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${n ? `Uses its own substitutes for ${plural(n, 'option', 'options')}` : 'Follows this group'}</span></span></div>`;
+          })
+          .join('')}</div>`
+      : '';
+    return (
+      section('Substitutes', body, { desc: 'Let customers swap an option for another option in this group, like fries for a salad.' }) +
+      (applies ? section('Applies to', applies, { desc: 'Products follow these substitutes unless they set their own on their Ordering tab.' }) : '')
+    );
+  }
+
+  function groupHalvesSection(g, gb) {
+    const opts = g.children.filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container');
+    const seen = new Set();
+    const pool = siblingPosGroups(g)
+      .flatMap((x) => x.children)
+      .filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container' && !seen.has(pid) && seen.add(pid));
+    const parents = groupParents(g.id);
+    const own = (p) => opts.filter((pid) => hasOwn(p.halfWhole, `${g.id}:${pid}`)).length;
+    const body = opts.length
+      ? `<div class="opt-cards"><div class="group-card is-open"><div class="group-card-body">${opts
+          .map((pid) => {
+            const h = g.halves[pid] || {};
+            const name = optionName(g, pid);
+            const choices = [['', 'Not added'], ...pool.filter((x) => x !== pid).map((x) => [x, nameOf('product', entity('product', x))])];
+            return `<div class="opt-sub-row">
+              <span class="opt-sub-name">${esc(name)}</span>
+              <div class="grid-2">
+                ${field('Left half', selectInput(gb(`halves.${pid}.left`), h.left || '', choices, { label: `Left half of ${name}` }))}
+                ${field('Right half', selectInput(gb(`halves.${pid}.right`), h.right || '', choices, { label: `Right half of ${name}` }))}
+              </div>
+              ${!h.left !== !h.right ? slotError('Add both halves, or remove both') : ''}
+            </div>`;
+          })
+          .join('')}</div></div></div>`
+      : '<p class="field-help">Add options to this group first.</p>';
+    const applies = parents.length
+      ? `<div class="store-list">${parents
+          .map((p) => {
+            const n = own(p);
+            return `<div class="store-row"><span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${n ? `Uses its own halves for ${plural(n, 'option', 'options')}` : 'Follows this group'}</span></span></div>`;
+          })
+          .join('')}</div>`
+      : '';
+    return (
+      section('Half and whole', body, {
+        desc: 'Let customers put a topping on the left half, the right half, or the whole product. For each half, pick the POS option that rings up. Options come from the POS groups of the products that use this group.',
+      }) + (applies ? section('Applies to', applies, { desc: 'Products follow these halves unless they set their own on their Ordering tab.' }) : '')
+    );
+  }
+
+  function groupAppearsInSection(g, path) {
+    const d = dragDescFromPath(path);
+    const places = new Map();
+    S.data.menus.forEach((m) =>
+      walkMenu(m, (kind, id, ent, p) => {
+        if (kind !== 'product' || ent.ptype === 'size') return;
+        const owner = parsePath(parsePath(p).parentPath);
+        const ownerName = nameOf(owner.kind, entity(owner.kind, owner.id));
+        const x = places.get(id) || { kind: 'product', id, ent, path: p, where: [] };
+        if (!x.where.includes(ownerName)) x.where.push(ownerName);
+        places.set(id, x);
+      }),
+    );
+    groupParents(g.id).forEach((p) => places.has(p.id) || places.set(p.id, { kind: 'product', id: p.id, ent: p, path: null, where: [] }));
+    const on = (x) => x.ent.children.includes(g.id);
+    const all = [...places.values()].filter((x) => on(x) || (!reaches('group', g.id, 'product', x.id) && !dropError(x.path, d)));
+    const long = all.length > 6;
+    const q = T.placeQuery.trim().toLowerCase();
+    const shown = all
+      .filter((x) => (!long || !T.showSelectedPlaces || on(x)) && (!long || !q || nameOf('product', x.ent).toLowerCase().includes(q)))
+      .sort((a, b) => on(b) - on(a));
+    const count = all.filter(on).length;
+    const total = groupParents(g.id).length;
+    const row = (x) => {
+      const sel = on(x);
+      const last = sel && total === 1;
+      return `<button type="button" class="store-row store-check" data-action="group-place-toggle" data-id="${esc(x.id)}" aria-pressed="${sel}" ${last ? 'disabled title="A group needs at least one product. To take it out everywhere, delete it below."' : ''}>
+        <span class="check${sel ? ' is-on' : ''}" aria-hidden="true">${sel ? icon('check', 12) : ''}</span>
+        <span class="store-name list-name"><span>${esc(nameOf('product', x.ent))}</span><span class="muted">${x.where.length ? `In ${esc(listJoin(x.where))}` : 'Not in any menu'}</span></span></button>`;
+    };
+    const tools = long
+      ? `<label class="search-field sm">${icon('search', 14)}<span class="sr-only">Search products</span><input id="place-q" type="search" data-place-search data-focus-key="place-q" placeholder="Search ${all.length} products" value="${esc(T.placeQuery)}" autocomplete="off"></label>
+        <div class="group-card-tools"><span class="store-summary tnum">In ${count} of ${all.length} products</span>
+          <button type="button" class="check-toggle" role="checkbox" aria-checked="${T.showSelectedPlaces}" data-action="place-only-selected"><span class="check${T.showSelectedPlaces ? ' is-on' : ''}" aria-hidden="true">${T.showSelectedPlaces ? icon('check', 12) : ''}</span>Show only selected</button></div>`
+      : '';
+    const list = shown.length ? `<div class="store-list">${shown.map(row).join('')}</div>` : '<p class="field-help">Nothing matches. Check the spelling.</p>';
+    return section('Appears in', tools + list, {
+      desc: `Lists the products that can hold this group${g.source === 'pos' ? ' on POS' : ''}. Selecting one adds the group at the end, with the same options and rules.`,
+    });
   }
 
   /* ---------- preview ---------- */
@@ -4477,7 +5219,8 @@
     walkSubtree(path, (kind, id, ent, p) => {
       if (kind !== 'product' || p === path) return;
       const pre = preselectedAt(p);
-      if (pre && !placement(p).hidden) {
+      const og = groupOfOption(p);
+      if (pre && !placement(p).hidden && !(og && og.isSubstitutionContainer)) {
         const gp = parsePath(p).parentPath;
         sel[gp] = sel[gp] || {};
         sel[gp][p] = pre;
@@ -4496,8 +5239,12 @@
     const s = T.preview.sel[gp] || {};
     const count = Object.values(s).reduce((a, b) => a + b, 0);
     const r = rulesOf(g);
-    return { s, count, min: r.min, max: limitOf(r.max), maxSingle: Math.max(1, r.maxSingle), free: r.freeCount };
+    const optMax = (op) => Math.max(1, optionMaxOf(g, parsePath(op).id, r));
+    const maxSingle = Math.max(1, r.maxSingle, ...g.children.map((pid) => optionMaxOf(g, pid, r)));
+    return { s, count, min: r.min, max: limitOf(r.max), maxSingle, optMax, free: r.freeCount };
   }
+
+  const pvShown = (g, gp) => !!g && !g.isSubstitutionContainer && !placement(gp).hidden;
 
   function pvVisibleGroups(productPath) {
     const out = [];
@@ -4506,7 +5253,7 @@
       for (const gid of p.children) {
         const g = entity('group', gid);
         const gp = childPath(pp, 'group', gid);
-        if (!g || placement(gp).hidden) continue;
+        if (!pvShown(g, gp)) continue;
         out.push({ gp, g });
         const st = pvGroupState(gp, g);
         Object.keys(st.s).forEach((op) => st.s[op] > 0 && rec(op));
@@ -4556,7 +5303,7 @@
       for (const gid of p.children) {
         const g = entity('group', gid);
         const gp = childPath(pp, 'group', gid);
-        if (!g || placement(gp).hidden) continue;
+        if (!pvShown(g, gp)) continue;
         const sel = T.preview.sel[gp] || {};
         for (const op of T.preview.order[gp] || []) {
           const n = sel[op];
@@ -4633,7 +5380,7 @@
             ? `<div class="stepper">
                 <button type="button" class="icon-btn sm" data-action="pv-step" data-gp="${esc(gp)}" data-op="${esc(o.op)}" data-delta="-1" aria-label="Remove one" ${n ? '' : 'disabled'}>${icon('minus', 14)}</button>
                 <span class="stepper-value tnum">${n}</span>
-                <button type="button" class="icon-btn sm" data-action="pv-step" data-gp="${esc(gp)}" data-op="${esc(o.op)}" data-delta="1" aria-label="Add one" ${n >= st.maxSingle || full ? 'disabled' : ''}>${icon('plus', 14)}</button>
+                <button type="button" class="icon-btn sm" data-action="pv-step" data-gp="${esc(gp)}" data-op="${esc(o.op)}" data-delta="1" aria-label="Add one" ${n >= st.optMax(o.op) || full ? 'disabled' : ''}>${icon('plus', 14)}</button>
               </div>`
             : `<span class="pv-control pv-${mode}${n ? ' is-on' : ''}">${n && mode === 'check' ? icon('check', 12) : ''}</span>`;
         const nested = n && o.ent.children.length
@@ -4641,7 +5388,7 @@
               .map((gid) => {
                 const ng = entity('group', gid);
                 const ngp = childPath(o.op, 'group', gid);
-                return ng && !placement(ngp).hidden ? pvGroupHtml(ngp, ng, depth + 1) : '';
+                return pvShown(ng, ngp) ? pvGroupHtml(ngp, ng, depth + 1) : '';
               })
               .join('')}</div>`
           : '';
@@ -4649,19 +5396,25 @@
         const sub = o.ent.children.length ? (n ? 'Customize below' : 'Has more choices') : '';
         return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="pv-opt${n ? ' is-on' : ''}${disabled ? ' is-disabled' : ''}" ${mode !== 'stepper' ? `data-action="pv-pick" data-gp="${esc(gp)}" data-op="${esc(o.op)}" data-mode="${mode}"` : ''} ${disabled ? 'aria-disabled="true"' : ''}>
             ${mode !== 'stepper' ? control : ''}
-            <span class="pv-opt-name">${esc(nameOf('product', o.ent))}${sub ? `<span class="pv-opt-sub">${sub}</span>` : ''}</span>
+            <span class="pv-opt-name">${esc(optionName(g, o.pid))}${sub ? `<span class="pv-opt-sub">${sub}</span>` : ''}</span>
             <span class="pv-opt-price tnum">${optPrice}</span>
             ${mode === 'stepper' ? control : ''}
           </${tag}>${nested}`;
-      })
-      .join('');
+      });
+    const body = g.sections.length
+      ? g.sections
+          .map((sec) => {
+            const html = opts.map((o, i) => (sectionOfOption(g, o.pid) === sec.id ? rows[i] : '')).join('');
+            return html ? `<h5 class="pv-opt-section">${esc(sec.name)}</h5>${html}` : '';
+          })
+          .join('')
+      : rows.join('');
     return `<section class="pv-group">
       <header class="pv-group-head">
         <div><h4>${esc(nameOf('group', g))}</h4><span class="pv-rule">${esc(customerRule(rulesOf(g)))}</span></div>
         ${st.min > 0 ? `<span class="pv-status${done ? ' is-done' : ''}">${done ? `${icon('check', 12)}Done` : 'Required'}</span>` : ''}
       </header>
-      ${g.description ? `<p class="pv-group-desc">${esc(g.description)}</p>` : ''}
-      <div class="pv-opts">${rows || '<p class="field-help">No options to show.</p>'}</div>
+      <div class="pv-opts">${body || '<p class="field-help">No options to show.</p>'}</div>
     </section>`;
   }
 
@@ -4677,7 +5430,7 @@
     const groupHtml = (gid) => {
       const g = entity('group', gid);
       const gp = childPath(pv.path, 'group', gid);
-      return g && !placement(gp).hidden ? pvGroupHtml(gp, g, 0) : '';
+      return pvShown(g, gp) ? pvGroupHtml(gp, g, 0) : '';
     };
     const groups = ent.sections.length
       ? ent.sections
@@ -4766,7 +5519,7 @@
     const g = entity('group', parsePath(gp).id);
     const st = pvGroupState(gp, g);
     const cur = st.s[op] || 0;
-    const next = clamp(cur + delta, 0, st.maxSingle);
+    const next = clamp(cur + delta, 0, st.optMax(op));
     if (delta > 0 && st.max != null && st.count >= st.max) return;
     pv.sel[gp] = pv.sel[gp] || {};
     pv.order[gp] = pv.order[gp] || [];
@@ -5085,6 +5838,7 @@
                   closeModal();
                   localStorage.removeItem(STORAGE_KEY);
                   seed();
+                  normalizeAll();
                   S.ui = defaultUi();
                   hist.past = [];
                   hist.future = [];
@@ -5287,8 +6041,10 @@
         break;
       case 'step': {
         const bind = el.dataset.bind;
-        const next = clamp((getBind(bind) || 0) + Number(el.dataset.delta), Number(el.dataset.min), Number(el.dataset.max));
-        commit(() => setBind(bind, next || null), { key: bind });
+        const cur = getBind(bind);
+        const from = isNum(cur) ? cur : el.dataset.start != null ? Number(el.dataset.start) : 0;
+        const next = clamp(from + Number(el.dataset.delta), Number(el.dataset.min), Number(el.dataset.max));
+        commit(() => setBind(bind, el.dataset.keepZero ? next : next || null), { key: bind });
         break;
       }
       case 'sched-add':
@@ -5402,7 +6158,7 @@
           const btn = document.querySelector(`${at}[data-delta="${el.dataset.delta}"]:not(:disabled)`) || document.querySelector(`${at}:not(:disabled)`);
           if (!btn) return;
           btn.focus({ preventScroll: true });
-          const row = btn.closest('.list-row, .segment-row');
+          const row = btn.closest('.list-row, .segment-row, .opt-item');
           if (row) row.classList.add('is-flash');
         });
         break;
@@ -5466,6 +6222,65 @@
       case 'place-toggle':
         toggleProductPlace(entity('product', parsePath(S.ui.selected).id), el.dataset.kind, el.dataset.id);
         break;
+      case 'group-place-toggle':
+        togglePlace('group', entity('group', parsePath(S.ui.selected).id), 'product', el.dataset.id);
+        break;
+      case 'group-link':
+      case 'group-change-link':
+        openGroupLinkPicker(entity('group', parsePath(S.ui.selected).id));
+        break;
+      case 'group-unlink':
+        unlinkGroup(entity('group', parsePath(S.ui.selected).id));
+        break;
+      case 'group-delete':
+        confirmDeleteGroup(entity('group', parsePath(el.dataset.path).id), el.dataset.path);
+        break;
+      case 'rules-reset': {
+        const g = entity('group', parsePath(S.ui.selected).id);
+        commit(() => (g.ruleOverrides = {}));
+        toast('Rules reset to POS', 'success', { action: { label: 'Undo', onClick: undo } });
+        break;
+      }
+      case 'pre-pick': {
+        const g = entity('group', parsePath(S.ui.selected).id);
+        const pid = el.dataset.id;
+        const on = (g.preselected[pid] || 0) > 0;
+        if (on && rulesOf(g).type === 2) break;
+        commit(() => (g.preselected = on ? {} : { [pid]: 1 }));
+        break;
+      }
+      case 'pre-reset':
+        commit(() => setBind(`pl|${el.dataset.path}|preselected`, null));
+        break;
+      case 'swap-add':
+        openGroupSwapPicker(entity('group', parsePath(S.ui.selected).id), el.dataset.id);
+        break;
+      case 'sub-customize':
+      case 'half-customize': {
+        const p = entity('product', parsePath(S.ui.selected).id);
+        const [gid, pid] = el.dataset.key.split(':');
+        commit(() => {
+          if (a === 'sub-customize') p.substitutes[el.dataset.key] = substitutesAt(p, gid, pid).ids.slice();
+          else p.halfWhole[el.dataset.key] = { ...halvesAt(p, gid, pid).h };
+        });
+        break;
+      }
+      case 'sub-reset':
+      case 'half-reset': {
+        const p = entity('product', parsePath(S.ui.selected).id);
+        commit(() => delete (a === 'sub-reset' ? p.substitutes : p.halfWhole)[el.dataset.key]);
+        break;
+      }
+      case 'opt-section-add': {
+        const g = entity('group', parsePath(S.ui.selected).id);
+        commit(() => g.sections.push({ id: uid('osec'), name: `Section ${g.sections.length + 1}` }));
+        requestAnimationFrame(() => {
+          const inputs = document.querySelectorAll(`[data-bind^="e|group|${g.id}|sections."][data-bind$=".name"]`);
+          const last = inputs[inputs.length - 1];
+          if (last) last.select();
+        });
+        break;
+      }
       case 'menu-sched-mode': {
         const m = activeMenu();
         const custom = el.dataset.mode === 'custom';
@@ -5567,7 +6382,8 @@
         }
         break;
       }
-      case 'cat-delete-ack': {
+      case 'cat-delete-ack':
+      case 'delete-ack': {
         const on = el.getAttribute('aria-checked') !== 'true';
         el.setAttribute('aria-checked', String(on));
         const box = el.querySelector('.check');
