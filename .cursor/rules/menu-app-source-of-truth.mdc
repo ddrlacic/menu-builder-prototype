@@ -24,8 +24,24 @@ This prototype re-creates Management Center (MC) menu building with better UX. I
 
 ## Prototype conventions
 
-- Plain JS, no build step: `index.html`, `app.js`, `styles.css`, `data.js`.
-- Reuse existing CSS tokens and helpers in `app.js` before adding new ones.
+- Plain JS, no build step: `index.html`, `styles.css`, `data.js` and `data-cravewave.js` (seed data), and classic scripts in `js/` that share one global scope and load in the order listed in `index.html`:
+  - `core.js`: constants, formatting and validation utils, icons.
+  - `state.js`: `S`, `T`, `ctx`, entity defaults and migrations, POS lookups and price caches, stores, seed, persistence, undo.
+  - `model.js`: paths and entity lookups, group rules, half-and-half matching, prices, size sets.
+  - `derived.js`: `derivedCtx`, `computeIssues`, compare data, input binding.
+  - `mutations.js`: selection, add pickers, link, unlink and remove.
+  - `drop-sync.js`: drop resolution, auto-place, POS load and sync, publish, export.
+  - `compare-optimize.js`: Compare to POS, Optimize and half-and-half dialogs.
+  - `render.js`: `render`, topbar, POS panel, canvas tree rows.
+  - `inspector.js`: form control helpers, `renderInspector`.
+  - `inspector-menu.js`, `inspector-product.js`, `inspector-group.js`: inspector tabs per kind (menu file also has the category tab).
+  - `preview.js`: customer preview.
+  - `overlays.js`: popovers, modals, pickers, toasts, row and app menus, image reading.
+  - `actions.js`: `handleAction`.
+  - `events.js`: DOM listeners, drag and drop, keyboard.
+  - `main.js`: boot; must stay last.
+- Top-level code that runs on load may only use names from the same or earlier files; functions called from handlers can live anywhere.
+- Reuse existing CSS tokens and helpers in `js/` before adding new ones.
 - No comments that narrate the code.
 - Verify in the browser: `python3 -m http.server 5178 --bind 127.0.0.1`, then open `http://127.0.0.1:5178/`.
 - Pushing to `main` publishes to https://ddrlacic.github.io/menu-builder-prototype/ within about a minute.
