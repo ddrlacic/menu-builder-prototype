@@ -4,7 +4,7 @@
   const C = window.MENU_CONSTANTS;
   const SUG = window.MENU_SUGGESTIONS;
   const STORAGE_KEY = 'menu-builder-prototype-v3';
-  const DATASET_KEY = 'menu-builder-prototype-dataset';
+  const START_DATASET = 'cravewave';
   const DATASETS = { example: { pos: window.POS_SEED }, ...(window.POS_DATASETS || {}) };
   const BASE_MODIFIER_CODES = C.modifierCodes;
   const CHILD_KIND = { menu: 'category', category: 'product', product: 'group', group: 'product' };
@@ -990,7 +990,6 @@
           ui: { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed },
         }),
       );
-      localStorage.setItem(DATASET_KEY, dataset);
     } catch (_) {
       toast('Couldn’t save changes. Browser storage is full — remove some images', 'error');
     }
@@ -1014,14 +1013,6 @@
     $('#pos-search').value = '';
     render();
     persistNow();
-  }
-
-  function initialDataset() {
-    try {
-      return localStorage.getItem(DATASET_KEY);
-    } catch (_) {
-      return null;
-    }
   }
 
   /* ---------- history ---------- */
@@ -7091,7 +7082,7 @@
 
   /* ---------- init ---------- */
 
-  useDataset(initialDataset());
+  useDataset(START_DATASET);
   load();
   render();
   setInterval(() => {
