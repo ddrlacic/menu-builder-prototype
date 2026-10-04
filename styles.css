@@ -2310,6 +2310,115 @@ input[type='number']::-webkit-inner-spin-button {
   font-weight: 500;
 }
 
+.half-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.half-table {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-border);
+}
+
+.half-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+}
+
+.half-row + .half-row {
+  border-top: 1px solid var(--line);
+}
+
+.half-name {
+  font-weight: 500;
+}
+
+.half-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.half-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.half-pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.half-pick .icon {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.half-pick-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.half-pick.is-empty {
+  color: var(--ink-3);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .half-pick:hover {
+    border-color: var(--ink-3);
+  }
+}
+
+.half-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.row-meta .half-meta .icon {
+  color: var(--ink-3);
+}
+
+.row.is-half .row-title {
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.hh-sides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+}
+
+.hh-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hh-side .icon {
+  flex: none;
+}
+
 .chip.has-remove,
 .chip.is-on.has-remove {
   padding: 0 8px 0 11px;
@@ -3464,7 +3573,8 @@ button.check:active {
 /* compare and optimize lists */
 
 #cmp,
-#opt {
+#opt,
+#hh {
   display: flex;
   flex-direction: column;
   gap: 20px;

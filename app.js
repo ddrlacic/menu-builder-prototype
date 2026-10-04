@@ -239,6 +239,9 @@
     diff: '<path d="M12 3v14"/><path d="M5 10h14"/><path d="M5 21h14"/>',
     receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/>',
     eye: '<path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/>',
+    halfLeft: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" fill="currentColor"/>',
+    halfRight: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor"/>',
+    halves: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18"/>',
   };
   const icon = (name, size = 16) =>
     `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
@@ -259,6 +262,8 @@
     picker: null,
     cmp: null,
     opt: null,
+    hh: null,
+    halfFilter: 'all',
     flashPaths: new Set(),
     flashExt: new Set(),
     posSearchExpanded: {},
@@ -538,6 +543,7 @@
   const storeGroups = () => C.storeGroups.filter((g) => DATASETS[g.dataset]);
   const datasetOf = (storeGroupId) => (storeGroups().find((g) => g.id === storeGroupId) || storeGroups()[0]).dataset;
   let priceCache = new Map();
+  let halfCache = new Map();
   const posMenu = () => S.data.pos.menus.find((m) => m.id === S.ui.posMenuId) || S.data.pos.menus[0];
   const roundPrice = (v, f) => Math.round(v * f * 20) / 20;
 
@@ -916,6 +922,7 @@
       storeGroupId: storeGroups().find((g) => g.dataset === dataset).id,
       posMenuId: S.data.menus[0].posExt || S.data.pos.menus[0].id,
       sizeHintDismissed: {},
+      halfHintDismissed: {},
     };
   }
 
@@ -1310,6 +1317,177 @@
     return { h: (halvesSupported(g) && g.halves[pid]) || {}, own: false };
   }
 
+  const HALF_WORDS = [
+    ...['left half', 'left side', '1st half', 'first half', 'half 1', 'left', 'lh', '1st', 'h1', 'links', 'izquierda', 'l'].map((w) => [w, 'left']),
+    ...['right half', 'right side', '2nd half', 'second half', 'half 2', 'right', 'rh', '2nd', 'h2', 'rechts', 'derecha', 'r'].map((w) => [w, 'right']),
+  ].sort((a, b) => b[0].length - a[0].length);
+  const HALF_FILLER = /^(half|side|on)\s+|\s+(half|side|on)$/g;
+  const SIDE_LABEL = { left: 'Left half', right: 'Right half' };
+
+  const normName = (s) =>
+    String(s || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+
+  function parseHalfName(name, { minWord = 1 } = {}) {
+    const t = ` ${normName(name)} `;
+    for (const [w, side] of HALF_WORDS) {
+      if (w.length < minWord) continue;
+      let base = null;
+      if (t.startsWith(` ${w} `)) base = t.slice(w.length + 2);
+      else if (t.endsWith(` ${w} `)) base = t.slice(0, -(w.length + 2));
+      base = base && base.trim().replace(HALF_FILLER, '').trim();
+      if (base) return { side, base };
+    }
+    return null;
+  }
+
+  const stemWord = (w) => (w.length > 3 ? w.replace(/(es|s)$/, '') : w);
+  const stemKey = (norm) => norm.split(' ').map(stemWord).join(' ');
+
+  function nameScore(a, b) {
+    if (a === b) return 1;
+    const ta = a.split(' ').map(stemWord);
+    const tb = b.split(' ').map(stemWord);
+    if (ta.join(' ') === tb.join(' ')) return 0.95;
+    const same = (x, y) => x === y || (Math.min(x.length, y.length) >= 3 && (x.startsWith(y) || y.startsWith(x)));
+    const hits = ta.filter((x) => tb.some((y) => same(x, y))).length;
+    return ((2 * hits) / (ta.length + tb.length)) * 0.9;
+  }
+
+  const isPlainOption = (pid) => {
+    const x = entity('product', pid);
+    return !!x && x.ptype !== 'container' && !x.children.length;
+  };
+
+  function halfMatches(g) {
+    const key = `match:${g.id}`;
+    if (halfCache.has(key)) return halfCache.get(key);
+    const seen = new Set();
+    const candidates = [];
+    for (const x of siblingPosGroups(g)) {
+      const own = x.id === g.id;
+      const groupSide = own ? null : parseHalfName(nameOf('group', x), { minWord: 2 });
+      const names = x.children.filter(isPlainOption).map((pid) => normName(nameOf('product', entity('product', pid))));
+      const hostsWhole = own ? null : new Set(names.filter((n) => !parseHalfName(n)).map(stemKey));
+      x.children.forEach((pid) => {
+        if (seen.has(pid) || !isPlainOption(pid)) return;
+        const name = nameOf('product', entity('product', pid));
+        const parsed = parseHalfName(name) || (groupSide ? { side: groupSide.side, base: normName(name) } : null);
+        if (!parsed || (hostsWhole && hostsWhole.has(stemKey(parsed.base)))) return;
+        seen.add(pid);
+        candidates.push({ pid, gid: x.id, ...parsed });
+      });
+    }
+    const halfIds = new Set(candidates.map((c) => c.pid));
+    const wholes = g.children.filter((pid) => isPlainOption(pid) && !halfIds.has(pid)).map((pid) => ({ pid, norm: normName(nameOf('product', entity('product', pid))) }));
+    const links = [];
+    const unmatched = [];
+    for (const c of candidates) {
+      const scored = wholes.map((w) => ({ w, s: nameScore(c.base, w.norm) })).sort((a, b) => b.s - a.s);
+      const best = scored[0];
+      if (!best || best.s < 0.6 || (scored[1] && scored[1].s === best.s)) {
+        if (c.gid === g.id) unmatched.push(c.pid);
+        continue;
+      }
+      links.push({ whole: best.w.pid, side: c.side, half: c.pid, score: best.s + (c.gid === g.id ? 0.001 : 0) });
+    }
+    links.sort((a, b) => b.score - a.score);
+    const byWhole = new Map();
+    const used = new Set();
+    for (const l of links) {
+      const slot = byWhole.get(l.whole) || {};
+      if (slot[l.side] || used.has(l.half)) continue;
+      slot[l.side] = l.half;
+      slot.score = Math.min(slot.score == null ? 1 : slot.score, l.score);
+      byWhole.set(l.whole, slot);
+      used.add(l.half);
+    }
+    const pairs = [...byWhole.entries()]
+      .filter(([, s]) => s.left && s.right)
+      .map(([pid, s]) => ({ pid, left: s.left, right: s.right, exact: s.score >= 0.95 }));
+    const pairedHalves = new Set(pairs.flatMap((p) => [p.left, p.right]));
+    const out = {
+      pairs,
+      halfIds: new Set([...used].filter((pid) => g.children.includes(pid))),
+      unmatched: [...unmatched, ...[...used].filter((pid) => !pairedHalves.has(pid) && g.children.includes(pid))],
+    };
+    halfCache.set(key, out);
+    return out;
+  }
+
+  function halfSuggestions(g) {
+    if (!halvesSupported(g)) return [];
+    const taken = new Set(Object.values(g.halves).flatMap((h) => [h.left, h.right]));
+    return halfMatches(g).pairs.filter((p) => {
+      const h = g.halves[p.pid];
+      return !(h && (h.left || h.right)) && !taken.has(p.left) && !taken.has(p.right) && !taken.has(p.pid);
+    });
+  }
+
+  const halfHintKey = (pairs) =>
+    pairs
+      .map((p) => p.pid)
+      .sort()
+      .join('|');
+
+  function suggestedHalves(g) {
+    const pairs = halfSuggestions(g);
+    return pairs.length && S.ui.halfHintDismissed[g.id] !== halfHintKey(pairs) ? pairs : [];
+  }
+
+  function dismissHalfHint(gid) {
+    const prev = S.ui.halfHintDismissed[gid];
+    const setDismissed = (key) => {
+      S.ui.halfHintDismissed[gid] = key;
+      render();
+    };
+    setDismissed(halfHintKey(halfSuggestions(entity('group', gid))));
+    toast('Suggestion dismissed', 'success', { action: { label: 'Undo', onClick: () => setDismissed(prev) } });
+  }
+
+  function halfIndex(p) {
+    const key = `index:${p.id}`;
+    if (halfCache.has(key)) return halfCache.get(key);
+    const out = new Map();
+    for (const gid of p.children) {
+      const g = entity('group', gid);
+      if (!halvesSupported(g)) continue;
+      for (const pid of g.children) {
+        const { h } = halvesAt(p, gid, pid);
+        for (const side of ['left', 'right']) if (h[side] && h[side] !== pid && !out.has(h[side])) out.set(h[side], { side, whole: pid, gid });
+      }
+    }
+    halfCache.set(key, out);
+    return out;
+  }
+
+  function halfRole(path) {
+    const info = parsePath(path);
+    if (info.kind !== 'product' || !info.parentPath) return null;
+    const gi = parsePath(info.parentPath);
+    if (gi.kind !== 'group' || !gi.parentPath) return null;
+    const pi = parsePath(gi.parentPath);
+    if (pi.kind !== 'product') return null;
+    const role = halfIndex(entity('product', pi.id)).get(info.id);
+    if (!role) return null;
+    const nested = role.gid === gi.id && isPlainOption(info.id) && entity('group', gi.id).children.includes(role.whole);
+    return { ...role, wholePath: nested ? childPath(info.parentPath, 'product', role.whole) : null };
+  }
+
+  function wholeHalves(path) {
+    const info = parsePath(path);
+    const gi = info.parentPath ? parsePath(info.parentPath) : null;
+    if (info.kind !== 'product' || !gi || gi.kind !== 'group' || !gi.parentPath) return null;
+    const pi = parsePath(gi.parentPath);
+    if (pi.kind !== 'product' || !halvesSupported(entity('group', gi.id))) return null;
+    const { h } = halvesAt(entity('product', pi.id), gi.id, info.id);
+    return h.left || h.right ? h : null;
+  }
+
   function priceSource(path) {
     const info = parsePath(path);
     const ent = entity('product', info.id);
@@ -1514,6 +1692,7 @@
 
   function computeCtx() {
     priceCache = new Map();
+    halfCache = new Map();
     const usage = new Map();
     for (const m of S.data.menus) {
       walkMenu(m, (k, id, ent, path) => {
@@ -1658,6 +1837,10 @@
         if (placement(path).hidden && r.min > 0)
           gAdd('error', r.fixed ? `${label} always needs a choice, so it cannot be hidden here. Show it` : `${label} is required, so it cannot be hidden here. Show it, or set the minimum to 0`, 'advanced', null);
         if (halvesSupported(ent) && Object.values(ent.halves).some((h) => !h.left !== !h.right)) gAdd('warning', `${label}: some toppings have only one half set`, 'halves');
+        const ungrouped = suggestedHalves(ent)
+          .flatMap((s) => [s.left, s.right])
+          .filter((pid) => ent.children.includes(pid)).length;
+        if (ungrouped) gAdd('warning', `${label}: ${plural(ungrouped, 'option looks', 'options look')} like ${ungrouped === 1 ? 'a half' : 'halves'}. Customers see each one as its own option until you group halves`, 'halves');
         if (ent.metadata.some((t) => !t.key.trim() || !t.value.trim())) gAdd('error', `${label}: each metadata tag needs a key and a value`, 'advanced');
         else if (ent.metadata.some((t) => lengthError(t.key) || lengthError(t.value))) gAdd('error', `${label}: a metadata tag is longer than ${TEXT_LIMIT} characters`, 'advanced');
       }
@@ -3066,6 +3249,97 @@
     toast(`${plural(picks.length, 'change', 'changes')} applied. POS stays as it is`);
   }
 
+  function openHalfMatch(gid) {
+    const g = entity('group', gid);
+    const taken = new Set(Object.values(g.halves).flatMap((h) => [h.left, h.right]));
+    openModal({ title: 'Group halves', body: '<div id="hh"></div>', size: 'lg', foot: '<div class="modal-foot" id="hh-foot"></div>' });
+    T.hh = { gid, items: halfSuggestions(g), unmatched: halfMatches(g).unmatched.filter((pid) => !taken.has(pid)), off: new Set() };
+    renderHalfMatch();
+  }
+
+  function renderHalfMatch() {
+    if (!T.hh || !$('#hh')) return;
+    const o = T.hh;
+    const g = entity('group', o.gid);
+    const nm = (pid) => nameOf('product', entity('product', pid));
+    const where = (pid) => {
+      const x = siblingPosGroups(g).find((s) => s.children.includes(pid));
+      return x && x.id !== g.id ? ` · in ${nameOf('group', x)}` : '';
+    };
+    const side = (s, pid) => `<span class="hh-side">${icon(s === 'left' ? 'halfLeft' : 'halfRight', 12)}${esc(nm(pid) + where(pid))}</span>`;
+    const row = (i) => {
+      const on = !o.off.has(i.pid);
+      const name = optionName(g, i.pid);
+      return `<div class="cmp-row"><button type="button" class="check${on ? ' is-on' : ''}" role="checkbox" aria-checked="${on}" aria-label="Group halves of ${esc(name)}" data-action="hh-item" data-key="${esc(i.pid)}">${on ? icon('check', 12) : ''}</button>
+        <span class="cmp-main"><span class="cmp-name">${esc(name)}</span><span class="cmp-meta hh-sides">${side('left', i.left)}${side('right', i.right)}</span></span></div>`;
+    };
+    const block = (title, desc, list, render) =>
+      list.length
+        ? `<section class="cmp-section"><header class="cmp-head"><h3 class="section-title">${title}<span class="tnum"> · ${list.length}</span></h3></header>${desc ? `<p class="section-desc">${desc}</p>` : ''}<div class="cmp-list">${list.map(render).join('')}</div></section>`
+        : '';
+    const exact = o.items.filter((i) => i.exact);
+    const close = o.items.filter((i) => !i.exact);
+    $('#hh').innerHTML = o.items.length
+      ? `<p>Customers pick a topping, then choose the left half, the right half, or the whole. Halves in ${esc(nameOf('group', g))} are matched to toppings by name. POS stays as it is.</p>
+        ${block('Same name', '', exact, row)}
+        ${block('Similar name', 'Check these before you group them.', close, row)}
+        ${block('No matching topping', 'These look like halves, but no topping in this group has a matching name. Set them on the Half and whole tab.', o.unmatched, (pid) => `<div class="cmp-row"><span class="cmp-main"><span class="cmp-name">${esc(nm(pid))}</span></span></div>`)}`
+      : `<div class="empty-small">${icon('checkCircle', 20)}<strong>No halves to group</strong><span>Every topping with matching halves is already grouped.</span></div>`;
+    const on = o.items.filter((i) => !o.off.has(i.pid)).length;
+    $('#hh-foot').innerHTML = `<button type="button" class="btn secondary" data-modal-close>Cancel</button>
+      <button type="button" class="btn primary" data-action="hh-apply" ${on ? '' : 'disabled'}>${on ? `Group halves for ${plural(on, 'topping', 'toppings')}` : 'Group halves'}</button>`;
+  }
+
+  function applyHalfMatch() {
+    const { gid, items, off } = T.hh;
+    const picks = items.filter((i) => !off.has(i.pid));
+    closeModal();
+    if (!picks.length) return;
+    const g = entity('group', gid);
+    commit(() => picks.forEach((i) => (g.halves[i.pid] = { left: i.left, right: i.right })));
+    toast(`Halves successfully grouped for ${plural(picks.length, 'topping', 'toppings')}`);
+  }
+
+  function openHalfPicker(g, pid, side) {
+    const whole = normName(nameOf('product', entity('product', pid)));
+    const current = (g.halves[pid] || {})[side];
+    const roles = new Map();
+    Object.entries(g.halves).forEach(([w, h]) => ['left', 'right'].forEach((s) => h[s] && roles.set(h[s], { w, s })));
+    const seen = new Set();
+    const items = [];
+    for (const x of siblingPosGroups(g)) {
+      for (const id of x.children) {
+        if (id === pid || seen.has(id) || !isPlainOption(id)) continue;
+        seen.add(id);
+        const ent = entity('product', id);
+        const name = nameOf('product', ent);
+        const parsed = parseHalfName(name);
+        const score = parsed ? nameScore(parsed.base, whole) + (parsed.side === side ? 1 : 0) : 0;
+        const r = roles.get(id);
+        const meta = [
+          id === current ? 'Selected' : score >= 1.6 ? 'Suggested' : '',
+          r && r.w !== pid ? `${SIDE_LABEL[r.s]} of ${optionName(g, r.w)}` : '',
+          x.id === g.id ? '' : `In ${nameOf('group', x)}`,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        items.push({ id, name, alt: posIdOf('product', ent) || '', meta, price: '', score: id === current ? 9 : score });
+      }
+    }
+    items.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+    openPicker({
+      title: `${SIDE_LABEL[side]} of ${optionName(g, pid)}`,
+      intro: 'Pick the POS option that rings up when a customer puts this topping on this half.',
+      placeholder: 'Search by name or POS ID',
+      items,
+      noMatch: ['No matching options', 'Try a different name or POS ID.'],
+      onPick: (id) => {
+        closeModal();
+        commit(() => (g.halves[pid] = { ...(g.halves[pid] || {}), [side]: id }));
+      },
+    });
+  }
+
   /* ---------- render ---------- */
 
   function captureFocus() {
@@ -3289,6 +3563,8 @@
           hits.add(path);
           keep.add(path);
           ancestorsOf(path).forEach((a) => keep.add(a));
+          const role = halfRole(path);
+          if (role && role.wholePath) keep.add(role.wholePath);
         }
       });
       walkMenu(menu, (kind, id, ent, path, depth) => {
@@ -3303,7 +3579,33 @@
         return expanded;
       });
     }
-    return rows;
+    return nestHalves(rows);
+  }
+
+  function nestHalves(rows) {
+    const nested = new Map();
+    const top = [];
+    for (const r of rows) {
+      const role = r.kind === 'product' ? halfRole(r.path) : null;
+      if (role) r.half = role;
+      if (role && role.wholePath) {
+        if (!nested.has(role.wholePath)) nested.set(role.wholePath, []);
+        nested.get(role.wholePath).push(r);
+      } else top.push(r);
+    }
+    if (!nested.size) return rows;
+    const out = [];
+    for (const r of top) {
+      out.push(r);
+      const kids = nested.get(r.path);
+      if (!kids) continue;
+      r.halfKids = kids.length;
+      if (!r.expanded) continue;
+      kids
+        .sort((a, b) => (a.half.side === 'left' ? 0 : 1) - (b.half.side === 'left' ? 0 : 1))
+        .forEach((k) => out.push({ ...k, depth: r.depth + 1, nestedHalf: true }));
+    }
+    return out;
   }
 
   function thumb(kind, ent, cls = '') {
@@ -3346,7 +3648,7 @@
     const info = parsePath(path);
     const parentKind = parsePath(info.parentPath).kind;
     const selected = S.ui.selected === path;
-    const hasChildren = ent.children.length > 0;
+    const hasChildren = ent.children.length > 0 || !!r.halfKids;
     const pl = placement(path);
     const uses = (ctx.usage.get(`${kind}:${id}`) || []).length;
     const issues = ctx.issues.byPath.get(path) || [];
@@ -3359,16 +3661,31 @@
       const hiddenKids = ent.children.filter((pid) => placement(childPath(path, 'product', pid)).hidden).length;
       meta = esc(plural(ent.children.length, 'product', 'products') + (hiddenKids ? ` · ${hiddenKids} hidden` : ''));
     } else if (kind === 'product') {
-      if (ent.ptype === 'size') {
+      const halves = r.half ? null : wholeHalves(path);
+      if (r.half) {
+        const label = r.nestedHalf ? SIDE_LABEL[r.half.side] : `${SIDE_LABEL[r.half.side]} of ${optionName(entity('group', r.half.gid), r.half.whole)}`;
+        meta = `<span class="half-meta">${icon(r.half.side === 'left' ? 'halfLeft' : 'halfRight', 11)}${esc(label)}</span>`;
+      } else if (ent.ptype === 'size') {
         const g = sizeGroupOf(ent);
         meta = esc(`Choice product · ${plural(g ? g.children.length : 0, 'choice', 'choices')}`);
       } else if (ent.ptype === 'container') meta = esc(`Option folder · ${plural(ent.children.length, 'group', 'groups')}`);
       else if (ent.ptype === 'linked') meta = `${icon('link', 11)}${esc(ent.posParentExt ? `Rings up as ${posLabel(ent.posParentExt)}` : 'Choose what it rings up as')}`;
       else if (ent.children.length) meta = esc(plural(ent.children.length, 'group', 'groups'));
+      else if (halves)
+        meta = `<span class="half-meta">${icon('halves', 11)}${esc(halves.left && halves.right ? 'Left and right halves' : `${SIDE_LABEL[halves.left ? 'left' : 'right']} only`)}</span>`;
     } else if (kind === 'group') {
       const rules = rulesOf(ent);
+      const host = parsePath(info.parentPath);
+      const withHalves =
+        halvesSupported(ent) && host.kind === 'product'
+          ? ent.children.filter((pid) => {
+              const { h } = halvesAt(entity('product', host.id), ent.id, pid);
+              return h.left && h.right;
+            }).length
+          : 0;
       const extra =
-        ent.gtype === 'linked' ? ` · From ${posLabel(ent.posGroupExt)}` : ent.gtype === 'standalone' && !isChoiceGroup(ent) ? ' · Each one added as its own item' : '';
+        (ent.gtype === 'linked' ? ` · From ${posLabel(ent.posGroupExt)}` : ent.gtype === 'standalone' && !isChoiceGroup(ent) ? ' · Each one added as its own item' : '') +
+        (withHalves ? ` · ${withHalves} with halves` : '');
       const tag = isChoiceGroup(ent) ? 'Choice' : C.groupTypes[rules.type].label;
       meta = `<span class="type-tag type-${rules.type}">${tag}</span>${esc(ent.isSubstitutionContainer ? 'Substitutes only · Hidden from customers' : groupRuleShort(rules) + extra)}`;
     }
@@ -3377,7 +3694,9 @@
     const suggestion =
       kind === 'category' && suggestedSizeSets(ent).length
         ? `<button class="badge badge-action" data-action="group-sizes" data-path="${esc(path)}" title="Group size variants into one product">${icon('sparkles', 12)}Group sizes</button>`
-        : '';
+        : kind === 'group' && suggestedHalves(ent).length
+          ? `<button class="badge badge-action" data-action="group-halves" data-id="${esc(id)}" title="Match left and right halves to their toppings">${icon('sparkles', 12)}Group halves</button>`
+          : '';
     const badges = [];
     if (isMissingOnPos(ent)) badges.push(`<span class="badge tone-error">Deleted on POS</span>`);
     else if (removedFromPos(path)) badges.push(`<span class="badge tone-warning">Removed on POS</span>`);
@@ -3416,7 +3735,7 @@
 
     const flashCls = T.flashPaths.has(path) || (ent.externalId && T.flashExt.has(ent.externalId)) ? ' is-flash' : '';
     const addTitle = kind === 'category' ? 'Add product' : kind === 'product' && ent.ptype !== 'size' ? 'Add group' : 'Add option';
-    return `<div class="row${selected ? ' is-selected' : ''}${pl.hidden ? ' is-muted' : ''}${r.hit ? ' is-hit' : ''}${flashCls}" role="treeitem" aria-level="${depth}" aria-selected="${selected}" ${hasChildren ? `aria-expanded="${r.expanded}"` : ''} tabindex="${selected ? 0 : -1}" draggable="true" data-path="${esc(path)}" data-kind="${kind}" data-parent-kind="${parentKind}" data-name="${esc(name)}" style="--depth:${depth - 1}">
+    return `<div class="row${selected ? ' is-selected' : ''}${pl.hidden ? ' is-muted' : ''}${r.hit ? ' is-hit' : ''}${r.nestedHalf ? ' is-half' : ''}${flashCls}" role="treeitem" aria-level="${depth}" aria-selected="${selected}" ${hasChildren ? `aria-expanded="${r.expanded}"` : ''} tabindex="${selected ? 0 : -1}" draggable="${r.nestedHalf ? 'false' : 'true'}"${r.nestedHalf ? ` data-half-of="${esc(r.half.wholePath)}"` : ''} data-path="${esc(path)}" data-kind="${kind}" data-parent-kind="${parentKind}" data-name="${esc(name)}" style="--depth:${depth - 1}">
       <span class="row-indent" aria-hidden="true"></span>
       ${hasChildren ? `<button class="twisty" data-action="toggle" data-path="${esc(path)}" tabindex="-1" aria-label="${r.expanded ? 'Collapse' : 'Expand'}">${icon('chevRight', 14)}</button>` : '<span class="twisty-spacer"></span>'}
       ${thumb(kind, ent)}
@@ -5021,7 +5340,7 @@
       return rulesHtml + groupOptionsSection(g, path, gb, rules) + missingHtml + groupSectionsSection(g, gb);
     }
     if (tab === 'substitutes') return groupSwapsSection(g, gb);
-    if (tab === 'halves') return groupHalvesSection(g, gb);
+    if (tab === 'halves') return groupHalvesSection(g);
     const pInfo = parsePath(parsePath(path).parentPath);
     const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));
     const pl = placement(path);
@@ -5248,30 +5567,58 @@
     );
   }
 
-  function groupHalvesSection(g, gb) {
-    const opts = g.children.filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container');
-    const seen = new Set();
-    const pool = siblingPosGroups(g)
-      .flatMap((x) => x.children)
-      .filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container' && !seen.has(pid) && seen.add(pid));
+  function groupHalvesSection(g) {
+    const matched = halfMatches(g).halfIds;
+    const mapped = new Set(Object.entries(g.halves).flatMap(([w, h]) => [h.left, h.right].filter((x) => x && x !== w)));
+    const isHalf = (pid) => (mapped.has(pid) || matched.has(pid)) && !g.halves[pid];
+    const opts = g.children.filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container' && !isHalf(pid));
+    const halfCount = g.children.filter(isHalf).length;
     const parents = groupParents(g.id);
     const own = (p) => opts.filter((pid) => hasOwn(p.halfWhole, `${g.id}:${pid}`)).length;
+    const nm = (pid) => nameOf('product', entity('product', pid));
+    const missing = opts.filter((pid) => !(g.halves[pid] && g.halves[pid].left && g.halves[pid].right));
+    const filter = T.halfFilter === 'missing' && missing.length ? 'missing' : 'all';
+    const list = filter === 'missing' ? missing : opts;
+    const pick = (pid, side) => {
+      const v = (g.halves[pid] || {})[side];
+      const label = `${SIDE_LABEL[side]} of ${optionName(g, pid)}`;
+      return `<div class="half-cell">
+        <button type="button" class="input half-pick${v ? '' : ' is-empty'}" data-action="half-pick" data-id="${esc(pid)}" data-side="${side}" aria-label="${esc(label)}"${v ? ` title="${esc(nm(v))}"` : ''}>${icon(side === 'left' ? 'halfLeft' : 'halfRight', 13)}<span class="half-pick-label">${esc(v ? nm(v) : `Add ${SIDE_LABEL[side].toLowerCase()}`)}</span>${icon('chevDown', 14)}</button>
+        ${v ? `<button type="button" class="icon-btn sm" data-action="half-clear" data-id="${esc(pid)}" data-side="${side}" aria-label="Remove ${esc(label.toLowerCase())}" title="Remove">${icon('x', 14)}</button>` : ''}
+      </div>`;
+    };
+    const seg = (v, label, n) =>
+      `<button type="button" role="radio" aria-checked="${filter === v}" class="seg" data-action="half-filter" data-value="${v}">${label}<span class="seg-count tnum">${n}</span></button>`;
+    const sugg = suggestedHalves(g);
+    const canGroup = halfSuggestions(g).length > 0;
+    const hint = sugg.length
+      ? section(
+          'Suggestion',
+          `${callout('info', `${plural(sugg.length, 'topping has', 'toppings have')} halves with matching names. Group them, so customers choose a side on the topping instead of seeing each half as its own option.`, 'sparkles')}
+          <div class="hint-actions">
+            <button type="button" class="btn secondary sm" data-action="group-halves" data-id="${esc(g.id)}">${icon('sparkles', 14)}Group halves</button>
+            <button type="button" class="btn ghost sm" data-action="dismiss-half-hint" data-id="${esc(g.id)}">Dismiss suggestion</button>
+          </div>`,
+        )
+      : '';
     const body = opts.length
-      ? `<div class="opt-cards"><div class="group-card is-open"><div class="group-card-body">${opts
-          .map((pid) => {
-            const h = g.halves[pid] || {};
-            const name = optionName(g, pid);
-            const choices = [['', 'Not added'], ...pool.filter((x) => x !== pid).map((x) => [x, nameOf('product', entity('product', x))])];
-            return `<div class="opt-sub-row">
-              <span class="opt-sub-name">${esc(name)}</span>
-              <div class="grid-2">
-                ${field('Left half', selectInput(gb(`halves.${pid}.left`), h.left || '', choices, { label: `Left half of ${name}` }))}
-                ${field('Right half', selectInput(gb(`halves.${pid}.right`), h.right || '', choices, { label: `Right half of ${name}` }))}
-              </div>
-              ${!h.left !== !h.right ? slotError('Add both halves, or remove both') : ''}
-            </div>`;
-          })
-          .join('')}</div></div></div>`
+      ? `<div class="half-tools">
+          <div class="segmented" role="radiogroup" aria-label="Show toppings">${seg('all', 'All', opts.length)}${seg('missing', 'Missing halves', missing.length)}</div>
+          ${canGroup && !sugg.length ? `<button type="button" class="btn ghost sm" data-action="group-halves" data-id="${esc(g.id)}">${icon('sparkles', 14)}Group halves</button>` : ''}
+        </div>
+        <div class="half-table">
+          ${list
+            .map((pid) => {
+              const h = g.halves[pid] || {};
+              return `<div class="half-row">
+                <span class="half-name">${esc(optionName(g, pid))}</span>
+                <div class="half-picks">${pick(pid, 'left')}${pick(pid, 'right')}</div>
+                ${!h.left !== !h.right ? slotError('Add both halves, or remove both') : ''}
+              </div>`;
+            })
+            .join('')}
+        </div>
+        ${halfCount ? `<p class="field-help">${halfCount === 1 ? '1 option in this group is a half, so it is not listed.' : `${halfCount} options in this group are halves, so they are not listed.`} You’ll find each half under its topping in the menu.</p>` : ''}`
       : '<p class="field-help">Add options to this group first.</p>';
     const applies = parents.length
       ? `<div class="store-list">${parents
@@ -5282,9 +5629,11 @@
           .join('')}</div>`
       : '';
     return (
+      hint +
       section('Half and whole', body, {
         desc: 'Let customers put a topping on the left half, the right half, or the whole product. For each half, pick the POS option that rings up. Options come from the POS groups of the products that use this group.',
-      }) + (applies ? section('Applies to', applies, { desc: 'Products follow these halves unless they set their own on their Ordering tab.' }) : '')
+      }) +
+      (applies ? section('Applies to', applies, { desc: 'Products follow these halves unless they set their own on their Ordering tab.' }) : '')
     );
   }
 
@@ -5733,6 +6082,7 @@
     T.picker = null;
     T.cmp = null;
     T.opt = null;
+    T.hh = null;
     if (immediate === true) {
       root.innerHTML = '';
       delete root.dataset.state;
@@ -5921,6 +6271,8 @@
     if (info.kind === 'product' && ent.ptype !== 'container') items.push({ label: 'Preview', icon: 'phone', onClick: () => openPreview(path) });
     if (info.kind === 'category' && detectSizeSets(ent).length) items.push({ label: 'Group sizes', icon: 'sparkles', onClick: () => openOptimize(path) });
     if (info.kind === 'category' && suggestedSizeSets(ent).length) items.push({ label: 'Dismiss suggestion', icon: 'x', onClick: () => dismissSizeHint(path) });
+    if (info.kind === 'group' && halfSuggestions(ent).length) items.push({ label: 'Group halves', icon: 'sparkles', onClick: () => openHalfMatch(ent.id) });
+    if (info.kind === 'group' && suggestedHalves(ent).length) items.push({ label: 'Dismiss suggestion', icon: 'x', onClick: () => dismissHalfHint(ent.id) });
     if (ent.children.length)
       items.push({
         label: 'Expand all inside',
@@ -6142,6 +6494,38 @@
         break;
       case 'dismiss-size-hint':
         dismissSizeHint(path);
+        break;
+      case 'group-halves':
+        e.stopPropagation();
+        openHalfMatch(el.dataset.id);
+        break;
+      case 'dismiss-half-hint':
+        dismissHalfHint(el.dataset.id);
+        break;
+      case 'hh-item': {
+        const k = el.dataset.key;
+        if (T.hh.off.has(k)) T.hh.off.delete(k);
+        else T.hh.off.add(k);
+        renderHalfMatch();
+        break;
+      }
+      case 'hh-apply':
+        applyHalfMatch();
+        break;
+      case 'half-pick':
+        openHalfPicker(entity('group', parsePath(S.ui.selected).id), el.dataset.id, el.dataset.side);
+        break;
+      case 'half-clear': {
+        const g = entity('group', parsePath(S.ui.selected).id);
+        commit(() => {
+          const h = g.halves[el.dataset.id];
+          if (h) delete h[el.dataset.side];
+        });
+        break;
+      }
+      case 'half-filter':
+        T.halfFilter = el.dataset.value;
+        render();
         break;
       case 'remove':
         confirmRemove(path);
@@ -7005,7 +7389,7 @@
           T.focusRow = cur.dataset.path;
           render();
         } else {
-          const parent = parsePath(cur.dataset.path).parentPath;
+          const parent = cur.dataset.halfOf || parsePath(cur.dataset.path).parentPath;
           if (parent && parent.includes('>')) select(parent, { focusRow: true });
         }
         break;
