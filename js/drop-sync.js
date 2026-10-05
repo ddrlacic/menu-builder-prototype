@@ -317,7 +317,7 @@
           secret_identifiers: e.segments.map((s) => ({ segment_id: s.segmentId, tag: s.tag })),
           metadata: e.metadata,
           upsell: choices
-            ? { name: nameOf('group', choices), products: choices.children.map(productRef).filter(Boolean) }
+            ? { name: null, products: choices.children.map(productRef).filter(Boolean) }
             : e.upsell.products.length
               ? { name: e.upsell.title, products: e.upsell.products.map(productRef).filter(Boolean) }
               : null,

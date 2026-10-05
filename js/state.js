@@ -269,6 +269,8 @@
     delete g.stores;
     migrateSyncName(g);
     if (g.gtype === 'standalone' && g.role === 'choice') g.type = 2;
+    if (isChoiceGroup(g))
+      Object.assign(g, { internalName: '', reportingId: '', description: '', image: null, metadata: [], preselected: {}, optionSettings: {}, sections: [], optionSection: {} });
   }
 
   const hasOwn = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
@@ -295,7 +297,7 @@
       const base = posRulesOf(g);
       for (const k of Object.keys(g.ruleOverrides)) if (!(k in base) || ruleValue(k, g.ruleOverrides[k]) === base[k]) delete g.ruleOverrides[k];
     }
-    if (rulesOf(g).type === 2 && g.children.length && !g.children.some((pid) => g.preselected[pid] > 0)) {
+    if (rulesOf(g).type === 2 && !isChoiceGroup(g) && g.children.length && !g.children.some((pid) => g.preselected[pid] > 0)) {
       g.preselected = { [g.children[0]]: 1 };
     }
   }

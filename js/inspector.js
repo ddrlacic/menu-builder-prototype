@@ -257,8 +257,9 @@
     if (kind === 'menu') return [['general', 'General'], ['ordering', 'Ordering'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
     if (kind === 'category') return [['general', 'General'], ['images', 'Images'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
     if (kind === 'group') {
+      if (isChoiceGroup(ent)) return [['options', 'Options']];
       const tabs = [['general', 'General'], ['options', 'Options']];
-      if (!isChoiceGroup(ent) && !ent.isSubstitutionContainer) tabs.push(['substitutes', 'Substitutes']);
+      if (!ent.isSubstitutionContainer) tabs.push(['substitutes', 'Substitutes']);
       if (halvesSupported(ent)) tabs.push(['halves', 'Half and whole']);
       return [...tabs, ['advanced', 'Advanced']];
     }

@@ -200,7 +200,7 @@
       : rows.join('');
     return `<section class="pv-group">
       <header class="pv-group-head">
-        <div><h4>${esc(nameOf('group', g))}</h4><span class="pv-rule">${esc(customerRule(rulesOf(g)))}</span></div>
+        <div><h4>${esc(isChoiceGroup(g) ? nameOf('product', entity('product', parsePath(parsePath(gp).parentPath).id)) : nameOf('group', g))}</h4><span class="pv-rule">${esc(customerRule(rulesOf(g)))}</span></div>
         ${st.min > 0 ? `<span class="pv-status${done ? ' is-done' : ''}">${done ? `${icon('check', 12)}Done` : 'Required'}</span>` : ''}
       </header>
       <div class="pv-opts">${body || '<p class="field-help">No options to show.</p>'}</div>

@@ -380,7 +380,7 @@
 
     if (tab === 'ordering') {
       let html = '';
-      if (inGroup && p.ptype !== 'container') {
+      if (inGroup && p.ptype !== 'container' && !isChoiceGroup(parentEnt)) {
         const auto = isAutoAdded(path);
         const groupHidden = groupHiddenCodes(parentEnt, p.id);
         const enabled = C.modifierCodes.filter(([v]) => p.modifierCodes.includes(v) && !groupHidden.includes(v));
@@ -391,7 +391,7 @@
         let preField;
         if (auto) preField = field('Preselected', stepper(`pl|${path}|preselected`, 1, { label: 'preselected quantity', disabled: true }), { pos: true, help: 'POS adds this option automatically, so it’s always preselected.' });
         else if (pr.type !== 1) {
-          const rule = isChoiceGroup(parentEnt) ? 'Choice groups preselect one product' : pr.type === 2 ? 'Size groups preselect one option' : 'Combo groups preselect one option at most';
+          const rule = pr.type === 2 ? 'Size groups preselect one option' : 'Combo groups preselect one option at most';
           preField = field('Preselected', `<p class="field-help">${groupPre ? 'Yes' : 'No'}. ${rule} everywhere they are used. Choose it on the Options tab of ${esc(parentName)}.</p>`);
         }
         else

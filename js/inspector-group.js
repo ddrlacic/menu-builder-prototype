@@ -8,7 +8,6 @@
     const choice = isChoiceGroup(g);
     if (tab === 'general') {
       const t = C.groupTypes[rules.type];
-      const typeTag = choice ? ['Choice', 'Customers pick exactly one product.'] : [t.label, t.help];
       let posField = '';
       if (fromPos)
         posField = field('POS group', `<div class="input is-readonly">${esc(posLabel(g.externalId))}</div>`, { pos: true, help: 'Choices ring up on POS as options of this group.' });
@@ -19,7 +18,7 @@
           <div class="link-btns field-actions"><button type="button" class="link-btn" data-action="group-change-link">Change</button><button type="button" class="link-btn" data-action="group-unlink">Unlink</button></div>`,
           { help: 'Choices ring up on POS as options of this group, at its POS prices.' },
         );
-      else if (!choice)
+      else
         posField = field(
           'POS group',
           `<div class="input is-readonly muted">Not linked</div>
@@ -35,14 +34,12 @@
               error: lengthError(g.internalName),
               help: 'Use it to tell apart groups with the same name. Only your team sees it.',
             }) +
-            field('Type', `<div class="type-display"><span class="type-tag type-${rules.type}">${typeTag[0]}</span><span>${esc(typeTag[1])}</span></div>`, {
+            field('Type', `<div class="type-display"><span class="type-tag type-${rules.type}">${t.label}</span><span>${esc(t.help)}</span></div>`, {
               help: fromPos
                 ? `${icon('lock', 12)} Set by the POS group.`
                 : g.gtype === 'linked'
                   ? `${icon('lock', 12)} Follows the linked POS group.`
-                  : choice
-                    ? `${icon('lock', 12)} Type cannot be changed after the group is created.`
-                    : `${icon('lock', 12)} Add-on groups are always Modifier groups. Linking a POS group uses its type instead.`,
+                  : `${icon('lock', 12)} Add-on groups are always Modifier groups. Linking a POS group uses its type instead.`,
             }) +
             posField +
             field('External ID', inputText(gb('reportingId'), g.reportingId, { id: 'g-ext', mono: true }), {
@@ -51,9 +48,9 @@
               help: 'Use it to match this group in reports outside this platform.',
             }) +
             descriptionField(gb('description'), g.description, 'g-desc', 'Not shown in our ordering apps. Apps built with the Ordering API can show it.') +
-            imageField(gb('image'), g.image),
+            imageField(gb('image'), g.image, { help: 'Not shown in our ordering apps. Apps built with the Ordering API can show it.' }),
         ) +
-        (rules.type === 1 && !choice
+        (rules.type === 1
           ? section(
               'Behavior',
               toggle(gb('isSubstitutionContainer'), g.isSubstitutionContainer, {
@@ -81,7 +78,7 @@
             { desc: 'On POS in this group, but not shown to customers.' },
           )
         : '';
-      const rulesHtml = groupRulesSection(g, gb, rules);
+      const rulesHtml = (choice ? sourceSection('group', g, path) : '') + groupRulesSection(g, gb, rules);
       if (!g.children.length) {
         const hint =
           g.gtype === 'standalone'
@@ -89,7 +86,7 @@
             : `Add options from ${esc(posLabel(gpos))}.`;
         return rulesHtml + section('Options', `<div class="empty-small"><strong>No options yet</strong><span>${hint}</span></div>`) + missingHtml;
       }
-      return rulesHtml + groupOptionsSection(g, path, gb, rules) + missingHtml + groupSectionsSection(g, gb);
+      return rulesHtml + groupOptionsSection(g, path, gb, rules) + missingHtml + (choice ? '' : groupSectionsSection(g, gb));
     }
     if (tab === 'substitutes') return groupSwapsSection(g, gb);
     if (tab === 'halves') return groupHalvesSection(g);
@@ -112,17 +109,15 @@
             : 'Hide it here without removing it. Other places stay as they are.',
         }),
       ) +
-      (choice ? '' : groupAppearsInSection(g, path)) +
+      groupAppearsInSection(g, path) +
       metadataSection(g, 'group') +
       sourceSection('group', g, path) +
       removeSection(path, 'group', g) +
-      (choice
-        ? ''
-        : section(
-            '',
-            `<button type="button" class="btn secondary tone-danger" data-action="group-delete" data-path="${esc(path)}">${icon('trash', 15)}Delete group</button>
-            <p class="field-help">${parents.length > 1 ? `Removes it from all ${parents.length} products that use it.` : 'Removes it and its settings.'} Its options are not deleted.</p>`,
-          ))
+      section(
+        '',
+        `<button type="button" class="btn secondary tone-danger" data-action="group-delete" data-path="${esc(path)}">${icon('trash', 15)}Delete group</button>
+        <p class="field-help">${parents.length > 1 ? `Removes it from all ${parents.length} products that use it.` : 'Removes it and its settings.'} Its options are not deleted.</p>`,
+      )
     );
   }
 
@@ -183,6 +178,7 @@
     const here = crumbText(path);
     const max = limitOf(rules.max);
     const pick = rules.fixed || max === 1;
+    const choice = isChoiceGroup(g);
     const rows = g.children
       .map((pid, i) => {
         const p = entity('product', pid);
@@ -194,11 +190,11 @@
         const name = optionName(g, pid);
         const open = T.openCard === `opt:${pid}`;
         const pre = g.preselected[pid] || 0;
-        let preCell;
-        if (pick && !folder) {
+        let preCell = '';
+        if (!choice && pick && !folder) {
           const on = pre > 0;
           preCell = `<button type="button" class="check-toggle opt-pick" role="radio" aria-checked="${on}" aria-label="Preselect ${esc(name)}" data-action="pre-pick" data-id="${esc(pid)}" ${auto ? 'disabled' : ''}><span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span></button>`;
-        } else preCell = stepper(gb(`preselected.${pid}`), auto ? 1 : pre, { max: optionMaxOf(g, pid, rules), label: `preselected ${name}`, disabled: auto || folder });
+        } else if (!choice) preCell = stepper(gb(`preselected.${pid}`), auto ? 1 : pre, { max: optionMaxOf(g, pid, rules), label: `preselected ${name}`, disabled: auto || folder });
         const subs = [];
         if (auto) subs.push('Auto-added by POS');
         else if (folder) subs.push('Option folder');
@@ -214,19 +210,20 @@
         return `<div class="opt-item${open ? ' is-open' : ''}">${row}${open ? optionDetail(g, pid, p, op, i, gb, rules, max) : ''}</div>`;
       })
       .join('');
-    const preHelp =
-      rules.type === 2
-        ? 'Exactly one option needs to be preselected. It applies everywhere this group is used.'
+    const preHelp = choice
+      ? ''
+      : rules.type === 2
+        ? ' Exactly one option needs to be preselected. It applies everywhere this group is used.'
         : rules.type === 3
-          ? 'Preselect one option at most. Preselection applies everywhere this group is used.'
-          : `${pick ? 'Preselect one option at most. Preselection applies' : 'Preselected quantities apply'} everywhere this group is used. To change one place only, open the option there.`;
+          ? ' Preselect one option at most. Preselection applies everywhere this group is used.'
+          : ` ${pick ? 'Preselect one option at most. Preselection applies' : 'Preselected quantities apply'} everywhere this group is used. To change one place only, open the option there.`;
     return section(
       'Options',
-      `<div class="opt-table has-expand">
-        <div class="opt-head"><span>Option</span><span>POS price</span><span>Preselected</span><span>Shown</span><span class="sr-only">Settings</span></div>
+      `<div class="opt-table has-expand${choice ? ' no-pre' : ''}">
+        <div class="opt-head"><span>Option</span><span>POS price</span>${choice ? '' : '<span>Preselected</span>'}<span>Shown</span><span class="sr-only">Settings</span></div>
         ${rows}
       </div>
-      <p class="field-help">${g.gtype === 'standalone' ? 'Each choice is added to the order as its own item.' : 'Prices come from POS.'} Ranges mean the price differs by store. ${preHelp} Shown applies only in ${esc(here)}.</p>`,
+      <p class="field-help">${g.gtype === 'standalone' ? 'Each choice is added to the order as its own item.' : 'Prices come from POS.'} Ranges mean the price differs by store.${preHelp} Shown applies only in ${esc(here)}.</p>`,
     );
   }
 
@@ -236,11 +233,13 @@
     const folder = p.ptype === 'container';
     const hidden = groupHiddenCodes(g, pid);
     const codes = C.modifierCodes.filter(([v]) => p.modifierCodes.includes(v));
-    let body = field('Name in this group', inputText(gb(`optionSettings.${pid}.name`), s.name, { id: `g-on-${pid}`, placeholder: nameOf('product', p) }), {
-      id: `g-on-${pid}`,
-      error: lengthError(s.name),
-      help: 'Customers see this name in this group. Leave it empty to use the product name.',
-    });
+    let body = isChoiceGroup(g)
+      ? ''
+      : field('Name in this group', inputText(gb(`optionSettings.${pid}.name`), s.name, { id: `g-on-${pid}`, placeholder: nameOf('product', p) }), {
+          id: `g-on-${pid}`,
+          error: lengthError(s.name),
+          help: 'Customers see this name in this group. Leave it empty to use the product name.',
+        });
     if (rules.type === 1 && !folder && max !== 1)
       body += field('Max per option', inputNum(gb(`optionSettings.${pid}.maxQty`), s.maxQty, { int: true, id: `g-om-${pid}`, min: 1, max: max != null ? max : QTY_MAX, placeholder: String(rules.maxSingle) }), {
         id: `g-om-${pid}`,

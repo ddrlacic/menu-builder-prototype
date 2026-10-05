@@ -10,6 +10,7 @@
   function nameOf(kind, ent) {
     if (!ent) return 'Unknown';
     if (kind === 'menu') return ent.name || 'Untitled menu';
+    if (kind === 'group' && isChoiceGroup(ent)) return 'Choices';
     return ent.name || 'Untitled';
   }
 

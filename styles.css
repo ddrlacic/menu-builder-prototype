@@ -3044,6 +3044,11 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 6px;
 }
 
+.opt-table.has-expand.no-pre .opt-head,
+.opt-table.has-expand.no-pre .opt-row {
+  grid-template-columns: minmax(0, 1fr) 84px 36px 24px;
+}
+
 .opt-table.has-expand .opt-price {
   min-width: 0;
   font-size: var(--text-xs);

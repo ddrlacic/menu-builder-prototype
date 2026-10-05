@@ -476,15 +476,15 @@
     openModal({
       title: `Delete ${nameOf('group', g)}?`,
       body: `<ul class="modal-list">
-          <li>It is removed from ${parents.length > 1 ? `${parents.length} products: ` : ''}${esc(listJoin(parents.map((p) => nameOf('product', p))))}, with its settings there.</li>
+          ${parents.length ? `<li>It is removed from ${parents.length > 1 ? `${parents.length} products: ` : ''}${esc(listJoin(parents.map((p) => nameOf('product', p))))}, with its settings there.</li>` : ''}
           <li>Its options are not deleted.</li>
           <li>${g.source === 'pos' ? 'It stays on POS. You can add it back from POS items.' : 'It exists only in this menu builder, so nothing changes on POS.'}</li>
         </ul>
-        ${parents.length > 1 ? '<button type="button" class="check-toggle" role="checkbox" aria-checked="false" data-action="delete-ack"><span class="check" aria-hidden="true"></span>Yes, I understand</button>' : ''}`,
+        ${parents.length ? '<button type="button" class="check-toggle" role="checkbox" aria-checked="false" data-action="delete-ack"><span class="check" aria-hidden="true"></span>Yes, I understand</button>' : ''}`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },
         {
-          label: 'Delete group',
+          label: parents.length ? 'Delete forever' : 'Delete group',
           kind: 'danger',
           onClick: () => {
             closeModal();
@@ -499,7 +499,7 @@
         },
       ],
     });
-    if (parents.length < 2) return;
+    if (!parents.length) return;
     $('#modal-root .modal-foot .btn.danger').disabled = true;
     $('#modal-root [data-action="delete-ack"]').focus({ preventScroll: true });
   }

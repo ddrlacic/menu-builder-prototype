@@ -133,7 +133,7 @@
         const gAdd = (level, text, tab, dedupe = key) => add(path, level, text, dedupe, tab);
         const count = ent.children.length;
         const max = limitOf(r.max);
-        if (!(ent.name || '').trim()) gAdd('error', 'Add a group name', 'general');
+        if (!isChoiceGroup(ent) && !(ent.name || '').trim()) gAdd('error', 'Add a group name', 'general');
         if ((ent.name || '').length > TEXT_LIMIT) gAdd('error', `${label}: name is longer than ${TEXT_LIMIT} characters`, 'general');
         if ((ent.internalName || '').length > TEXT_LIMIT) gAdd('error', `${label}: internal name is longer than ${TEXT_LIMIT} characters`, 'general');
         if ((ent.reportingId || '').length > TEXT_LIMIT) gAdd('error', `${label}: external ID is longer than ${TEXT_LIMIT} characters`, 'general');
@@ -153,7 +153,7 @@
         const pre = preList.reduce((s, n) => s + n, 0);
         if (ent.children.some((pid, i) => preList[i] > optionMaxOf(ent, pid, r))) gAdd('error', `${label}: an option is preselected more times than it can be picked`, 'options', null);
         else if (max != null && pre > max) gAdd('error', `${label}: ${pre} options preselected, but the maximum is ${max}`, 'options', null);
-        if (r.type === 2 && count && pre !== 1) gAdd('error', `${label}: preselect exactly one ${isChoiceGroup(ent) ? 'product' : 'size'}`, 'options', null);
+        if (r.type === 2 && !isChoiceGroup(ent) && count && pre !== 1) gAdd('error', `${label}: preselect exactly one size`, 'options', null);
         if (placement(path).hidden && r.min > 0)
           gAdd('error', r.fixed ? `${label} always needs a choice, so it cannot be hidden here. Show it` : `${label} is required, so it cannot be hidden here. Show it, or set the minimum to 0`, 'advanced', null);
         if (halvesSupported(ent) && Object.values(ent.halves).some((h) => !h.left !== !h.right)) gAdd('warning', `${label}: some toppings have only one half set`, 'halves');
