@@ -84,14 +84,14 @@
   function imageField(bind, value, { label = 'Image', size = '1200 × 800', help = '', wide = false, posSrc = null } = {}) {
     const posRow =
       posSrc && posSrc !== value
-        ? `<div class="pos-image"><img class="pos-image-thumb" src="${esc(posSrc)}" alt="">
+        ? `<div class="pos-image"><button type="button" class="image-open" data-action="image-view" data-src="${esc(posSrc)}" aria-label="Open POS image in new tab" title="Open POS image in new tab"><img class="pos-image-thumb" src="${esc(posSrc)}" alt=""></button>
             <span class="field-help">${value ? 'POS has a different image.' : 'POS has an image.'}</span>
             <button type="button" class="btn secondary sm" data-action="image-use-pos" data-bind="${esc(bind)}" data-src="${esc(posSrc)}">Use POS image</button></div>`
         : '';
     return field(
       label,
       (value
-        ? `<div class="image-field${wide ? ' is-wide' : ''}"><img class="image-preview" src="${value}" alt="">
+        ? `<div class="image-field${wide ? ' is-wide' : ''}"><button type="button" class="image-open" data-action="image-view" data-bind="${esc(bind)}" aria-label="Open image in new tab" title="Open image in new tab"><img class="image-preview" src="${value}" alt=""></button>
             <div class="image-actions">
               <label class="btn secondary sm">Replace image<input type="file" accept="${IMAGE_TYPES.join(',')}" data-image="${esc(bind)}" hidden></label>
               <button type="button" class="btn ghost sm tone-danger" data-action="image-remove" data-bind="${esc(bind)}">Remove image</button>

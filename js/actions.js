@@ -588,6 +588,9 @@
       case 'image-remove':
         commit(() => setBind(el.dataset.bind, null));
         break;
+      case 'image-view':
+        openImage(el.dataset.src || getBind(el.dataset.bind));
+        break;
       case 'image-use-pos': {
         const { bind, src } = el.dataset;
         const current = getBind(bind);

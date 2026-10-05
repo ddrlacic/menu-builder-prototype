@@ -3297,8 +3297,23 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: flex-end;
 }
 
+.image-open {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  cursor: zoom-in;
+}
+
+.image-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .image-preview {
-  width: 96px;
+  display: block;
+  width: 144px;
   height: 96px;
   border-radius: var(--radius-md);
   object-fit: cover;
@@ -3328,6 +3343,7 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 .pos-image-thumb {
+  display: block;
   width: 40px;
   height: 40px;
   border-radius: var(--radius-sm);
@@ -3354,6 +3370,10 @@ input[type='number']::-webkit-inner-spin-button {
 .image-field.is-wide {
   flex-direction: column;
   align-items: stretch;
+}
+
+.image-field.is-wide .image-open {
+  width: 100%;
 }
 
 .image-field.is-wide .image-preview {

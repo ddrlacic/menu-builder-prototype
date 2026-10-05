@@ -322,6 +322,18 @@
 
   /* ---------- images ---------- */
 
+  function openImage(src) {
+    if (!src) return;
+    let url = src;
+    if (src.startsWith('data:')) {
+      const [head, data] = src.split(',');
+      const bytes = Uint8Array.from(atob(data), (ch) => ch.charCodeAt(0));
+      url = URL.createObjectURL(new Blob([bytes], { type: head.slice(5).split(';')[0] }));
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+    window.open(url, '_blank', 'noopener');
+  }
+
   function readImage(file, bind) {
     if (!file || !IMAGE_TYPES.includes(file.type)) {
       toast('Could not add the image. Use a JPG, PNG, or GIF file.', 'error');
