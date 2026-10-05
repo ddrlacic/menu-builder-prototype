@@ -125,8 +125,11 @@
       <nav class="menu-tabs" role="tablist" aria-label="Menus">
         ${S.data.menus
           .map(
-            (m) => `<button class="menu-tab" role="tab" aria-selected="${m.id === menu.id}" data-action="switch-menu" data-id="${m.id}">
-              <span class="status-dot tone-${(STATUS[m.status] || STATUS.draft)[1]}"></span>${esc(m.name || 'Untitled menu')}</button>`,
+            (m) => {
+              const shared = S.data.menus.some((o) => o.id !== m.id && (o.name || '').trim() === (m.name || '').trim());
+              return `<button class="menu-tab" role="tab" aria-selected="${m.id === menu.id}" data-action="switch-menu" data-id="${m.id}"${m.internalName ? ` title="${esc(m.internalName)}"` : ''}>
+              <span class="status-dot tone-${(STATUS[m.status] || STATUS.draft)[1]}"></span>${esc(m.name || 'Untitled menu')}${shared && m.internalName ? `<span class="muted">${esc(m.internalName)}</span>` : ''}</button>`;
+            },
           )
           .join('')}
         <button class="icon-btn" data-action="new-menu" aria-label="Create menu" title="Create menu">${icon('plus', 16)}</button>

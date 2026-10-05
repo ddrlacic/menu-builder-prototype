@@ -102,7 +102,7 @@
     const len = (value || '').length;
     return field('Description', inputText(bind, value, { id, multiline: true, rows: 4 }), {
       id,
-      help: `${note ? `${esc(note)} ` : ''}<span class="tnum">${len} / ${DESC_LIMIT}</span>`,
+      help: `${note ? `${esc(note)} ` : ''}<span class="tnum help-count">${len} / ${DESC_LIMIT}</span>`,
       error: len > DESC_LIMIT ? `Use ${DESC_LIMIT} characters or fewer` : '',
     });
   }

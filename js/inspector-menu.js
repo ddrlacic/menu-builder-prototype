@@ -1,6 +1,7 @@
 'use strict';
 
   const TEXT_LIMIT = 255;
+  const MENU_PARTNER_ONLY = 'Not shown in our ordering apps. Sent to delivery partners with the menu.';
   const channelLabel = (id) => (C.channels.find((c) => c[0] === id) || [id, id])[1];
   const lengthError = (value, required = '') => {
     const v = value || '';
@@ -13,10 +14,10 @@
     if (tab === 'general') {
       return section(
         '',
-        field('Name', inputText(mb('name'), m.name, { id: 'insp-name' }), { id: 'insp-name', error: lengthError(m.name, 'Add a name'), help: 'Customers see this name in the apps.' }) +
+        field('Name', inputText(mb('name'), m.name, { id: 'insp-name' }), { id: 'insp-name', error: lengthError(m.name, 'Add a name'), help: 'Customers see it when a store has more than one menu.' }) +
           field('Internal name', inputText(mb('internalName'), m.internalName, { id: 'm-int' }), { id: 'm-int', error: lengthError(m.internalName), help: 'Use it to tell apart menus with the same name. Only your team sees it.' }) +
-          descriptionField(mb('description'), m.description, 'm-desc') +
-          imageField(mb('image'), m.image),
+          descriptionField(mb('description'), m.description, 'm-desc', MENU_PARTNER_ONLY) +
+          imageField(mb('image'), m.image, { help: MENU_PARTNER_ONLY }),
       );
     }
     if (tab === 'ordering') return menuOrderingTab(m, mb);
