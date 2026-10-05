@@ -203,13 +203,13 @@ window.MENU_SUGGESTIONS = {
 
 window.MENU_CONSTANTS = {
   orderTypes: [
-    ['dine_in', 'Dine-in'],
+    ['dine_in', 'Dine-in (FS)'],
     ['preorder', 'Dine-in (QS)'],
     ['take_out', 'Takeout'],
     ['delivery', 'Delivery'],
-    ['curbside', 'Curbside'],
+    ['curbside', 'Curbside pickup'],
     ['catering_delivery', 'Catering delivery'],
-    ['catering_take_out', 'Catering takeout'],
+    ['catering_take_out', 'Catering pickup'],
     ['drive_thru', 'Drive-thru'],
   ],
   channels: [

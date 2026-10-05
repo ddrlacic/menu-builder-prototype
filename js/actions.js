@@ -276,7 +276,7 @@
         break;
       case 'segment-save': {
         const draft = T.segmentDraft;
-        if (!draft || !draft.segmentId.trim()) break;
+        if (!draft || !draft.segmentId.trim() || !draft.tag.trim()) break;
         T.segmentDraft = null;
         commit(() => setBind(draft.base, [...(getBind(draft.base) || []), { segmentId: draft.segmentId.trim(), tag: draft.tag.trim() }]));
         toast('Segment added');

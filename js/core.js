@@ -173,6 +173,7 @@
       if (!id) return 'Add a segment ID';
       if (seen.has(id)) return 'This segment is already added';
       seen.add(id);
+      if (!(s.tag || '').trim()) return 'Add a tag';
       return '';
     });
   }

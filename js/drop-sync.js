@@ -315,7 +315,7 @@
           limited_availability: a.active
             ? { mode: a.mode, serving_times: a.mode === 'serving' ? a.slots : null, lto: a.mode === 'lto' ? a.lto : null, preorder: a.mode === 'preorder' ? a.preorder : null }
             : null,
-          secret_identifiers: e.segments.map((s) => ({ segment_id: s.segmentId, tag: s.tag || null })),
+          secret_identifiers: e.segments.map((s) => ({ segment_id: s.segmentId, tag: s.tag })),
           metadata: e.metadata,
           upsell: choices
             ? { name: nameOf('group', choices), products: choices.children.map(productRef).filter(Boolean) }
@@ -393,7 +393,7 @@
       order_types: m.orderTypes,
       external_channels: m.externalChannels,
       availability: m.schedule,
-      segments: m.segments.map((s) => ({ segment_id: s.segmentId, tag: s.tag || null })),
+      segments: m.segments.map((s) => ({ segment_id: s.segmentId, tag: s.tag })),
       store_groups: m.storeGroups.map((a) => ({ id: a.id, venue_ids: assignedStores(a).map((s) => s.id), assign_to_new_stores: a.newStores })),
       categories: m.children.map((c) => ser('category', c, childPath(m.id, 'category', c), new Set())).filter(Boolean),
     };

@@ -55,9 +55,9 @@
       channels: ['web', 'mobile', 'kiosk'],
       orderTypes: ['dine_in', 'take_out'],
       externalChannels: [],
-      schedule: [{ days: [0, 1, 2, 3, 4, 5, 6], from: '11:00', to: '22:00' }],
+      schedule: [],
       segments: [],
-      storeGroups: defaultStoreGroups(),
+      storeGroups: [],
       publishedStoreIds: [],
       status: 'draft',
       publishedAt: null,
@@ -510,7 +510,7 @@
   function seedImported(src) {
     const E = S.data.entities;
     const { categories, ...settings } = src.menu;
-    const menu = newMenu(settings);
+    const menu = newMenu({ storeGroups: defaultStoreGroups(), ...settings });
     S.data.menus.push(menu);
     const extId = (kind, ext) => (findByExt(kind, ext) || {}).id;
 
@@ -573,6 +573,7 @@
       orderTypes: ['dine_in', 'take_out', 'delivery', 'curbside'],
       externalChannels: ['doordash'],
       schedule: [{ days: [0, 1, 2, 3, 4, 5, 6], from: '11:00', to: '16:00' }],
+      storeGroups: defaultStoreGroups(),
     });
     const catering = newMenu({
       name: 'Catering',

@@ -58,7 +58,7 @@
     else if (!menuStores(menu).length) add(menu.id, 'error', 'Choose at least one store');
     scheduleProblems(menu.schedule).forEach((t) => add(menu.id, 'error', t));
     if (segmentErrors(menu.segments).some(Boolean)) add(menu.id, 'error', 'Fix the customer segments');
-    if (!menu.children.length) add(menu.id, 'warning', 'Menu has no categories yet');
+    if (!menu.children.some((cid) => (entity('category', cid) || { children: [] }).children.length)) add(menu.id, 'error', 'Add a category with at least one product');
 
     walkMenu(menu, (kind, id, ent, path) => {
       const key = `${kind}:${id}`;

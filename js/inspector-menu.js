@@ -134,7 +134,7 @@
           ${draftDup ? slotError('This segment is already added') : ''}
           <div class="segment-draft-actions">
             <button type="button" class="btn ghost sm" data-action="segment-cancel">Cancel</button>
-            <button type="button" class="btn primary sm" data-action="segment-save" ${draftId && !draftDup ? '' : 'disabled'}>Add segment</button>
+            <button type="button" class="btn primary sm" data-action="segment-save" ${draftId && !draftDup && draft.tag.trim() ? '' : 'disabled'}>Add segment</button>
           </div>
         </div>`
       : `<button type="button" class="btn ghost sm" data-action="segment-add" data-bind="${esc(base)}">${icon('plus', 14)}Add segment</button>`;
