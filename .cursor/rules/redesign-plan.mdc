@@ -8,6 +8,7 @@ alwaysApply: true
 The plan, settings tracker, session log and specs live in `../menu-app/docs/design/menu-builder/`, not in this repo, because this repo is public.
 
 - Start any phase work by reading `README.md` and `log.md` there, then `00-where-settings-live.md` and `tracker.md`.
+- Before starting, check the Models section in `README.md`. If the recommended model differs from the current one, ask whether to continue or switch. Use the subagent model it lists for searching MC and the backend.
 - Settings belong to one of four levels: item, placement, path or store. Placement and path settings sit in an inspector section headed "In {parent name}".
 - Before ending a chat, update `tracker.md`, the phase status in `README.md`, and add an entry to `log.md`.
 - Never copy content from those docs into this repo.
