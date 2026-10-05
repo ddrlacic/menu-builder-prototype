@@ -562,7 +562,10 @@
     const srcMenus = DATASETS[dataset].pos.menus;
     for (const pm of S.data.pos.menus) {
       const s = srcMenus.find((x) => x.id === pm.id);
-      if (s && s.image && pm.image === undefined) pm.image = s.image;
+      if (!s || !s.image || pm.image === s.image) continue;
+      const old = pm.image;
+      pm.image = s.image;
+      if (old) S.data.menus.forEach((m) => m.image === old && (m.image = s.image));
     }
   }
 
