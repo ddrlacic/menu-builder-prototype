@@ -299,7 +299,6 @@
   function categoryTab(tab, cat, path) {
     const cb = (f) => `e|category|${cat.id}|${f}`;
     const menu = activeMenu();
-    const pl = placement(path);
     if (tab === 'general') {
       return (
         sizeHintSection(cat, path) +
@@ -330,12 +329,7 @@
       return (
         section(
           `In ${menu.name}`,
-          toggle(`pl|${path}|hidden`, !pl.hidden, {
-            label: `Show in ${menu.name}`,
-            scope: crumbText(path),
-            help: 'Hide it here without removing it from the menu.',
-          }) +
-            field('Position', `<div class="position-control"><span class="tnum">${index + 1} of ${count}</span>${moveBtn(-1, 'chevUp', 'Move up')}${moveBtn(1, 'chevDown', 'Move down')}</div>`, {
+          field('Position', `<div class="position-control"><span class="tnum">${index + 1} of ${count}</span>${moveBtn(-1, 'chevUp', 'Move up')}${moveBtn(1, 'chevDown', 'Move down')}</div>`, {
               scope: crumbText(path),
               help: `Order customers see in ${esc(menu.name)}. You can also drag it on the canvas.`,
             }),

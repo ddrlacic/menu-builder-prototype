@@ -213,11 +213,6 @@
     }
   }
 
-  function publishCategoryLabel(m) {
-    const hidden = m.children.filter((c) => placement(`${m.id}>c:${c}`).hidden).length;
-    return hidden ? `${m.children.length} · ${hidden} hidden` : `${m.children.length}`;
-  }
-
   function publish() {
     const m = activeMenu();
     if (ctx.issues.errors) {
@@ -228,7 +223,7 @@
     openModal({
       title: `Publish ${m.name}?`,
       body: `<p>Customers see the changes in ${esc(listJoin(m.channels.map(channelLabel)))} within a few minutes. Nothing changes on POS.</p>
-        <dl class="kv"><dt>Stores</dt><dd>${esc(storeCountLabel(m))}</dd><dt>Categories</dt><dd>${esc(publishCategoryLabel(m))}</dd><dt>Order types</dt><dd>${esc(listJoin(m.orderTypes.map((o) => (C.orderTypes.find((x) => x[0] === o) || [o, o])[1])))}</dd></dl>
+        <dl class="kv"><dt>Stores</dt><dd>${esc(storeCountLabel(m))}</dd><dt>Categories</dt><dd>${m.children.length}</dd><dt>Order types</dt><dd>${esc(listJoin(m.orderTypes.map((o) => (C.orderTypes.find((x) => x[0] === o) || [o, o])[1])))}</dd></dl>
         ${ctx.issues.warnings ? callout('warning', `${plural(ctx.issues.warnings, 'warning remains', 'warnings remain')}. You can still publish.`) : ''}`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },

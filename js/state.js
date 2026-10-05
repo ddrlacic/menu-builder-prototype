@@ -700,7 +700,11 @@
           S.data.menus.forEach(migrateMenu);
           Object.values(S.data.entities.category).forEach(migrateCategory);
           Object.values(S.data.entities.product).forEach(migrateProduct);
-          for (const [k, pl] of Object.entries(S.data.placements)) if (/^[^>]+>c:[^>]+$/.test(k)) delete pl.schedule;
+          for (const [k, pl] of Object.entries(S.data.placements)) {
+            if (!/^[^>]+>c:[^>]+$/.test(k)) continue;
+            delete pl.schedule;
+            delete pl.hidden;
+          }
           migrateProductSchedules();
           const oldGroups = new Set(Object.values(S.data.entities.group).filter((g) => g.preselected === undefined).map((g) => g.id));
           Object.values(S.data.entities.group).forEach(migrateGroup);

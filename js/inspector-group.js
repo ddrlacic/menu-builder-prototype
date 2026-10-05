@@ -100,7 +100,7 @@
     const parents = groupParents(g.id);
     return (
       section(
-        'Visibility',
+        `In ${parentName}`,
         toggle(`pl|${path}|hidden`, !pl.hidden, {
           label: `Show in ${parentName}`,
           scope: here,
