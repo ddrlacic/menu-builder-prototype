@@ -83,7 +83,9 @@
         render();
         break;
       case 'collapse-all':
-        walkMenu(activeMenu(), (k, id, ent, p) => (S.ui.expanded[p] = false));
+        walkMenu(activeMenu(), (k, id, ent, p) => {
+          S.ui.expanded[p] = false;
+        });
         render();
         break;
       case 'create-category':
