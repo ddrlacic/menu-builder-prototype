@@ -342,7 +342,6 @@
                   if (!x.namePropagated) x.internalName = nameOf('product', x);
                   x.namePropagated = true;
                   x.name = name;
-                  x.syncName = false;
                 }
                 x.description = p.description;
                 x.image = p.image;

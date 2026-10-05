@@ -29,7 +29,7 @@
       return (
         section(
           '',
-          nameBlock('group', g, { sync: false, error: lengthError(g.name, 'Add a group name') }) +
+          nameBlock('group', g, { error: lengthError(g.name, 'Add a group name') }) +
             field('Internal name', inputText(gb('internalName'), g.internalName, { id: 'g-int' }), {
               id: 'g-int',
               error: lengthError(g.internalName),

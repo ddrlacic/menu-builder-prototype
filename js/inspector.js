@@ -172,27 +172,16 @@
       ${storeResults(matchStores(), row, list)}`;
   }
 
-  function nameBlock(kind, ent, { error = '', help = '', sync = true } = {}) {
+  function nameBlock(kind, ent, { error = '', help = '' } = {}) {
     const bind = `e|${kind}|${ent.id}|name`;
     if (ent.source !== 'pos') return field('Name', inputText(bind, ent.name, { id: 'insp-name' }), { id: 'insp-name', error, help });
     const pos = posItem(ent);
     const posName = pos ? pos.name : ent.reviewed ? ent.reviewed.name : '';
-    if (!sync)
-      return field('Name', inputText(bind, ent.name, { id: 'insp-name' }), {
-        id: 'insp-name',
-        error,
-        help: `${help ? `${help} ` : ''}${ent.name === posName ? 'Same as the POS name.' : `POS name: ${esc(posName)}. POS keeps its own name.`}`,
-      });
-    const control = ent.syncName
-      ? `<div class="input is-readonly" id="insp-name-ro">${esc(nameOf(kind, ent))}${icon('lock', 13)}</div>`
-      : inputText(bind, ent.name, { id: 'insp-name' });
-    return (
-      field('Name', control, {
-        id: ent.syncName ? '' : 'insp-name',
-        error: ent.syncName ? '' : error,
-        help: ent.syncName ? 'Updates on every POS sync.' : `POS name: ${esc(posName)}. Customers see your name, POS keeps its own.`,
-      }) + toggle(`e|${kind}|${ent.id}|syncName`, ent.syncName, { label: 'Use POS name' })
-    );
+    return field('Name', inputText(bind, ent.name, { id: 'insp-name' }), {
+      id: 'insp-name',
+      error,
+      help: `${help ? `${help} ` : ''}${ent.name === posName ? 'Same as the POS name.' : `POS name: ${esc(posName)}. POS keeps its own name.`}`,
+    });
   }
 
   function posKv(rows) {

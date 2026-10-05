@@ -70,7 +70,6 @@
     source: 'virtual',
     externalId: null,
     reviewed: null,
-    syncName: false,
     internalName: '',
     description: '',
     image: null,
@@ -80,16 +79,20 @@
 
   const newCategory = (o = {}) => ({ ...baseEntity(), id: uid('cat'), name: 'New category', reportingId: '', bannerImage: null, isBundle: false, ...o });
 
+  function migrateSyncName(ent) {
+    if (ent.syncName) {
+      const p = posItem(ent);
+      ent.name = p ? p.name : (ent.reviewed && ent.reviewed.name) || ent.name;
+    }
+    delete ent.syncName;
+  }
+
   function migrateCategory(c) {
     if (c.reportingId == null) c.reportingId = '';
     if (c.bannerImage === undefined) c.bannerImage = null;
     if (c.isBundle == null) c.isBundle = false;
     if (!c.stores) c.stores = {};
-    if (c.syncName) {
-      const p = posItem(c);
-      c.name = p ? p.name : (c.reviewed && c.reviewed.name) || c.name;
-    }
-    c.syncName = false;
+    migrateSyncName(c);
   }
 
   const newAvailability = () => ({
@@ -145,7 +148,20 @@
 
   const foodTypeFrom = (list) => ((list || []).includes('vegan') ? 'vegan' : (list || []).includes('vegetarian') ? 'vegetarian' : null);
 
+  const ALLERGEN_MIGRATION = {
+    soya: 'soybeans',
+    nuts: 'tree_nuts',
+    crustaceans: 'shellfish',
+    molluscs: 'shellfish',
+    ...Object.fromEntries(['almond', 'hazelnut', 'walnut', 'cashew', 'pecan', 'brazil_nut', 'pistachio', 'macadamia', 'queensland_nut'].map((a) => [a, 'tree_nuts'])),
+    ...Object.fromEntries(['rye', 'barley', 'oat', 'spelt', 'kamut'].map((a) => [a, 'gluten'])),
+  };
+
+  const migrateAllergens = (list) => [...new Set((list || []).map((a) => ALLERGEN_MIGRATION[a] || a).filter((a) => C.allergens.includes(a)))];
+
   function migrateProduct(p) {
+    migrateSyncName(p);
+    if (p.allergens) p.allergens = migrateAllergens(p.allergens);
     if (p.foodType === undefined) p.foodType = foodTypeFrom(p.foodTypes);
     if (p.metadata === undefined)
       p.metadata = (p.tags || []).map((t) => {
@@ -206,7 +222,7 @@
     if (!p.modifierCodes.length) p.isModifierCodeRequired = false;
     if (p.isModifierCodeRequired && !p.preselectedCode) p.preselectedCode = p.modifierCodes[0];
     if ((isNum(p.minQty) || isNum(p.maxQty)) && !p.qtyScope) p.qtyScope = 'cart';
-    if (isNum(p.alcoholVol)) p.alcoholVol = clamp(p.alcoholVol, 0, 100);
+    if (isNum(p.alcoholVol)) p.alcoholVol = Math.round(clamp(p.alcoholVol, 0, 100) * 100) / 100;
     if (!isNum(p.prep.qty)) {
       p.prep.qty2 = null;
       p.prep.unit2 = '';
@@ -251,11 +267,7 @@
     const d = groupDefaults();
     for (const k of Object.keys(d)) if (g[k] === undefined) g[k] = d[k];
     delete g.stores;
-    if (g.syncName) {
-      const p = posItem(g);
-      g.name = p ? p.name : (g.reviewed && g.reviewed.name) || g.name;
-    }
-    g.syncName = false;
+    migrateSyncName(g);
     if (g.gtype === 'standalone' && g.role === 'choice') g.type = 2;
   }
 
@@ -464,17 +476,16 @@
       source: 'pos',
       externalId: posId,
       name: item.name,
-      syncName: true,
       reviewed: { name: item.name, price: isNum(item.price) ? item.price : null },
       description: item.description || '',
     };
     let ent;
-    if (kind === 'category') ent = newCategory({ ...base, syncName: false });
+    if (kind === 'category') ent = newCategory(base);
     else if (kind === 'product')
       ent = newProduct({
         ...base,
         originCategoryExt: posCategoriesOf(posId)[0] || null,
-        allergens: [...(item.allergens || [])],
+        allergens: migrateAllergens(item.allergens),
         foodType: foodTypeFrom(item.foodTypes),
         isAlcoholic: !!item.isAlcoholic,
         caloriesFrom: isNum(item.calories) ? item.calories : null,
@@ -482,7 +493,6 @@
     else
       ent = newGroup({
         ...base,
-        syncName: false,
         posRules: { groupType: item.groupType || 1, min: item.min || 0, max: isNum(item.max) ? item.max : null, maxSingle: item.maxSingle || 1, free: item.free || 0 },
       });
     S.data.entities[kind][ent.id] = ent;
@@ -536,7 +546,7 @@
     function buildProduct(posId) {
       const { groups = [], sections = [], included = [], codes, name, ...fields } = src.products[posId] || {};
       const p = newPosEntity(posId);
-      if (name) Object.assign(p, { name, syncName: false });
+      if (name) p.name = name;
       Object.assign(p, fields);
       p.children = groups.map((gid) => groupFor(gid).id);
       p.sections = sections.map(([label]) => ({ id: uid('sec'), name: label }));
@@ -653,7 +663,6 @@
       source: 'pos',
       externalId: 'pos-pumpkin-pie',
       name: 'Seasonal Pumpkin Pie',
-      syncName: true,
       reviewed: { name: 'Seasonal Pumpkin Pie', price: 6.5 },
       allergens: ['milk', 'eggs', 'wheat'],
     });

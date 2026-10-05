@@ -291,7 +291,7 @@
           is_linked_product: e.ptype === 'linked',
           pos_parent_entity_id: e.ptype === 'linked' ? e.posParentExt : null,
           pos_origin_category_id: e.originCategoryExt,
-          food_type: e.foodType,
+          food_types: e.foodType ? [e.foodType] : [],
           allergens: e.ptype === 'container' ? [] : e.allergens,
           calories_from: e.caloriesFrom,
           calories_to: e.caloriesTo,
@@ -301,7 +301,7 @@
           max_quantity: e.maxQty,
           quantity_limit_scope: isNum(e.minQty) || isNum(e.maxQty) ? e.qtyScope : null,
           is_alcoholic: e.isAlcoholic,
-          alcohol_vol_percentage: e.isAlcoholic ? e.alcoholVol : null,
+          alcohol_vol_percentage: e.isAlcoholic && isNum(e.alcoholVol) ? Math.round(e.alcoholVol * 100) : null,
           is_modifier_code_required: e.isModifierCodeRequired,
           modifier_codes: e.modifierCodes,
           preselected_modifier_code: e.preselectedCode,
@@ -336,7 +336,7 @@
           venues: Object.fromEntries(
             Object.entries(e.stores).map(([sid, st]) => [
               sid,
-              { show_in_menu: st !== 'hidden' && st !== 'out_of_stock', in_stock: !isOutOfStock(st), out_of_stock_for: { oos_1h: '1h', oos_4h: '4h', oos_eod: 'end_of_day', out_of_stock: 'indefinitely' }[st] || null },
+              { show_in_menu: st !== 'hidden', in_stock: !isOutOfStock(st), out_of_stock_duration: { oos_1h: '1h', oos_4h: '4h', oos_eod: 'end_of_day' }[st] || null },
             ]),
           ),
           product_groups: choices ? [] : kids('group'),

@@ -71,7 +71,7 @@
       if ((ent.description || '').length > DESC_LIMIT) add(path, 'error', `${name}: description is longer than ${DESC_LIMIT} characters`, key);
       if (kind === 'category') {
         const label = name || 'Category';
-        if (!(ent.name || '').trim() && !ent.syncName) add(path, 'error', 'Add a category name', key);
+        if (!(ent.name || '').trim()) add(path, 'error', 'Add a category name', key);
         if ((ent.name || '').length > TEXT_LIMIT) add(path, 'error', `${label}: name is longer than ${TEXT_LIMIT} characters`, key);
         if ((ent.internalName || '').length > TEXT_LIMIT) add(path, 'error', `${label}: internal name is longer than ${TEXT_LIMIT} characters`, key);
         if ((ent.reportingId || '').length > TEXT_LIMIT) add(path, 'error', `${label}: external ID is longer than ${TEXT_LIMIT} characters`, key);
@@ -82,7 +82,7 @@
       if (kind === 'product') {
         const label = name || 'Product';
         const pAdd = (level, text, tab) => add(path, level, text, key, tab);
-        if (!(ent.name || '').trim() && !ent.syncName) pAdd('error', 'Add a product name', 'general');
+        if (!(ent.name || '').trim()) pAdd('error', 'Add a product name', 'general');
         if ((ent.name || '').length > TEXT_LIMIT) pAdd('error', `${label}: name is longer than ${TEXT_LIMIT} characters`, 'general');
         if ((ent.internalName || '').length > TEXT_LIMIT) pAdd('error', `${label}: internal name is longer than ${TEXT_LIMIT} characters`, 'general');
         if ((ent.reportingId || '').length > TEXT_LIMIT) pAdd('error', `${label}: external ID is longer than ${TEXT_LIMIT} characters`, 'advanced');

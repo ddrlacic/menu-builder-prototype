@@ -699,16 +699,7 @@
     const tgl = e.target.closest('[data-toggle]');
     if (tgl) {
       const bind = tgl.dataset.toggle;
-      commit(() => {
-        const next = !getBind(bind);
-        setBind(bind, next);
-        if (/\|syncName$/.test(bind) && !next) {
-          const [, kind, id] = bind.split('|');
-          const ent = entity(kind, id);
-          const p = posItem(ent);
-          if (p && !ent.name) ent.name = p.name;
-        }
-      });
+      commit(() => setBind(bind, !getBind(bind)));
       return;
     }
     const seg = e.target.closest('[data-set]');

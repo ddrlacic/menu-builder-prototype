@@ -10,10 +10,6 @@
   function nameOf(kind, ent) {
     if (!ent) return 'Unknown';
     if (kind === 'menu') return ent.name || 'Untitled menu';
-    if (ent.source === 'pos' && ent.syncName) {
-      const p = posItem(ent);
-      return p ? p.name : (ent.reviewed && ent.reviewed.name) || ent.name;
-    }
     return ent.name || 'Untitled';
   }
 

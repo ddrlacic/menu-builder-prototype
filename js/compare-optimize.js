@@ -140,7 +140,8 @@
       if (only || ent.source !== 'pos' || seen.has(`${kind}:${id}`)) return;
       seen.add(`${kind}:${id}`);
       const ext = ent.externalId;
-      if (pick.names && ent.syncName && SUG.names[ext] && SUG.names[ext] !== nameOf(kind, ent))
+      const posName = (posItem(ent) || ent.reviewed || {}).name;
+      if (pick.names && kind === 'product' && ent.name === posName && SUG.names[ext] && SUG.names[ext] !== ent.name)
         items.push({ key: `name|${kind}|${id}`, type: 'name', kind, id, from: nameOf(kind, ent), to: SUG.names[ext] });
       if (pick.descriptions && kind === 'product' && !ent.description && SUG.descriptions[ext])
         items.push({ key: `desc|${id}`, type: 'description', kind, id, name: SUG.names[ext] || nameOf(kind, ent), to: SUG.descriptions[ext] });
@@ -204,9 +205,7 @@
     commit(() => {
       for (const i of picks) {
         if (i.type === 'name') {
-          const ent = entity(i.kind, i.id);
-          ent.syncName = false;
-          ent.name = i.to;
+          entity(i.kind, i.id).name = i.to;
         } else if (i.type === 'description') {
           entity('product', i.id).description = i.to;
         }

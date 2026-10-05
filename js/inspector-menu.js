@@ -304,7 +304,7 @@
         sizeHintSection(cat, path) +
         section(
           '',
-          nameBlock('category', cat, { error: lengthError(cat.name, 'Add a name'), help: 'Customers see this name in the apps.', sync: false }) +
+          nameBlock('category', cat, { error: lengthError(cat.name, 'Add a name'), help: 'Customers see this name in the apps.' }) +
             field('Internal name', inputText(cb('internalName'), cat.internalName, { id: 'c-int' }), {
               id: 'c-int',
               error: lengthError(cat.internalName),

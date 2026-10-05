@@ -33,7 +33,7 @@ window.POS_SEED = (() => {
   });
   prd('pos-beyond', 'Beyond Burger', 16, {
     description: 'Plant-based patty with vegan cheddar and smoky tomato jam.',
-    allergens: ['wheat', 'soya'],
+    allergens: ['wheat', 'soybeans'],
     foodTypes: ['vegan'],
     children: ['pos-g-side'],
   });
@@ -267,19 +267,12 @@ window.MENU_CONSTANTS = {
     ['vegetarian', 'Vegetarian'],
   ],
   allergens: [
-    'crustaceans', 'eggs', 'fish', 'milk', 'peanuts', 'soya', 'nuts', 'wheat', 'gluten', 'sulfites',
-    'buckwheat', 'celery', 'lupin', 'molluscs', 'mustard', 'sesame', 'propolis', 'beef', 'chicken',
-    'latex', 'mango', 'peach', 'pork', 'royal_jelly', 'tomato', 'almond', 'hazelnut', 'walnut',
-    'cashew', 'pecan', 'brazil_nut', 'pistachio', 'macadamia', 'queensland_nut', 'rye', 'barley',
-    'oat', 'spelt', 'kamut', 'coriander', 'lamb',
+    'milk', 'eggs', 'fish', 'shellfish', 'tree_nuts', 'peanuts', 'wheat', 'gluten', 'soybeans',
+    'sesame', 'sulfites', 'mustard', 'celery', 'lupin',
   ],
   allergenLabels: {
-    soya: 'Soy',
-    nuts: 'Tree nuts',
-    molluscs: 'Mollusks',
-    royal_jelly: 'Royal jelly',
-    brazil_nut: 'Brazil nut',
-    queensland_nut: 'Queensland nut',
+    tree_nuts: 'Tree nuts',
+    soybeans: 'Soy',
   },
   modifierCodes: [
     ['no', 'No'],

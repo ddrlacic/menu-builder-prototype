@@ -468,9 +468,9 @@
         ) +
         section(
           'Alcohol',
-          toggle(pb('isAlcoholic'), p.isAlcoholic, { label: 'Contains alcohol', help: 'Customers confirm their age before ordering.' }) +
+          toggle(pb('isAlcoholic'), p.isAlcoholic, { label: 'Contains alcohol', help: 'Customers see an Alcohol tag on the product.' }) +
             (p.isAlcoholic
-              ? field('Alcohol by volume', inputNum(pb('alcoholVol'), p.alcoholVol, { suffix: '%', id: 'p-abv', int: true, max: 100 }), {
+              ? field('Alcohol by volume', inputNum(pb('alcoholVol'), p.alcoholVol, { suffix: '%', id: 'p-abv', max: 100 }), {
                   id: 'p-abv',
                   help: 'From 0 to 100%.',
                 })
