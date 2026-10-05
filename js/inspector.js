@@ -81,10 +81,16 @@
   const callout = (tone, html, ic) =>
     `<div class="callout tone-${tone}">${icon(ic || (tone === 'error' ? 'alertCircle' : tone === 'warning' ? 'alert' : 'info'), 16)}<div>${html}</div></div>`;
 
-  function imageField(bind, value, { label = 'Image', size = '1200 × 800', help = '', wide = false } = {}) {
+  function imageField(bind, value, { label = 'Image', size = '1200 × 800', help = '', wide = false, posSrc = null } = {}) {
+    const posRow =
+      posSrc && posSrc !== value
+        ? `<div class="pos-image"><img class="pos-image-thumb" src="${esc(posSrc)}" alt="">
+            <span class="field-help">${value ? 'POS has a different image.' : 'POS has an image.'}</span>
+            <button type="button" class="btn secondary sm" data-action="image-use-pos" data-bind="${esc(bind)}" data-src="${esc(posSrc)}">Use POS image</button></div>`
+        : '';
     return field(
       label,
-      value
+      (value
         ? `<div class="image-field${wide ? ' is-wide' : ''}"><img class="image-preview" src="${value}" alt="">
             <div class="image-actions">
               <label class="btn secondary sm">Replace image<input type="file" accept="${IMAGE_TYPES.join(',')}" data-image="${esc(bind)}" hidden></label>
@@ -93,7 +99,7 @@
         : `<label class="dropzone" data-image-drop="${esc(bind)}">${icon('image', 20)}
             <span>Drop an image here or <span class="link">choose a file</span></span>
             <span class="field-help">JPG, PNG, or GIF up to 1 MB. Best at ${size} px.</span>
-            <input type="file" accept="${IMAGE_TYPES.join(',')}" data-image="${esc(bind)}" hidden></label>`,
+            <input type="file" accept="${IMAGE_TYPES.join(',')}" data-image="${esc(bind)}" hidden></label>`) + posRow,
       { help },
     );
   }

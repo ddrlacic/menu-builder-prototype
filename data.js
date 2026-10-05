@@ -159,8 +159,8 @@ window.POS_SEED = (() => {
       'pos-lemonade-l': { every: 54, offset: 7, reason: 'Not on the POS price list' },
     },
     menus: [
-      { id: 'pos-menu-main', name: 'Main', roots: ['pos-cat-burgers', 'pos-cat-pizza', 'pos-cat-combos', 'pos-cat-sides', 'pos-cat-drinks', 'pos-cat-desserts'] },
-      { id: 'pos-menu-catering', name: 'Catering', roots: ['pos-cat-platters'] },
+      { id: 'pos-menu-main', name: 'Main', image: 'img/pos/menu-burger.svg', roots: ['pos-cat-burgers', 'pos-cat-pizza', 'pos-cat-combos', 'pos-cat-sides', 'pos-cat-drinks', 'pos-cat-desserts'] },
+      { id: 'pos-menu-catering', name: 'Catering', image: 'img/pos/menu-catering.svg', roots: ['pos-cat-platters'] },
     ],
     items,
   };

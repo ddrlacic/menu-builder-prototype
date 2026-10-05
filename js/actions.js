@@ -588,6 +588,37 @@
       case 'image-remove':
         commit(() => setBind(el.dataset.bind, null));
         break;
+      case 'image-use-pos': {
+        const { bind, src } = el.dataset;
+        const current = getBind(bind);
+        if (!current) {
+          commit(() => setBind(bind, src));
+          toast('POS image successfully added', 'success', { action: { label: 'Undo', onClick: undo } });
+          break;
+        }
+        openModal({
+          title: 'Replace image?',
+          body: `<div class="image-compare">
+              <figure><img class="image-preview" src="${esc(current)}" alt=""><figcaption class="field-help">Current</figcaption></figure>
+              ${icon('chevRight', 16)}
+              <figure><img class="image-preview" src="${esc(src)}" alt=""><figcaption class="field-help">POS</figcaption></figure>
+            </div>
+            <p>The POS image replaces the current one. It stays the same when POS changes.</p>`,
+          actions: [
+            { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+            {
+              label: 'Replace image',
+              kind: 'primary',
+              onClick: () => {
+                closeModal();
+                commit(() => setBind(bind, src));
+                toast('Image successfully replaced', 'success', { action: { label: 'Undo', onClick: undo } });
+              },
+            },
+          ],
+        });
+        break;
+      }
       case 'cmp-tab':
         T.cmp.tab = el.dataset.tab;
         renderCompare();

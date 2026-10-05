@@ -348,6 +348,8 @@
   const storePriceCache = new WeakMap();
   let dataVersion = 0;
   const posMenu = () => S.data.pos.menus.find((m) => m.id === S.ui.posMenuId) || S.data.pos.menus[0];
+  const linkedPosMenu = (m) => (m && m.posExt && S.data.pos.menus.find((pm) => pm.id === m.posExt)) || null;
+  const posImageOf = (m) => (linkedPosMenu(m) || {}).image || null;
   const roundPrice = (v, f) => Math.round(v * f * 20) / 20;
 
   function posCategoriesOf(posId) {
@@ -551,6 +553,17 @@
     if (!S.data.pos.syncedAt) S.data.pos.syncedAt = Date.now() - 1000 * 60 * 18;
     if (src.menu) seedImported(src);
     else seedExample();
+    S.data.menus.forEach((m) => {
+      if (!m.image) m.image = posImageOf(m);
+    });
+  }
+
+  function migratePosImages() {
+    const srcMenus = DATASETS[dataset].pos.menus;
+    for (const pm of S.data.pos.menus) {
+      const s = srcMenus.find((x) => x.id === pm.id);
+      if (s && s.image && pm.image === undefined) pm.image = s.image;
+    }
   }
 
   function seedImported(src) {
@@ -741,6 +754,7 @@
         const parsed = JSON.parse(raw);
         if (parsed && parsed.version === 2) {
           S.data = parsed.data;
+          migratePosImages();
           S.data.menus.forEach(migrateMenu);
           Object.values(S.data.entities.category).forEach(migrateCategory);
           Object.values(S.data.entities.product).forEach(migrateProduct);

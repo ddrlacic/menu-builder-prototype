@@ -17,7 +17,7 @@
         field('Name', inputText(mb('name'), m.name, { id: 'insp-name' }), { id: 'insp-name', error: lengthError(m.name, 'Add a name'), help: 'Customers see it when a store has more than one menu.' }) +
           field('Internal name', inputText(mb('internalName'), m.internalName, { id: 'm-int' }), { id: 'm-int', error: lengthError(m.internalName), help: 'Use it to tell apart menus with the same name. Only your team sees it.' }) +
           descriptionField(mb('description'), m.description, 'm-desc', MENU_PARTNER_ONLY) +
-          imageField(mb('image'), m.image, { help: MENU_PARTNER_ONLY }),
+          imageField(mb('image'), m.image, { help: MENU_PARTNER_ONLY, posSrc: posImageOf(m) }),
       );
     }
     if (tab === 'ordering') return menuOrderingTab(m, mb);

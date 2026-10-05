@@ -153,7 +153,10 @@
     if (!missing.length) return toast(`All categories from ${pm.name} are already in ${menu.name}`, 'info');
     let firstPath = null;
     commit(() => {
-      if (!menu.posExt) menu.posExt = pm.id;
+      if (!menu.posExt) {
+        menu.posExt = pm.id;
+        if (!menu.image && pm.image) menu.image = pm.image;
+      }
       for (const r of missing) {
         const res = importPos(r);
         if (!res) continue;

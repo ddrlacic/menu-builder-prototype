@@ -3313,6 +3313,44 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: flex-start;
 }
 
+.pos-image {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background: var(--sunken);
+}
+
+.pos-image .field-help {
+  flex: 1 1 auto;
+}
+
+.pos-image-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  outline: 1px solid oklch(0 0 0 / 0.1);
+  outline-offset: -1px;
+}
+
+.image-compare {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: var(--ink-3);
+}
+
+.image-compare figure {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
 .image-field.is-wide {
   flex-direction: column;
   align-items: stretch;
