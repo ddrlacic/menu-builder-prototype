@@ -516,9 +516,11 @@
           break;
         }
         const elsewhere = menusWithCategory(catId).some((x) => x.id !== m.id);
+        const catPath = `${m.id}>c:${catId}`;
+        const anyHidden = cat.children.some((pid) => placement(childPath(catPath, 'product', pid)).hidden);
         openModal({
           title: `Remove ${nameOf('category', cat)} from ${menuName}?`,
-          body: `<p>Its settings in ${esc(menuName)}, like visibility and schedule, are removed too. ${cat.source === 'pos' ? 'It stays on POS.' : 'Nothing changes on POS.'}</p>
+          body: `<p>${anyHidden ? `Products you hid in ${esc(menuName)} are shown again if you add it back. ` : ''}${cat.source === 'pos' ? 'It stays on POS.' : 'Nothing changes on POS.'}</p>
             ${elsewhere ? '' : callout('warning', 'It is not in any other menu, so customers will not see it anywhere.')}`,
           actions: [
             { label: 'Cancel', kind: 'secondary', onClick: closeModal },
@@ -542,7 +544,7 @@
           actions: [
             { label: 'Cancel', kind: 'secondary', onClick: closeModal },
             {
-              label: 'Delete category',
+              label: ms.length ? 'Delete forever' : 'Delete category',
               kind: 'danger',
               onClick: () => {
                 closeModal();

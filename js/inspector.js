@@ -221,7 +221,7 @@
     if (kind === 'category')
       return section(
         'Menu-only category',
-        callout('info', 'Arranges products your own way. It exists only in this menu, not on POS. Each product inside keeps the price of its own POS category.', 'dashed'),
+        callout('info', 'Arranges products your own way. It exists only in your menus, not on POS. Each product inside keeps the price of its own POS category.', 'dashed'),
       );
     if (kind === 'product' && ent.ptype === 'linked')
       return section(

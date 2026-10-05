@@ -85,6 +85,11 @@
     if (c.bannerImage === undefined) c.bannerImage = null;
     if (c.isBundle == null) c.isBundle = false;
     if (!c.stores) c.stores = {};
+    if (c.syncName) {
+      const p = posItem(c);
+      c.name = p ? p.name : (c.reviewed && c.reviewed.name) || c.name;
+    }
+    c.syncName = false;
   }
 
   const newAvailability = () => ({
@@ -464,7 +469,7 @@
       description: item.description || '',
     };
     let ent;
-    if (kind === 'category') ent = newCategory(base);
+    if (kind === 'category') ent = newCategory({ ...base, syncName: false });
     else if (kind === 'product')
       ent = newProduct({
         ...base,

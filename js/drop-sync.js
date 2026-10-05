@@ -261,7 +261,6 @@
         id: e.id,
         pos_id: e.source === 'pos' ? e.externalId : null,
         name: nameOf(kind, e),
-        is_original_name_propagated: !!e.syncName,
         internal_name: e.internalName || null,
         description: e.description || null,
         is_available: !pl.hidden,
