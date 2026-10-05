@@ -28,8 +28,9 @@
           closeModal();
           commit(() => {
             S.data.menus = S.data.menus.filter((x) => x.id !== m.id);
-            S.ui.activeMenuId = S.data.menus[0].id;
-            S.ui.selected = S.data.menus[0].id;
+            const next = S.data.menus[0] || null;
+            S.ui.activeMenuId = next ? next.id : null;
+            S.ui.selected = next ? next.id : null;
           });
           toast('Menu deleted');
         };

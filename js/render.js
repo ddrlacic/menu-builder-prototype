@@ -36,6 +36,13 @@
   function render() {
     const focus = captureFocus();
     const menu = activeMenu();
+    if (!menu) {
+      renderNoMenus();
+      restoreFocus(focus);
+      schedulePersist();
+      return;
+    }
+    $('#canvas').classList.remove('is-no-menu');
     if (!S.ui.selected || !pathExists(S.ui.selected) || parsePath(S.ui.selected).menuId !== menu.id) S.ui.selected = menu.id;
     ctx = derivedCtx();
     renderTopbar();
@@ -70,6 +77,31 @@
       }
     }
     schedulePersist();
+  }
+
+  function renderNoMenus() {
+    ctx = null;
+    T.cmp = null;
+    $('#topbar').innerHTML = `
+      <div class="brand">
+        <span class="brand-mark">${icon('layers', 16)}</span>
+        <span class="brand-name">Menu builder</span>
+      </div>
+      <nav class="menu-tabs" role="tablist" aria-label="Menus">
+        <button class="icon-btn" data-action="new-menu" aria-label="Create menu" title="Create menu">${icon('plus', 16)}</button>
+      </nav>`;
+    renderPos();
+    $('#canvas').classList.add('is-no-menu');
+    $('#canvas-head').innerHTML = '';
+    $('#canvas-tree').innerHTML = `
+      <div class="blank">
+        <div class="blank-art">${icon('layers', 22)}</div>
+        <h3>No menus yet</h3>
+        <button class="btn primary" data-action="new-menu">${icon('plus', 15)}Create menu</button>
+      </div>`;
+    $('#inspector-head').innerHTML = '';
+    $('#inspector-tabs').innerHTML = '';
+    $('#inspector-body').innerHTML = '';
   }
 
   const STATUS = {
@@ -190,7 +222,7 @@
     $('#pos-tree').innerHTML = rows.length
       ? rows
           .map((r) => {
-            const inMenu = r.isMenu ? pm.roots.every((c) => ctx.inMenuExt.has(c)) : ctx.inMenuExt.has(r.id);
+            const inMenu = ctx ? (r.isMenu ? pm.roots.every((c) => ctx.inMenuExt.has(c)) : ctx.inMenuExt.has(r.id)) : false;
             const meta = r.it.type === 'group' ? C.groupTypes[r.it.groupType || 1].label : '';
             const label = r.isMenu ? r.it.name : posLabel(r.id);
             const showAlt = label !== r.it.name;

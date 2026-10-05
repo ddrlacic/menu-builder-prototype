@@ -3157,6 +3157,10 @@ input[type='number']::-webkit-inner-spin-button {
   font-weight: 500;
 }
 
+.canvas.is-no-menu .canvas-foot {
+  visibility: hidden;
+}
+
 .delete-warning-title {
   color: var(--ink);
   font-size: var(--text-md);

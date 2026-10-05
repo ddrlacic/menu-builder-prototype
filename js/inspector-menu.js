@@ -39,9 +39,7 @@
             help: 'Use it to match this menu in reports outside this platform.',
           }),
       ) +
-      (S.data.menus.length > 1
-        ? section('', `<button type="button" class="btn secondary tone-danger" data-action="delete-menu" data-id="${m.id}">${icon('trash', 15)}Delete menu</button>`)
-        : '')
+      section('', `<button type="button" class="btn secondary tone-danger" data-action="delete-menu" data-id="${m.id}">${icon('trash', 15)}Delete menu</button>`)
     );
   }
 
