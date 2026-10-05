@@ -57,7 +57,7 @@
       }
       parent.children.splice(Math.min(index, parent.children.length), 0, id);
       if (pInfo.kind !== 'menu') {
-        const ck = CHILD_KIND[pInfo.kind];
+        const ck = childKind(pInfo.kind, parent);
         if (reaches(ck, id, pInfo.kind, pInfo.id)) {
           throw new Abort(`${nameOf(d.kind, entity(d.kind, id))} already contains ${parentName}, so it cannot go inside it`);
         }
@@ -89,7 +89,7 @@
     let depth = 0;
     for (; depth < chain.length; depth++) {
       const info = parsePath(path);
-      const ck = CHILD_KIND[info.kind];
+      const ck = childKind(info.kind, entity(info.kind, info.id));
       const match = entity(info.kind, info.id).children.find((cid) => {
         const c = entity(ck, cid);
         return c && c.source === 'pos' && c.externalId === chain[depth];
@@ -132,7 +132,8 @@
       anchor.children.push(childId);
       newPath = path;
       for (let i = depth; i < chain.length; i++) {
-        const k = CHILD_KIND[parsePath(newPath).kind];
+        const ni = parsePath(newPath);
+        const k = childKind(ni.kind, entity(ni.kind, ni.id));
         const ent = findByExt(k, chain[i]);
         newPath = childPath(newPath, k, ent.id);
       }
@@ -277,7 +278,7 @@
           products: kids('product'),
         });
       } else if (kind === 'product') {
-        const choices = e.ptype === 'size' ? sizeGroupOf(e) : null;
+        const choices = e.ptype === 'size';
         const a = e.availability;
         const optionRef = (key) => {
           const [gid, pid] = key.split(':');
@@ -317,7 +318,7 @@
           secret_identifiers: e.segments.map((s) => ({ segment_id: s.segmentId, tag: s.tag })),
           metadata: e.metadata,
           upsell: choices
-            ? { name: null, products: choices.children.map(productRef).filter(Boolean) }
+            ? { name: null, products: e.children.map(productRef).filter(Boolean) }
             : e.upsell.products.length
               ? { name: e.upsell.title, products: e.upsell.products.map(productRef).filter(Boolean) }
               : null,

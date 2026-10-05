@@ -322,7 +322,7 @@
       return '';
     }
     if (ent.gtype === 'linked') return `Shows some options of ${posLabel(ent.posGroupExt)}. Rings up in that group.`;
-    return isChoiceGroup(ent) ? 'Customers pick one of these products.' : 'Each product customers pick is added to the order as its own item.';
+    return 'Each product customers pick is added to the order as its own item.';
   }
 
   function kindLabel(kind, ent) {
@@ -331,7 +331,7 @@
     if (kind === 'product')
       return { pos: 'Product', linked: 'Custom version', container: 'Option folder', size: 'Choice product' }[ent.ptype];
     if (ent.gtype === 'linked') return 'Custom version';
-    if (ent.gtype === 'standalone') return isChoiceGroup(ent) ? 'Choice group' : 'Add-on group';
+    if (ent.gtype === 'standalone') return 'Add-on group';
     return `${C.groupTypes[rulesOf(ent).type].label} group`;
   }
 
@@ -357,10 +357,8 @@
       if (r.half) {
         const label = r.nestedHalf ? SIDE_LABEL[r.half.side] : `${SIDE_LABEL[r.half.side]} of ${optionName(entity('group', r.half.gid), r.half.whole)}`;
         meta = `<span class="half-meta">${icon(r.half.side === 'left' ? 'halfLeft' : 'halfRight', 11)}${esc(label)}</span>`;
-      } else if (ent.ptype === 'size') {
-        const g = sizeGroupOf(ent);
-        meta = esc(`Choice product · ${plural(g ? g.children.length : 0, 'choice', 'choices')}`);
-      } else if (ent.ptype === 'container') meta = esc(`Option folder · ${plural(ent.children.length, 'group', 'groups')}`);
+      } else if (ent.ptype === 'size') meta = esc(`Choice product · ${plural(ent.children.length, 'choice', 'choices')}`);
+      else if (ent.ptype === 'container') meta = esc(`Option folder · ${plural(ent.children.length, 'group', 'groups')}`);
       else if (ent.ptype === 'linked') meta = `${icon('link', 11)}${esc(ent.posParentExt ? `Rings up as ${posLabel(ent.posParentExt)}` : 'Choose what it rings up as')}`;
       else if (ent.children.length) meta = esc(plural(ent.children.length, 'group', 'groups'));
       else if (halves)
@@ -376,10 +374,9 @@
             }).length
           : 0;
       const extra =
-        (ent.gtype === 'linked' ? ` · From ${posLabel(ent.posGroupExt)}` : ent.gtype === 'standalone' && !isChoiceGroup(ent) ? ' · Each one added as its own item' : '') +
+        (ent.gtype === 'linked' ? ` · From ${posLabel(ent.posGroupExt)}` : ent.gtype === 'standalone' ? ' · Each one added as its own item' : '') +
         (withHalves ? ` · ${withHalves} with halves` : '');
-      const tag = isChoiceGroup(ent) ? 'Choice' : C.groupTypes[rules.type].label;
-      meta = `<span class="type-tag type-${rules.type}">${tag}</span>${esc(ent.isSubstitutionContainer ? 'Substitutes only · Hidden from customers' : groupRuleShort(rules) + extra)}`;
+      meta = `<span class="type-tag type-${rules.type}">${C.groupTypes[rules.type].label}</span>${esc(ent.isSubstitutionContainer ? 'Substitutes only · Hidden from customers' : groupRuleShort(rules) + extra)}`;
     }
 
     const issueDot = issueTone ? `<span class="issue-dot tone-${issueTone}" title="${esc(issues.map((i) => i.text).join('\n'))}"></span>` : '';
@@ -426,8 +423,8 @@
     if (ent.source === 'pos' && !isMissingOnPos(ent)) badges.push(`<span class="pos-link" title="POS item ${esc(ent.externalId)}">${icon('link', 13)}</span>`);
 
     const flashCls = T.flashPaths.has(path) || (ent.externalId && T.flashExt.has(ent.externalId)) ? ' is-flash' : '';
-    const addTitle = kind === 'category' ? 'Add product' : kind === 'product' && ent.ptype !== 'size' ? 'Add group' : 'Add option';
-    return `<div class="row${selected ? ' is-selected' : ''}${pl.hidden ? ' is-muted' : ''}${r.hit ? ' is-hit' : ''}${r.nestedHalf ? ' is-half' : ''}${flashCls}" role="treeitem" aria-level="${depth}" aria-selected="${selected}" ${hasChildren ? `aria-expanded="${r.expanded}"` : ''} tabindex="${selected ? 0 : -1}" draggable="${r.nestedHalf ? 'false' : 'true'}"${r.nestedHalf ? ` data-half-of="${esc(r.half.wholePath)}"` : ''} data-path="${esc(path)}" data-kind="${kind}" data-parent-kind="${parentKind}" data-name="${esc(name)}" style="--depth:${depth - 1}">
+    const addTitle = kind === 'category' ? 'Add product' : kind === 'product' ? (ent.ptype === 'size' ? 'Add choice' : 'Add group') : 'Add option';
+    return `<div class="row${selected ? ' is-selected' : ''}${pl.hidden ? ' is-muted' : ''}${r.hit ? ' is-hit' : ''}${r.nestedHalf ? ' is-half' : ''}${flashCls}" role="treeitem" aria-level="${depth}" aria-selected="${selected}" ${hasChildren ? `aria-expanded="${r.expanded}"` : ''} tabindex="${selected ? 0 : -1}" draggable="${r.nestedHalf ? 'false' : 'true'}"${r.nestedHalf ? ` data-half-of="${esc(r.half.wholePath)}"` : ''} data-path="${esc(path)}" data-kind="${kind}" data-child-kind="${childKind(kind, ent)}" data-parent-kind="${parentKind}" data-name="${esc(name)}" style="--depth:${depth - 1}">
       <span class="row-indent" aria-hidden="true"></span>
       ${hasChildren ? `<button class="twisty" data-action="toggle" data-path="${esc(path)}" tabindex="-1" aria-label="${r.expanded ? 'Collapse' : 'Expand'}">${icon('chevRight', 14)}</button>` : '<span class="twisty-spacer"></span>'}
       ${thumb(kind, ent)}

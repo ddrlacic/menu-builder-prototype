@@ -237,8 +237,8 @@
       );
     if (kind === 'group')
       return section(
-        isChoiceGroup(ent) ? 'Choice group' : 'Add-on group',
-        callout('info', isChoiceGroup(ent) ? 'The products customers choose between. Only the product they pick is sent to POS, at its own POS price.' : 'Suggests extra products. Each one customers pick is added to the order as its own item, at its own POS price.', 'dashed'),
+        'Add-on group',
+        callout('info', 'Suggests extra products. Each one customers pick is added to the order as its own item, at its own POS price.', 'dashed'),
       );
     return '';
   }
@@ -257,13 +257,14 @@
     if (kind === 'menu') return [['general', 'General'], ['ordering', 'Ordering'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
     if (kind === 'category') return [['general', 'General'], ['images', 'Images'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
     if (kind === 'group') {
-      if (isChoiceGroup(ent)) return [['options', 'Options']];
       const tabs = [['general', 'General'], ['options', 'Options']];
       if (!ent.isSubstitutionContainer) tabs.push(['substitutes', 'Substitutes']);
       if (halvesSupported(ent)) tabs.push(['halves', 'Half and whole']);
       return [...tabs, ['advanced', 'Advanced']];
     }
-    return [['general', 'General'], ['dietary', 'Dietary'], ['ordering', 'Ordering'], ['availability', 'Availability'], ['advanced', 'Advanced']];
+    const tabs = [['general', 'General'], ['dietary', 'Dietary'], ['ordering', 'Ordering'], ['availability', 'Availability'], ['advanced', 'Advanced']];
+    if (ent.ptype === 'size') tabs.splice(1, 0, ['choices', 'Choices']);
+    return tabs;
   }
 
   function renderInspector() {

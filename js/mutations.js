@@ -55,7 +55,7 @@
   function openAddPicker({ title, intro, parentPath, ids, priceOf, noun }) {
     const pi = parsePath(parentPath);
     const parent = entity(pi.kind, pi.id);
-    const ck = CHILD_KIND[pi.kind];
+    const ck = childKind(pi.kind, parent);
     const present = new Set(parent.children.map((c) => posIdOf(ck, entity(ck, c))).filter(Boolean));
     const items = ids
       .filter((id) => posItemById(id) && !present.has(id))
@@ -107,10 +107,10 @@
         noun: own ? `products from ${posLabel(parent.externalId)}` : 'POS products',
       });
     }
-    if (parent.gtype === 'standalone') {
+    if (parent.gtype === 'standalone' || parent.ptype === 'size') {
       return openAddPicker({
         title: 'Add POS product',
-        intro: isChoiceGroup(parent) ? 'Customers pick one of these products. The one they pick is sent to POS.' : 'Each product customers pick is added to the order as its own item.',
+        intro: parent.ptype === 'size' ? 'Customers pick one of these products. The one they pick is sent to POS.' : 'Each product customers pick is added to the order as its own item.',
         parentPath,
         ids: posProductChoices().map((c) => c.id),
         priceOf: price,
@@ -157,12 +157,7 @@
   }
 
   function createChoiceProduct(categoryPath) {
-    commit(() => {
-      const g = newGroup({ gtype: 'standalone', role: 'choice', type: 2, name: 'Choose one', min: 1, max: 1 });
-      S.data.entities.group[g.id] = g;
-      const np = insertNew(categoryPath, 'product', newProduct({ ptype: 'size', name: 'New choice product', children: [g.id] }));
-      S.ui.expanded[childPath(np, 'group', g.id)] = true;
-    });
+    commit(() => insertNew(categoryPath, 'product', newProduct({ ptype: 'size', name: 'New choice product' })));
     toast('Choice product created. Add the products customers choose between', 'success');
   }
 
@@ -322,8 +317,7 @@
   }
 
   function confirmCopyToChoices(p) {
-    const g = sizeGroupOf(p);
-    const kids = (g ? g.children : []).map((id) => entity('product', id)).filter(Boolean);
+    const kids = p.children.map((id) => entity('product', id)).filter(Boolean);
     const name = nameOf('product', p);
     openModal({
       title: `Copy details to ${plural(kids.length, 'choice', 'choices')}?`,

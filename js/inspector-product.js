@@ -74,6 +74,51 @@
 
   const addButton = (action, label, attrs = '') => `<button type="button" class="btn ghost sm" data-action="${action}" ${attrs}>${icon('plus', 14)}${esc(label)}</button>`;
 
+  function choicesSection(p, path) {
+    const pb = productBind(p);
+    const pName = nameOf('product', p);
+    const add = addButton('add-choice', 'Add POS product');
+    if (!p.children.length)
+      return section('Choices', `<div class="empty-small"><strong>No choices yet</strong><span>Add the POS products customers choose between, like Small and Large.</span></div>${add}`);
+    const rows = p.children
+      .map((pid, i) => {
+        const x = entity('product', pid);
+        if (!x) return '';
+        const op = childPath(path, 'product', pid);
+        const hidden = !!placement(op).hidden;
+        const name = nameOf('product', x);
+        const st = priceStats(op);
+        const open = T.openCard === `choice:${pid}`;
+        const detail = open
+          ? `<div class="opt-detail"><div class="opt-detail-foot">
+              <div class="position-control"><span class="tnum">${i + 1} of ${p.children.length}</span>${moveButtons(pb('children'), i, p.children.length, name)}</div>
+              <button type="button" class="btn ghost sm tone-danger" data-action="remove" data-path="${esc(op)}">${icon('trash', 14)}Remove from ${esc(pName)}</button>
+            </div></div>`
+          : '';
+        return `<div class="opt-item${open ? ' is-open' : ''}"><div class="opt-row${hidden ? ' is-muted' : ''}">
+            <button type="button" class="opt-name" data-action="goto" data-path="${esc(op)}">${thumb('product', x, 'thumb-sm')}<span class="opt-name-text"><span class="opt-name-label" title="${esc(name)}">${esc(name)}</span></span></button>
+            <span class="opt-price tnum${st.missingStores.length ? ' tone-warning' : ''}" title="${esc(st.missingStores.length ? `No POS price at ${plural(st.missingStores.length, 'store', 'stores')}` : st.note)}">${esc(priceText(st))}</span>
+            <button type="button" class="switch" role="switch" aria-checked="${!hidden}" aria-label="Show ${esc(name)}" data-toggle="pl|${esc(op)}|hidden" data-focus-key="pl|${esc(op)}|hidden"><span class="switch-thumb"></span></button>
+            <button type="button" class="icon-btn sm opt-expand" data-action="card-open" data-id="choice:${esc(pid)}" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings">${icon('chevDown', 14)}</button>
+          </div>${detail}</div>`;
+      })
+      .join('');
+    return (
+      section(
+        'Choices',
+        `<div class="opt-table has-expand no-pre">
+          <div class="opt-head"><span>Choice</span><span>POS price</span><span>Shown</span><span class="sr-only">Settings</span></div>
+          ${rows}
+        </div>
+        <p class="field-help">Customers pick one. Only the product they pick is sent to POS, at its own POS price. Ranges mean the price differs by store. Shown applies only in ${esc(crumbText(path))}.</p>
+        ${add}`,
+      ) +
+      section('Copy details', `<button type="button" class="btn secondary sm" data-action="copy-to-choices">${icon('copy', 14)}Copy details to choices</button>`, {
+        desc: 'Copying gives each choice this product’s name, description, and image.',
+      })
+    );
+  }
+
   function productOptions(p, { modifierOnly = false } = {}) {
     const out = [];
     p.children.forEach((gid) => {
@@ -364,23 +409,14 @@
           descriptionField(pb('description'), p.description, 'p-desc') +
           imageField(pb('image'), p.image),
       );
-      if (p.ptype === 'size') {
-        const g = sizeGroupOf(p);
-        html += section(
-          'Choices',
-          g && g.children.length
-            ? `<p class="field-help">${esc(listJoin(g.children.map((pid) => nameOf('product', entity('product', pid)))))}. Each choice is a POS product.</p>
-               <button type="button" class="btn secondary sm" data-action="copy-to-choices">${icon('copy', 14)}Copy details to choices</button>`
-            : '<p class="field-help">No choices yet. Use the add button on this product to add POS products.</p>',
-          g && g.children.length ? { desc: 'Copying gives each choice this product’s name, description, and image.' } : {},
-        );
-      }
       return html + (p.ptype === 'container' ? '' : priceSection(path));
     }
 
+    if (tab === 'choices') return choicesSection(p, path);
+
     if (tab === 'ordering') {
       let html = '';
-      if (inGroup && p.ptype !== 'container' && !isChoiceGroup(parentEnt)) {
+      if (inGroup && p.ptype !== 'container') {
         const auto = isAutoAdded(path);
         const groupHidden = groupHiddenCodes(parentEnt, p.id);
         const enabled = C.modifierCodes.filter(([v]) => p.modifierCodes.includes(v) && !groupHidden.includes(v));
@@ -593,14 +629,17 @@
     return [...out.values()];
   }
 
-  function menuGroupPlaces() {
+  const menuGroupPlaces = () => menuHolderPlaces((kind) => kind === 'group');
+  const menuChoicePlaces = () => menuHolderPlaces((kind, ent) => kind === 'product' && ent.ptype === 'size');
+
+  function menuHolderPlaces(match) {
     const out = new Map();
     S.data.menus.forEach((m) =>
       walkMenu(m, (kind, id, ent, path) => {
-        if (kind !== 'group') return;
+        if (!match(kind, ent)) return;
         const owner = parsePath(parsePath(path).parentPath);
         const ownerName = nameOf(owner.kind, entity(owner.kind, owner.id));
-        const x = out.get(id) || { kind: 'group', id, ent, path, where: [] };
+        const x = out.get(id) || { kind, id, ent, path, where: [] };
         if (!x.where.includes(ownerName)) x.where.push(ownerName);
         out.set(id, x);
       }),
@@ -610,22 +649,24 @@
 
   function appearsInSection(p, path) {
     const d = dragDescFromPath(path);
-    const canHold = (x) => x.ent.children.includes(p.id) || (!(x.kind === 'group' && (isChoiceGroup(x.ent) || reaches('product', p.id, 'group', x.id))) && !dropError(x.path, d));
-    const places = [...(p.ptype === 'container' ? [] : menuCategoryPlaces()), ...(p.ptype === 'size' ? [] : menuGroupPlaces())].filter(canHold);
     const on = (x) => x.ent.children.includes(p.id);
+    const canHold = (x) => on(x) || (!(x.kind === 'group' && reaches('product', p.id, 'group', x.id)) && !dropError(x.path, d));
+    const places = [...(p.ptype === 'container' ? [] : menuCategoryPlaces()), ...(p.ptype === 'size' ? [] : menuGroupPlaces()), ...menuChoicePlaces().filter(on)].filter(canHold);
     const long = places.length > 6;
     const q = T.placeQuery.trim().toLowerCase();
     const shown = places
       .filter((x) => (!long || !T.showSelectedPlaces || on(x)) && (!long || !q || nameOf(x.kind, x.ent).toLowerCase().includes(q)))
       .sort((a, b) => on(b) - on(a));
     const count = places.filter(on).length;
-    const total = [...Object.values(S.data.entities.category), ...Object.values(S.data.entities.group)].filter((x) => x.children.includes(p.id)).length;
+    const total = [...Object.values(S.data.entities.category), ...Object.values(S.data.entities.group), ...Object.values(S.data.entities.product).filter((x) => x.ptype === 'size')].filter((x) =>
+      x.children.includes(p.id),
+    ).length;
     const row = (x) => {
       const sel = on(x);
       const last = sel && total === 1;
       return `<button type="button" class="store-row store-check" data-action="place-toggle" data-kind="${x.kind}" data-id="${esc(x.id)}" aria-pressed="${sel}" ${last ? 'disabled title="A product needs at least one place. To take it out everywhere, remove it on the Advanced tab."' : ''}>
         <span class="check${sel ? ' is-on' : ''}" aria-hidden="true">${sel ? icon('check', 12) : ''}</span>
-        <span class="store-name list-name"><span>${esc(nameOf(x.kind, x.ent))}</span><span class="muted">${x.kind === 'category' ? 'Category' : 'Group'} in ${esc(listJoin(x.where))}</span></span></button>`;
+        <span class="store-name list-name"><span>${esc(nameOf(x.kind, x.ent))}</span><span class="muted">${{ category: 'Category', group: 'Group', product: 'Choice product' }[x.kind]} in ${esc(listJoin(x.where))}</span></span></button>`;
     };
     const tools = long
       ? `<label class="search-field sm">${icon('search', 14)}<span class="sr-only">Search places</span><input id="place-q" type="search" data-place-search data-focus-key="place-q" placeholder="Search ${places.length} places" value="${esc(T.placeQuery)}" autocomplete="off"></label>

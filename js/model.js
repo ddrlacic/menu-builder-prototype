@@ -10,7 +10,6 @@
   function nameOf(kind, ent) {
     if (!ent) return 'Unknown';
     if (kind === 'menu') return ent.name || 'Untitled menu';
-    if (kind === 'group' && isChoiceGroup(ent)) return 'Choices';
     return ent.name || 'Untitled';
   }
 
@@ -39,7 +38,7 @@
     for (let i = 1; i < segs.length; i++) {
       const [s, id] = segs[i].split(':');
       const k = SEG_KIND[s];
-      if (CHILD_KIND[kind] !== k || !ent.children.includes(id)) return false;
+      if (childKind(kind, ent) !== k || !ent.children.includes(id)) return false;
       kind = k;
       ent = entity(k, id);
       if (!ent) return false;
@@ -70,7 +69,7 @@
       if (!ent) return;
       const descend = visit(kind, id, ent, path, depth) !== false;
       if (!descend) return;
-      const ck = CHILD_KIND[kind];
+      const ck = childKind(kind, ent);
       for (const cid of ent.children) {
         const key = `${ck}:${cid}`;
         if (seen.has(key)) continue;
@@ -92,7 +91,7 @@
       const ent = entity(kind, id);
       if (!ent || guard.has(`${kind}:${id}`)) return;
       visit(kind, id, ent, p);
-      const ck = CHILD_KIND[kind];
+      const ck = childKind(kind, ent);
       const g = new Set(guard).add(`${kind}:${id}`);
       ent.children.forEach((cid) => rec(ck, cid, childPath(p, ck, cid), g));
     };
@@ -106,7 +105,7 @@
     visited.add(key);
     const ent = entity(kind, id);
     if (!ent) return false;
-    const ck = CHILD_KIND[kind];
+    const ck = childKind(kind, ent);
     return ent.children.some((cid) => reaches(ck, cid, targetKind, targetId, visited));
   }
 
@@ -122,10 +121,6 @@
     return null;
   }
 
-  function sizeGroupOf(ent) {
-    return ent.children.map((gid) => entity('group', gid)).find((g) => g && (g.role === 'choice' || rulesOf(g).type === 2)) || null;
-  }
-
   function allowedPosGroupsFor(productPath) {
     const p = entity('product', parsePath(productPath).id);
     if (p.ptype === 'pos') return posChildren(p.externalId);
@@ -134,10 +129,7 @@
       const anc = nearestPosProduct(productPath);
       return anc ? posChildren(anc.posId) : [];
     }
-    const g = sizeGroupOf(p);
-    const sizes = g ? g.children.map((pid) => posIdOf('product', entity('product', pid))).filter(Boolean) : [];
-    if (!sizes.length) return [];
-    return posChildren(sizes[0]).filter((gid) => sizes.every((s) => posChildren(s).includes(gid)));
+    return [];
   }
 
   const RULE_KEYS = ['min', 'max', 'maxSingle', 'freeCount'];
@@ -424,17 +416,14 @@
     const pEnt = entity(parent.kind, parent.id);
     if (ent.ptype === 'container') return { kind: 'none', note: 'Customers pay for the options inside' };
     if (ent.ptype === 'size') {
-      const g = sizeGroupOf(ent);
-      if (!g || !g.children.length) return { kind: 'from', note: 'Add products to choose from to show a price', sizes: [] };
-      const gp = childPath(path, 'group', g.id);
-      return { kind: 'from', note: 'Lowest POS price of the choices', sizes: g.children.map((pid) => priceSource(childPath(gp, 'product', pid))) };
+      if (!ent.children.length) return { kind: 'from', note: 'Add products to choose from to show a price', sizes: [] };
+      return { kind: 'from', note: 'Lowest POS price of the choices', sizes: ent.children.map((pid) => priceSource(childPath(path, 'product', pid))) };
     }
     const own = posIdOf('product', ent);
     const missingNote = isMissingOnPos(ent) ? 'Last known POS price' : null;
     const src = { own, ent };
+    if (parent.kind === 'product' && pEnt.ptype === 'size') return { ...src, kind: 'size', note: missingNote || 'POS price of this choice' };
     if (parent.kind === 'group') {
-      const owner = entity('product', parsePath(parent.parentPath).id);
-      if (owner.ptype === 'size') return { ...src, kind: 'size', note: missingNote || 'POS price of this choice' };
       if (pEnt.gtype === 'standalone') return { ...src, kind: 'item', note: missingNote || 'Its own POS price. Added to the order as a separate item' };
       const gid = posIdOf('group', pEnt);
       return { ...src, kind: 'modifier', group: gid, note: missingNote || `POS price in ${posLabel(gid)}` };
@@ -550,12 +539,17 @@
 
   function dropError(parentPath, d) {
     const pi = parsePath(parentPath);
-    if (CHILD_KIND[pi.kind] !== d.kind) return 'This item cannot go here';
     const parent = entity(pi.kind, pi.id);
+    if (childKind(pi.kind, parent) !== d.kind) return 'This item cannot go here';
     const pName = nameOf(pi.kind, parent);
     const standaloneError = () =>
       d.posId && !posCategoriesOf(d.posId).length ? `${d.name} is sold only as an option on POS, so it has no price of its own` : null;
     if (pi.kind === 'menu') return null;
+    if (pi.kind === 'product' && parent.ptype === 'size') {
+      if (d.ptype === 'container') return `Customers pick one product in ${pName}, so option folders cannot go in it`;
+      if (d.ptype === 'size') return 'Choice products go in a category';
+      return d.source === 'pos' ? standaloneError() : null;
+    }
     if (pi.kind === 'category') {
       if (d.ptype === 'container') return 'Option folders go inside a group, not in a category';
       if (d.source !== 'pos') return null;
@@ -568,7 +562,7 @@
       if (allowedPosGroupsFor(parentPath).includes(d.posId)) return null;
       return `${d.name} is not a group of ${pName} on POS. To show these options here, create an add-on group`;
     }
-    if (d.ptype === 'container') return isChoiceGroup(parent) ? `Customers pick one product in ${pName}, so option folders cannot go in it` : null;
+    if (d.ptype === 'container') return null;
     if (d.ptype === 'size') return 'Choice products go in a category';
     if (parent.gtype === 'standalone') return d.source === 'pos' ? standaloneError() : null;
     if (d.source !== 'pos') return `Only POS products can be options in ${pName}. Put custom versions in an add-on group`;
@@ -593,8 +587,7 @@
     const inContainer = new Set(
       category.children.flatMap((pid) => {
         const c = entity('product', pid);
-        const g = c && c.ptype === 'size' ? sizeGroupOf(c) : null;
-        return g ? g.children : [];
+        return c && c.ptype === 'size' ? c.children : [];
       }),
     );
     for (const pid of category.children) {

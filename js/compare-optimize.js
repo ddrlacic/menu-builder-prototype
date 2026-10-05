@@ -215,17 +215,15 @@
         const cat = entity('category', parsePath(catPath).id);
         const pids = i.set.items.map((x) => x.pid).filter((pid) => cat.children.includes(pid));
         if (pids.length < 2) continue;
-        const sizeGroup = newGroup({ gtype: 'standalone', role: 'choice', type: 2, name: 'Size', min: 1, max: 1, children: pids });
-        const container = newProduct({ ptype: 'size', name: i.name, children: [sizeGroup.id] });
-        S.data.entities.group[sizeGroup.id] = sizeGroup;
+        const container = newProduct({ ptype: 'size', name: i.name, children: pids });
         S.data.entities.product[container.id] = container;
         const firstIndex = cat.children.indexOf(pids[0]);
         cat.children = cat.children.filter((pid) => !pids.includes(pid));
         cat.children.splice(Math.min(firstIndex, cat.children.length), 0, container.id);
         const cp = childPath(catPath, 'product', container.id);
+        pids.forEach((pid) => rekeyPlacements(childPath(catPath, 'product', pid), childPath(cp, 'product', pid)));
         S.ui.expanded[catPath] = true;
         S.ui.expanded[cp] = true;
-        S.ui.expanded[childPath(cp, 'group', sizeGroup.id)] = true;
         flash(cp);
       }
     });

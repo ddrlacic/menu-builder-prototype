@@ -185,12 +185,12 @@
     const path = row.dataset.path;
     if (d.origin === 'canvas' && (path === d.path || path.startsWith(`${d.path}>`))) return null;
     const kind = row.dataset.kind;
-    if (CHILD_KIND[kind] === d.kind) return 'inside';
-    if (kind === d.kind) {
-      const r = row.getBoundingClientRect();
-      return e.clientY - r.top < r.height / 2 ? 'before' : 'after';
-    }
-    return null;
+    const inside = row.dataset.childKind === d.kind;
+    if (kind !== d.kind) return inside ? 'inside' : null;
+    const r = row.getBoundingClientRect();
+    const y = (e.clientY - r.top) / r.height;
+    if (inside && y > 0.25 && y < 0.75) return 'inside';
+    return y < 0.5 ? 'before' : 'after';
   }
 
   const canvasEl = $('#canvas');

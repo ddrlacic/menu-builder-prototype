@@ -375,6 +375,9 @@
         toast(`Unlinked from ${was}. Customers cannot order it until you choose what it rings up as.`, 'success', { action: { label: 'Undo', onClick: undo } });
         break;
       }
+      case 'add-choice':
+        openPosProductPicker(S.ui.selected);
+        break;
       case 'copy-to-choices':
         confirmCopyToChoices(entity('product', parsePath(S.ui.selected).id));
         break;

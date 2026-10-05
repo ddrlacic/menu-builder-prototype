@@ -33,16 +33,25 @@
     return { s, count, min: r.min, max: limitOf(r.max), maxSingle, optMax, free: r.freeCount };
   }
 
-  const pvShown = (g, gp) => !!g && !g.isSubstitutionContainer && !placement(gp).hidden;
+  const pvShown = (g, gp) => !!g && (g.isChoices || (!g.isSubstitutionContainer && !placement(gp).hidden));
+
+  const choiceSet = (p) => ({ id: p.id, name: nameOf('product', p), gtype: 'choices', type: 2, isChoices: true, children: p.children, sections: [], optionSettings: {}, preselected: {} });
+
+  function pvGroupsOf(pp) {
+    const p = entity('product', parsePath(pp).id);
+    if (p.ptype === 'size') return [{ gp: pp, g: choiceSet(p) }];
+    return p.children.map((gid) => ({ gp: childPath(pp, 'group', gid), g: entity('group', gid) })).filter(({ gp, g }) => pvShown(g, gp));
+  }
+
+  function pvGroupAt(gp) {
+    const info = parsePath(gp);
+    return info.kind === 'product' ? choiceSet(entity('product', info.id)) : entity('group', info.id);
+  }
 
   function pvVisibleGroups(productPath) {
     const out = [];
     const rec = (pp) => {
-      const p = entity('product', parsePath(pp).id);
-      for (const gid of p.children) {
-        const g = entity('group', gid);
-        const gp = childPath(pp, 'group', gid);
-        if (!pvShown(g, gp)) continue;
+      for (const { gp, g } of pvGroupsOf(pp)) {
         out.push({ gp, g });
         const st = pvGroupState(gp, g);
         Object.keys(st.s).forEach((op) => st.s[op] > 0 && rec(op));
@@ -88,11 +97,7 @@
       return { posName: it ? it.name : nameOf('product', ent), posId, qty: n, mods: [] };
     };
     const walk = (pp, line) => {
-      const p = entity('product', parsePath(pp).id);
-      for (const gid of p.children) {
-        const g = entity('group', gid);
-        const gp = childPath(pp, 'group', gid);
-        if (!pvShown(g, gp)) continue;
+      for (const { gp, g } of pvGroupsOf(pp)) {
         const sel = T.preview.sel[gp] || {};
         for (const op of T.preview.order[gp] || []) {
           const n = sel[op];
@@ -102,7 +107,7 @@
             walk(op, line);
             continue;
           }
-          if (g.gtype === 'standalone') {
+          if (g.isChoices || g.gtype === 'standalone') {
             const nl = mk(o, n * qty);
             lines.push(nl);
             walk(op, nl);
@@ -173,12 +178,8 @@
               </div>`
             : `<span class="pv-control pv-${mode}${n ? ' is-on' : ''}">${n && mode === 'check' ? icon('check', 12) : ''}</span>`;
         const nested = n && o.ent.children.length
-          ? `<div class="pv-nested">${o.ent.children
-              .map((gid) => {
-                const ng = entity('group', gid);
-                const ngp = childPath(o.op, 'group', gid);
-                return pvShown(ng, ngp) ? pvGroupHtml(ngp, ng, depth + 1) : '';
-              })
+          ? `<div class="pv-nested">${pvGroupsOf(o.op)
+              .map(({ gp: ngp, g: ng }) => pvGroupHtml(ngp, ng, depth + 1))
               .join('')}</div>`
           : '';
         const tag = mode === 'stepper' ? 'div' : 'button';
@@ -200,7 +201,7 @@
       : rows.join('');
     return `<section class="pv-group">
       <header class="pv-group-head">
-        <div><h4>${esc(isChoiceGroup(g) ? nameOf('product', entity('product', parsePath(parsePath(gp).parentPath).id)) : nameOf('group', g))}</h4><span class="pv-rule">${esc(customerRule(rulesOf(g)))}</span></div>
+        <div><h4>${esc(nameOf('group', g))}</h4><span class="pv-rule">${esc(customerRule(rulesOf(g)))}</span></div>
         ${st.min > 0 ? `<span class="pv-status${done ? ' is-done' : ''}">${done ? `${icon('check', 12)}Done` : 'Required'}</span>` : ''}
       </header>
       <div class="pv-opts">${body || '<p class="field-help">No options to show.</p>'}</div>
@@ -216,19 +217,16 @@
     const store = pvStore();
     const foodType = C.foodTypes.find((x) => x[0] === ent.foodType);
     const diet = foodType ? `<span class="badge tone-ok">${esc(foodType[1])}</span>` : '';
-    const groupHtml = (gid) => {
-      const g = entity('group', gid);
-      const gp = childPath(pv.path, 'group', gid);
-      return pvShown(g, gp) ? pvGroupHtml(gp, g, 0) : '';
-    };
+    const topGroups = pvGroupsOf(pv.path);
+    const groupHtml = ({ gp, g }) => pvGroupHtml(gp, g, 0);
     const groups = ent.sections.length
       ? ent.sections
           .map((s) => {
-            const html = ent.children.filter((gid) => sectionOf(ent, gid) === s.id).map(groupHtml).join('');
+            const html = topGroups.filter(({ g }) => sectionOf(ent, g.id) === s.id).map(groupHtml).join('');
             return html ? `<h3 class="pv-section-head">${esc(s.name)}</h3>${html}` : '';
           })
           .join('')
-      : ent.children.map(groupHtml).join('');
+      : topGroups.map(groupHtml).join('');
     const included = ent.included
       .map((it) => {
         const x = entity('product', it.pid);
@@ -279,7 +277,7 @@
 
   function pvPick(gp, op, mode) {
     const pv = T.preview;
-    const g = entity('group', parsePath(gp).id);
+    const g = pvGroupAt(gp);
     const st = pvGroupState(gp, g);
     pv.sel[gp] = pv.sel[gp] || {};
     pv.order[gp] = pv.order[gp] || [];
@@ -305,7 +303,7 @@
 
   function pvStep(gp, op, delta) {
     const pv = T.preview;
-    const g = entity('group', parsePath(gp).id);
+    const g = pvGroupAt(gp);
     const st = pvGroupState(gp, g);
     const cur = st.s[op] || 0;
     const next = clamp(cur + delta, 0, st.optMax(op));

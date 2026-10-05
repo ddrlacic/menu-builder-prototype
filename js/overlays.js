@@ -224,10 +224,7 @@
         if (detectSizeSets(ent).length) items.push('-', { label: 'Group sizes', hint: 'Turn size variants into one choice product', icon: 'sparkles', onClick: () => openOptimize(path) });
         return openPopover(anchor, items);
       }
-      if (info.kind === 'product' && ent.ptype === 'size') {
-        const g = sizeGroupOf(ent);
-        if (g) return openPosProductPicker(childPath(path, 'group', g.id));
-      }
+      if (info.kind === 'product' && ent.ptype === 'size') return openPosProductPicker(path);
       if (info.kind === 'product') {
         const items = [
           { heading: 'Add from POS' },

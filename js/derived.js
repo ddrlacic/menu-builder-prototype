@@ -91,12 +91,12 @@
           else if (!posItemById(ent.posParentExt)) pAdd('error', `${name}: the POS product it rings up as was deleted on POS`, 'general');
         }
         if (ent.ptype === 'container' && !ent.children.length) pAdd('warning', `${name} has no groups. Customers see an empty option`, 'general');
-        if (ent.ptype === 'size' && !sizeGroupOf(ent)) pAdd('error', `${name} has no products to choose from`, 'general');
+        if (ent.ptype === 'size' && !ent.children.length) pAdd('error', `${name} has no products to choose from`, 'choices');
         const ps = priceStats(path);
         if (ps.total && ps.missingStores.length && !isMissingOnPos(ent)) {
           const n = ps.missingStores.length;
           if (n === ps.total) pAdd('error', `${name} has no POS price at any store in this menu`, 'general');
-          else pAdd('warning', `${name} has no POS price at ${plural(n, 'store', 'stores')}, so customers there cannot ${parsePath(parsePath(path).parentPath).kind === 'group' ? 'choose' : 'order'} it`, 'general');
+          else pAdd('warning', `${name} has no POS price at ${plural(n, 'store', 'stores')}, so customers there cannot ${parsePath(parsePath(path).parentPath).kind === 'category' ? 'order' : 'choose'} it`, 'general');
         }
         if (qtyError(ent.minQty) || qtyError(ent.maxQty)) pAdd('error', `${name}: quantity limits need whole numbers from 1 to ${QTY_MAX}`, 'ordering');
         else if (isNum(ent.minQty) && isNum(ent.maxQty) && ent.maxQty < ent.minQty) pAdd('error', `${name}: maximum quantity is lower than the minimum`, 'ordering');
@@ -133,7 +133,7 @@
         const gAdd = (level, text, tab, dedupe = key) => add(path, level, text, dedupe, tab);
         const count = ent.children.length;
         const max = limitOf(r.max);
-        if (!isChoiceGroup(ent) && !(ent.name || '').trim()) gAdd('error', 'Add a group name', 'general');
+        if (!(ent.name || '').trim()) gAdd('error', 'Add a group name', 'general');
         if ((ent.name || '').length > TEXT_LIMIT) gAdd('error', `${label}: name is longer than ${TEXT_LIMIT} characters`, 'general');
         if ((ent.internalName || '').length > TEXT_LIMIT) gAdd('error', `${label}: internal name is longer than ${TEXT_LIMIT} characters`, 'general');
         if ((ent.reportingId || '').length > TEXT_LIMIT) gAdd('error', `${label}: external ID is longer than ${TEXT_LIMIT} characters`, 'general');
@@ -153,7 +153,7 @@
         const pre = preList.reduce((s, n) => s + n, 0);
         if (ent.children.some((pid, i) => preList[i] > optionMaxOf(ent, pid, r))) gAdd('error', `${label}: an option is preselected more times than it can be picked`, 'options', null);
         else if (max != null && pre > max) gAdd('error', `${label}: ${pre} options preselected, but the maximum is ${max}`, 'options', null);
-        if (r.type === 2 && !isChoiceGroup(ent) && count && pre !== 1) gAdd('error', `${label}: preselect exactly one size`, 'options', null);
+        if (r.type === 2 && count && pre !== 1) gAdd('error', `${label}: preselect exactly one size`, 'options', null);
         if (placement(path).hidden && r.min > 0)
           gAdd('error', r.fixed ? `${label} always needs a choice, so it cannot be hidden here. Show it` : `${label} is required, so it cannot be hidden here. Show it, or set the minimum to 0`, 'advanced', null);
         if (halvesSupported(ent) && Object.values(ent.halves).some((h) => !h.left !== !h.right)) gAdd('warning', `${label}: some toppings have only one half set`, 'halves');
@@ -211,14 +211,13 @@
   }
 
   function childOnCanvas(kind, path, ent, cid) {
-    const ck = CHILD_KIND[kind];
+    const ck = childKind(kind, ent);
     const direct = ent.children.some((c) => posIdOf(ck, entity(ck, c)) === cid);
     if (direct) return true;
     if (kind === 'category') {
       return ent.children.some((c) => {
         const p = entity('product', c);
-        const g = p && p.ptype === 'size' ? sizeGroupOf(p) : null;
-        return !!g && g.children.some((s) => posIdOf('product', entity('product', s)) === cid);
+        return !!p && p.ptype === 'size' && p.children.some((s) => posIdOf('product', entity('product', s)) === cid);
       });
     }
     if (kind !== 'product') return false;
@@ -255,7 +254,7 @@
       for (const cid of posChildren(ent.externalId)) {
         const key = `${ent.externalId}/${cid}`;
         if (missing.has(key) || !posItemById(cid) || childOnCanvas(kind, path, ent, cid)) continue;
-        missing.set(key, { key, path, kind: CHILD_KIND[kind], posId: cid, parentName: nameOf(kind, ent), ignored: !!S.data.ignored[key] });
+        missing.set(key, { key, path, kind: childKind(kind, ent), posId: cid, parentName: nameOf(kind, ent), ignored: !!S.data.ignored[key] });
       }
     });
     const all = [...missing.values()];

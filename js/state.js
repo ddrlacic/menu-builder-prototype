@@ -268,9 +268,39 @@
     for (const k of Object.keys(d)) if (g[k] === undefined) g[k] = d[k];
     delete g.stores;
     migrateSyncName(g);
-    if (g.gtype === 'standalone' && g.role === 'choice') g.type = 2;
-    if (isChoiceGroup(g))
-      Object.assign(g, { internalName: '', reportingId: '', description: '', image: null, metadata: [], preselected: {}, optionSettings: {}, sections: [], optionSection: {} });
+  }
+
+  function migrateChoiceProducts() {
+    const E = S.data.entities;
+    const moved = new Map();
+    for (const p of Object.values(E.product)) {
+      if (p.ptype !== 'size' || !p.children.some((id) => E.group[id])) continue;
+      const kids = [];
+      for (const gid of p.children) {
+        const g = E.group[gid];
+        if (!g || g.gtype !== 'standalone' || (g.role !== 'choice' && g.type !== 2)) continue;
+        g.children.forEach((pid) => E.product[pid] && !kids.includes(pid) && kids.push(pid));
+        moved.set(gid, p.id);
+      }
+      Object.assign(p, { children: kids, sections: [], groupSection: {} });
+    }
+    for (const gid of moved.keys()) if (!Object.values(E.product).some((p) => p.children.includes(gid))) delete E.group[gid];
+    const own = (k) => [...moved.keys()].some((gid) => k.endsWith(`>g:${gid}`));
+    const fix = (k) => {
+      let out = k;
+      for (const gid of moved.keys()) {
+        out = out.split(`>g:${gid}>`).join('>');
+        if (out.endsWith(`>g:${gid}`)) out = out.slice(0, -`>g:${gid}`.length);
+      }
+      return out;
+    };
+    for (const [k, pl] of Object.entries(S.data.placements)) {
+      const nk = fix(k);
+      if (nk === k) continue;
+      delete S.data.placements[k];
+      if (!own(k)) S.data.placements[nk] = pl;
+    }
+    return fix;
   }
 
   const hasOwn = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
@@ -297,7 +327,7 @@
       const base = posRulesOf(g);
       for (const k of Object.keys(g.ruleOverrides)) if (!(k in base) || ruleValue(k, g.ruleOverrides[k]) === base[k]) delete g.ruleOverrides[k];
     }
-    if (rulesOf(g).type === 2 && !isChoiceGroup(g) && g.children.length && !g.children.some((pid) => g.preselected[pid] > 0)) {
+    if (rulesOf(g).type === 2 && g.children.length && !g.children.some((pid) => g.preselected[pid] > 0)) {
       g.preselected = { [g.children[0]]: 1 };
     }
   }
@@ -310,7 +340,6 @@
   const isMissingOnPos = (ent) => ent.source === 'pos' && !posItem(ent);
   const isVirtual = (ent) => !!ent && ent.source === 'virtual';
   const isCustomVersion = (ent) => isVirtual(ent) && (ent.ptype === 'linked' || ent.gtype === 'linked');
-  const isChoiceGroup = (g) => !!g && g.gtype === 'standalone' && (g.role === 'choice' || rulesOf(g).type === 2);
   const storeGroup = () => C.storeGroups.find((g) => g.id === S.ui.storeGroupId) || C.storeGroups[0];
   const storeGroups = () => C.storeGroups.filter((g) => DATASETS[g.dataset]);
   const datasetOf = (storeGroupId) => (storeGroups().find((g) => g.id === storeGroupId) || storeGroups()[0]).dataset;
@@ -567,9 +596,7 @@
       for (const item of c.products) {
         let ent;
         if (item.container) {
-          const sizes = newGroup({ gtype: 'standalone', role: 'choice', type: 2, name: 'Size', min: 1, max: 1, children: item.sizes.map((pid) => productFor(pid).id) });
-          E.group[sizes.id] = sizes;
-          ent = newProduct({ ptype: 'size', name: item.container, children: [sizes.id] });
+          ent = newProduct({ ptype: 'size', name: item.container, children: item.sizes.map((pid) => productFor(pid).id) });
           E.product[ent.id] = ent;
         } else {
           ent = productFor(item.pos);
@@ -717,6 +744,7 @@
           S.data.menus.forEach(migrateMenu);
           Object.values(S.data.entities.category).forEach(migrateCategory);
           Object.values(S.data.entities.product).forEach(migrateProduct);
+          const fixPath = migrateChoiceProducts();
           for (const [k, pl] of Object.entries(S.data.placements)) {
             if (!/^[^>]+>c:[^>]+$/.test(k)) continue;
             delete pl.schedule;
@@ -728,6 +756,8 @@
           migratePreselections(oldGroups);
           normalizeAll();
           S.ui = { ...defaultUi(), ...parsed.ui, posQuery: '', canvasQuery: '' };
+          S.ui.selected = fixPath(S.ui.selected);
+          S.ui.expanded = Object.fromEntries(Object.entries(S.ui.expanded).map(([k, v]) => [fixPath(k), v]));
           if (S.ui.tabs.group === 'rules') S.ui.tabs.group = 'options';
           if (datasetOf(S.ui.storeGroupId) !== dataset) S.ui.storeGroupId = defaultUi().storeGroupId;
           focusPosCategory();

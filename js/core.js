@@ -7,6 +7,7 @@
   const DATASETS = { example: { pos: window.POS_SEED }, ...(window.POS_DATASETS || {}) };
   const BASE_MODIFIER_CODES = C.modifierCodes;
   const CHILD_KIND = { menu: 'category', category: 'product', product: 'group', group: 'product' };
+  const childKind = (kind, ent) => (kind === 'product' && ent && ent.ptype === 'size' ? 'product' : CHILD_KIND[kind]);
   const SEG = { category: 'c', product: 'p', group: 'g' };
   const SEG_KIND = { c: 'category', p: 'product', g: 'group' };
   const KIND_LABEL = { menu: 'Menu', category: 'Category', product: 'Product', group: 'Product group' };
