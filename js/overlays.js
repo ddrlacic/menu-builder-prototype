@@ -12,8 +12,9 @@
         if (it === '-') return '<div class="pop-sep" role="separator"></div>';
         if (it.heading) return `<div class="pop-heading">${esc(it.heading)}</div>`;
         if (it.empty) return `<div class="pop-empty">${it.empty}</div>`;
-        return `<button type="button" role="menuitem" class="pop-item${it.tone ? ` tone-${it.tone}` : ''}" data-pop="${i}" ${it.disabled ? 'disabled' : ''}>
-            ${it.icon ? icon(it.icon, 15) : ''}<span class="pop-label">${esc(it.label)}${it.hint ? `<span class="pop-hint">${esc(it.hint)}</span>` : ''}</span>${it.kbd ? `<kbd>${it.kbd}</kbd>` : ''}${it.submenu ? icon('chevRight', 14) : ''}
+        const check = it.checked !== undefined;
+        return `<button type="button" role="${check ? 'menuitemcheckbox' : 'menuitem'}" ${check ? `aria-checked="${!!it.checked}"` : ''} class="pop-item${it.tone ? ` tone-${it.tone}` : ''}" data-pop="${i}" ${it.disabled ? 'disabled' : ''}>
+            ${it.icon ? icon(it.icon, 15) : ''}<span class="pop-label">${esc(it.label)}${it.hint ? `<span class="pop-hint">${esc(it.hint)}</span>` : ''}</span>${it.kbd ? `<kbd>${it.kbd}</kbd>` : ''}${it.submenu ? icon('chevRight', 14) : ''}${it.checked ? `<span class="pop-check">${icon('check', 15)}</span>` : ''}
           </button>`;
       })
       .join('');
@@ -286,6 +287,17 @@
 
   function appMenu(anchor) {
     openPopover(anchor, [
+      {
+        label: 'Show POS IDs',
+        icon: 'link',
+        hint: 'In the menu tree and the POS items list',
+        checked: !!S.ui.showPosIds,
+        onClick: () => {
+          S.ui.showPosIds = !S.ui.showPosIds;
+          render();
+        },
+      },
+      '-',
       { label: 'Export menu as JSON', icon: 'download', onClick: exportMenu },
       '-',
       {

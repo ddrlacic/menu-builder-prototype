@@ -229,10 +229,10 @@
             const meta = r.it.type === 'group' ? C.groupTypes[r.it.groupType || 1].label : '';
             const label = r.isMenu ? r.it.name : posLabel(r.id);
             const showAlt = label !== r.it.name;
-            return `<div class="pos-row${T.flashExt.has(r.id) ? ' is-flash' : ''}" ${r.hasChildren ? `data-key="${esc(r.key)}"` : ''} role="treeitem" aria-level="${r.depth + 1}" ${r.hasChildren ? `aria-expanded="${r.expanded}"` : ''} draggable="true" data-pos-id="${r.id}" data-pos-path="${r.isMenu ? '' : esc(r.key)}" data-kind="${r.it.type}" data-name="${esc(label)}" data-chain-cat="${esc(r.chainCat)}" style="--depth:${r.depth}" title="${esc(r.it.name)} · ${r.id}">
+            return `<div class="pos-row${S.ui.showPosIds ? ' has-id' : ''}${T.flashExt.has(r.id) ? ' is-flash' : ''}" ${r.hasChildren ? `data-key="${esc(r.key)}"` : ''} role="treeitem" aria-level="${r.depth + 1}" ${r.hasChildren ? `aria-expanded="${r.expanded}"` : ''} draggable="true" data-pos-id="${r.id}" data-pos-path="${r.isMenu ? '' : esc(r.key)}" data-kind="${r.it.type}" data-name="${esc(label)}" data-chain-cat="${esc(r.chainCat)}" style="--depth:${r.depth}" title="${esc(r.it.name)} · ${r.id}">
               ${r.hasChildren ? `<button class="twisty" data-action="pos-toggle" data-key="${esc(r.key)}" tabindex="-1" aria-label="${r.expanded ? 'Collapse' : 'Expand'}">${icon('chevRight', 14)}</button>` : '<span class="twisty-spacer"></span>'}
               <span class="kind-glyph kind-${r.it.type}">${icon(KIND_ICON[r.it.type], 13)}</span>
-              <span class="pos-name">${hl(r.it.name)}${showAlt ? `<span class="pos-alt">${esc(label)}</span>` : ''}</span>
+              <span class="pos-name">${hl(r.it.name)}${showAlt ? `<span class="pos-alt">${esc(label)}</span>` : ''}${S.ui.showPosIds ? `<span class="pos-id mono">${hl(r.id)}</span>` : ''}</span>
               ${meta ? `<span class="pos-meta">${meta}</span>` : ''}
               <span class="pos-added" ${inMenu ? `title="${r.isMenu ? 'All categories are in this menu' : 'In this menu'}"` : ''}>${inMenu ? icon('check', 13) : ''}</span>
               <button type="button" class="icon-btn sm pos-add" data-action="pos-add" aria-label="Add ${esc(label)} to menu" title="Add to menu">${icon('plus', 14)}</button>
@@ -381,6 +381,8 @@
         (withHalves ? ` · ${withHalves} with halves` : '');
       meta = `<span class="type-tag type-${rules.type}">${C.groupTypes[rules.type].label}</span>${esc(ent.isSubstitutionContainer ? 'Substitutes only · Hidden from customers' : groupRuleShort(rules) + extra)}`;
     }
+    const posId = S.ui.showPosIds ? posIdOf(kind, ent) : '';
+    if (posId) meta = `${meta ? `${meta}<span aria-hidden="true">·</span>` : ''}<span class="mono">${esc(posId)}</span>`;
 
     const issueDot = issueTone ? `<span class="issue-dot tone-${issueTone}" title="${esc(issues.map((i) => i.text).join('\n'))}"></span>` : '';
     const suggestion =

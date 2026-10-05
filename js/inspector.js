@@ -284,9 +284,12 @@
     const issues = ctx.issues.byPath.get(path) || [];
     const chipKind = kind === 'menu' ? 'menu' : isVirtual(ent) && ent.ptype !== 'linked' ? 'virtual' : kind;
 
+    const headPosId = kind === 'menu' ? ent.posExt : posIdOf(kind, ent);
     const kicker = [
       `<span class="kind-chip kind-${chipKind}">${esc(kindLabel(kind, ent))}</span>`,
-      kind !== 'menu' && ent.source === 'pos' ? `<span class="src-chip">${icon('link', 12)}POS</span>` : '',
+      headPosId
+        ? `<button type="button" class="src-chip src-id" data-action="copy-text" data-value="${esc(headPosId)}" data-label="POS ID" aria-label="Copy POS ID ${esc(headPosId)}" title="Copy POS ID ${esc(headPosId)}">${icon('link', 12)}<span class="mono">${esc(headPosId)}</span>${icon('copy', 12)}</button>`
+        : '',
       kind !== 'menu' && isVirtual(ent) && !isCustomVersion(ent) ? '<span class="src-chip">Menu only</span>' : '',
     ].join('');
 
