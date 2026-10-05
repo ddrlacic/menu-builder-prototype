@@ -24,26 +24,52 @@
         break;
       case 'delete-menu': {
         const m = menuById(el.dataset.id);
+        const remove = () => {
+          closeModal();
+          commit(() => {
+            S.data.menus = S.data.menus.filter((x) => x.id !== m.id);
+            S.ui.activeMenuId = S.data.menus[0].id;
+            S.ui.selected = S.data.menus[0].id;
+          });
+          toast('Menu deleted');
+        };
+        if (!m.publishedAt) {
+          openModal({
+            title: `Delete ${m.name}?`,
+            body: '<p>This will permanently delete the menu</p>',
+            actions: [
+              { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+              { label: 'Delete', kind: 'danger', onClick: remove },
+            ],
+          });
+          break;
+        }
         openModal({
           title: `Delete ${m.name}?`,
-          body: '<p>The menu is deleted. Its categories and products stay in your library, and nothing changes on POS.</p>',
+          size: 'lg',
+          body: `<h3 class="delete-warning-title">This action cannot be undone. Proceed with caution.</h3>
+            <ul class="delete-warning-list">
+              <li>${icon('alertCircle', 18)}<span>This menu will be removed from all stores, online ordering channels, external channels, and associated order types</span></li>
+              <li>${icon('alertCircle', 18)}<span>Categories and products within this menu will not be deleted</span></li>
+              <li>${icon('alertCircle', 18)}<span>If you have active advanced orders you will not be able to delete this menu. Please cancel all outstanding orders before proceeding.</span></li>
+            </ul>
+            <button type="button" class="check-toggle delete-confirm-check" role="checkbox" aria-checked="false" data-action="delete-confirm-toggle">
+              <span class="check" aria-hidden="true"></span>Yes, I understand
+            </button>`,
           actions: [
             { label: 'Cancel', kind: 'secondary', onClick: closeModal },
-            {
-              label: 'Delete menu',
-              kind: 'danger',
-              onClick: () => {
-                closeModal();
-                commit(() => {
-                  S.data.menus = S.data.menus.filter((x) => x.id !== m.id);
-                  S.ui.activeMenuId = S.data.menus[0].id;
-                  S.ui.selected = S.data.menus[0].id;
-                });
-                toast('Menu deleted');
-              },
-            },
+            { label: 'Delete forever', kind: 'danger', disabled: true, onClick: remove },
           ],
         });
+        break;
+      }
+      case 'delete-confirm-toggle': {
+        const checked = el.getAttribute('aria-checked') !== 'true';
+        el.setAttribute('aria-checked', String(checked));
+        $('.check', el).classList.toggle('is-on', checked);
+        $('.check', el).innerHTML = checked ? icon('check', 12) : '';
+        const confirm = $('[data-modal-act="1"]', $('#modal-root'));
+        if (confirm) confirm.disabled = !checked;
         break;
       }
       case 'undo':

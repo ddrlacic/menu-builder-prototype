@@ -64,7 +64,7 @@
         <div class="modal-head"><h2 id="modal-title">${esc(title)}</h2>
           <button type="button" class="icon-btn" data-modal-close aria-label="Close">${icon('x', 16)}</button></div>
         <div class="modal-scroll"><div class="modal-body">${body}</div></div>
-        ${actions.length ? `<div class="modal-foot">${actions.map((a, i) => `<button type="button" class="btn ${a.kind || 'secondary'}" data-modal-act="${i}">${esc(a.label)}</button>`).join('')}</div>` : foot}
+        ${actions.length ? `<div class="modal-foot">${actions.map((a, i) => `<button type="button" class="btn ${a.kind || 'secondary'}" data-modal-act="${i}" ${a.disabled ? 'disabled' : ''}>${esc(a.label)}</button>`).join('')}</div>` : foot}
       </div>`;
     T.modal = { actions, prevFocus: document.activeElement };
     root.dataset.state = 'mounted';

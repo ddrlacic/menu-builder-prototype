@@ -3152,6 +3152,37 @@ input[type='number']::-webkit-inner-spin-button {
   font-weight: 500;
 }
 
+.delete-warning-title {
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: 650;
+}
+
+.delete-warning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.delete-warning-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.delete-warning-list .icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--danger);
+}
+
+.delete-confirm-check {
+  margin-top: 6px;
+}
+
 .opt-row .input-affix {
   height: 32px;
 }
