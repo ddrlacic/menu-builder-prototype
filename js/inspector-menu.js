@@ -275,13 +275,20 @@
     $('#ms-search').focus();
   }
 
+  function msGroupStores(gid) {
+    const all = groupStores(gid);
+    if (!T.ms.catId) return all;
+    const on = new Set(categoryStores(entity('category', T.ms.catId)).map((s) => s.id));
+    return all.filter((s) => on.has(s.id));
+  }
+
   function manageStoresGroups() {
     const o = T.ms;
     const q = o.query.trim().toLowerCase();
     return C.menuStoreGroups
       .map((g) => {
-        let list = groupStores(g.id);
-        if (o.onlySelected) list = list.filter((s) => o.sel[g.id].has(s.id));
+        let list = msGroupStores(g.id);
+        if (o.onlySelected) list = list.filter((s) => (o.catId ? !o.sel[g.id].has(s.id) : o.sel[g.id].has(s.id)));
         if (q && !g.name.toLowerCase().includes(q)) list = list.filter((s) => s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q));
         return { g, list };
       })
@@ -321,7 +328,7 @@
               return `<div class="ms-group">
                 <div class="ms-group-head">
                   <button type="button" class="icon-btn sm ms-chev" data-action="ms-open" data-id="${g.id}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'} ${esc(g.name)}">${icon('chevRight', 14)}</button>
-                  <button type="button" class="ms-row" role="checkbox" aria-checked="${checked(st)}" data-action="ms-group" data-id="${g.id}" data-on="${st === 'on' ? 0 : 1}">${box(st)}<strong class="ms-name">${esc(g.name)}</strong><span class="ms-city tnum">${o.sel[g.id].size} of ${groupStores(g.id).length}</span></button>
+                  <button type="button" class="ms-row" role="checkbox" aria-checked="${checked(st)}" data-action="ms-group" data-id="${g.id}" data-on="${st === 'on' ? 0 : 1}">${box(st)}<strong class="ms-name">${esc(g.name)}</strong><span class="ms-city tnum">${o.sel[g.id].size} of ${msGroupStores(g.id).length}</span></button>
                 </div>
                 ${open ? `<div class="ms-stores">${list.map((s) => storeRow(g, s)).join('')}</div>` : ''}
               </div>`;
@@ -330,12 +337,17 @@
         </div>`
       : q
         ? '<div class="empty-small"><strong>No stores match</strong><span>Check the spelling or search by city.</span></div>'
-        : '<div class="empty-small"><strong>No stores selected</strong></div>';
-    const removed = manageStoresRemoved(o);
-    $('#ms-warn').innerHTML = removed.length
-      ? callout('warning', `The menu is published at ${plural(removed.length, 'store', 'stores')} you unticked. Saving removes it from them right away.`)
-      : '';
-    $('#ms-foot').innerHTML = `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="ms-only">${box(o.onlySelected ? 'on' : 'off')}Show only selected</button>
+        : `<div class="empty-small"><strong>${o.catId ? 'No stores hidden' : 'No stores selected'}</strong></div>`;
+    if (o.catId) {
+      const live = categoryStoresChange(o).hide.filter((id) => categoryPublishedIds(o.catId).has(id));
+      $('#ms-warn').innerHTML = live.length ? callout('warning', `Customers at ${plural(live.length, 'store', 'stores')} you unticked stop seeing the category right away.`) : '';
+    } else {
+      const removed = manageStoresRemoved(o);
+      $('#ms-warn').innerHTML = removed.length
+        ? callout('warning', `The menu is published at ${plural(removed.length, 'store', 'stores')} you unticked. Saving removes it from them right away.`)
+        : '';
+    }
+    $('#ms-foot').innerHTML = `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="ms-only">${box(o.onlySelected ? 'on' : 'off')}${o.catId ? 'Show only hidden' : 'Show only selected'}</button>
       <button type="button" class="btn secondary" data-modal-close>Cancel</button>
       <button type="button" class="btn primary" data-action="ms-save">Save</button>`;
   }
@@ -348,6 +360,7 @@
 
   function saveManageStores() {
     const o = T.ms;
+    if (o.catId) return saveCategoryStores(o);
     const m = S.data.menus.find((x) => x.id === o.menuId);
     const removed = manageStoresRemoved(o);
     const pick = (gid, newStores) => {
@@ -372,6 +385,92 @@
 
   const menusWithCategory = (catId) => S.data.menus.filter((m) => m.children.includes(catId));
   const isCateringMenu = (m) => m.orderTypes.some((o) => o.startsWith('catering'));
+
+  function categoryStores(cat) {
+    const ids = new Set(menusWithCategory(cat.id).flatMap((m) => menuStores(m).map((s) => s.id)));
+    return STORES.filter((s) => ids.has(s.id));
+  }
+  const isHiddenAt = (cat, sid) => (cat.stores || {})[sid] === 'disabled';
+  const hiddenCategoryStores = (cat) => (Object.keys(cat.stores || {}).length ? categoryStores(cat).filter((s) => isHiddenAt(cat, s.id)) : []);
+  const categoryPublishedIds = (catId) => new Set(menusWithCategory(catId).flatMap((m) => m.publishedStoreIds));
+  const CAT_HIDDEN_ROWS = 10;
+
+  function categoryStoresTab(cat) {
+    const all = categoryStores(cat);
+    if (!all.length) {
+      return section('', '<p class="store-summary">No stores yet</p><p class="field-help">Add stores to its menu on the menu’s Stores tab.</p>');
+    }
+    const hidden = hiddenCategoryStores(cat);
+    const summary = `Shown at ${all.length - hidden.length} of ${plural(all.length, 'store', 'stores')}${hidden.length ? ` · Hidden at ${plural(hidden.length, 'store', 'stores')}` : ''}`;
+    const row = (s) => `<div class="store-row list-row"><span class="store-name list-name"><span>${esc(s.name)}</span><span class="muted">${esc(s.city)}</span></span>
+      <button type="button" class="switch" role="switch" aria-checked="false" aria-label="Show at ${esc(s.name)}" data-action="cat-store-show" data-id="${s.id}"><span class="switch-thumb"></span></button></div>`;
+    return section(
+      '',
+      `<p class="store-summary tnum">${esc(summary)}</p>
+      ${
+        hidden.length
+          ? `<div class="store-list">${hidden.slice(0, CAT_HIDDEN_ROWS).map(row).join('')}</div>
+            ${hidden.length > CAT_HIDDEN_ROWS ? `<p class="field-help">Showing ${CAT_HIDDEN_ROWS} of ${hidden.length} hidden stores. See them all in Manage stores.</p>` : ''}
+            <p class="field-help">Customers at these stores do not see the category or its products. Applies in every menu.</p>`
+          : '<p class="field-help">Hide it at stores that do not offer it. Applies in every menu.</p>'
+      }
+      ${field('', `<button type="button" class="btn secondary sm" data-action="cat-manage-stores">${icon('store', 14)}Manage stores</button>`)}`,
+    );
+  }
+
+  function openCategoryStores(cat) {
+    const all = categoryStores(cat);
+    const sel = {};
+    C.menuStoreGroups.forEach((g) => (sel[g.id] = new Set()));
+    all.forEach((s) => {
+      if (isHiddenAt(cat, s.id)) return;
+      const g = C.menuStoreGroups.find((x) => groupStores(x.id).includes(s));
+      if (g) sel[g.id].add(s.id);
+    });
+    const shown = C.menuStoreGroups.filter((g) => groupStores(g.id).some((s) => all.includes(s)));
+    openModal({
+      title: 'Manage stores',
+      body: `<p>Customers see ${esc(nameOf('category', cat))} at the stores you tick.</p>
+        <label class="search-field">${icon('search', 15)}<span class="sr-only">Search by store or city</span>
+          <input id="ms-search" type="search" placeholder="Search by store or city" autocomplete="off"></label>
+        <div id="ms-list"></div>`,
+      foot: '<div id="ms-warn"></div><div class="modal-foot" id="ms-foot"></div>',
+    });
+    T.ms = { catId: cat.id, sel, open: new Set(shown.length === 1 ? [shown[0].id] : []), query: '', onlySelected: false };
+    renderManageStores();
+    $('#ms-search').focus();
+  }
+
+  function categoryStoresChange(o) {
+    const cat = entity('category', o.catId);
+    const on = new Set(Object.values(o.sel).flatMap((set) => [...set]));
+    const all = categoryStores(cat);
+    return {
+      hide: all.filter((s) => !on.has(s.id) && !isHiddenAt(cat, s.id)).map((s) => s.id),
+      show: all.filter((s) => on.has(s.id) && isHiddenAt(cat, s.id)).map((s) => s.id),
+    };
+  }
+
+  const storesWho = (ids) => (ids.length === 1 ? storeById.get(ids[0]).name : plural(ids.length, 'store', 'stores'));
+
+  function setCategoryStores(cat, { hide = [], show = [] }) {
+    if (!hide.length && !show.length) return;
+    const ok = commit(() => {
+      if (!cat.stores) cat.stores = {};
+      hide.forEach((id) => (cat.stores[id] = 'disabled'));
+      show.forEach((id) => delete cat.stores[id]);
+    });
+    if (!ok) return;
+    const msg = hide.length && show.length ? 'Stores successfully updated' : hide.length ? `Category hidden at ${storesWho(hide)}` : `Category shown at ${storesWho(show)}`;
+    toast(msg, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function saveCategoryStores(o) {
+    const cat = entity('category', o.catId);
+    const change = categoryStoresChange(o);
+    closeModal();
+    setCategoryStores(cat, change);
+  }
 
   function categoryProductsSection(cat, path, menu) {
     const rows = cat.children.map((pid) => ({ p: entity('product', pid), pp: childPath(path, 'product', pid) })).filter((r) => r.p);
@@ -485,9 +584,7 @@
         categoryMenusSection(cat, menu)
       );
     }
-    if (tab === 'stores') {
-      return section('', storesList('category', cat, STORE_STATES), { desc: 'Status at each store, in every menu. At disabled stores, customers do not see the category.' });
-    }
+    if (tab === 'stores') return categoryStoresTab(cat);
     const inMenus = menusWithCategory(cat.id);
     return (
       sourceSection('category', cat, path) +

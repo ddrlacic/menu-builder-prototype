@@ -22,7 +22,6 @@
     ['oos_eod', 'Out of stock until end of day'],
     ['out_of_stock', 'Out of stock indefinitely'],
   ];
-  const STORE_STATES = [['active', 'Active'], ['disabled', 'Disabled']];
   const isOutOfStock = (s) => s === 'out_of_stock' || /^oos_/.test(s);
   const DESC_LIMIT = 3000;
   const QTY_MAX = 999;

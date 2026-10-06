@@ -277,7 +277,7 @@
           has_banner_image: !!e.bannerImage,
           is_bundle: e.isBundle,
           is_virtual_container: isVirtual(e),
-          venues: e.stores,
+          venues: Object.fromEntries(hiddenCategoryStores(e).map((s) => [s.id, { state: 2 }])),
           products: kids('product'),
         });
       } else if (kind === 'product') {

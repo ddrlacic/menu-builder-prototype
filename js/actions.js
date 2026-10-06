@@ -273,6 +273,12 @@
       case 'menu-manage-stores':
         openManageStores(activeMenu());
         break;
+      case 'cat-manage-stores':
+        openCategoryStores(entity('category', parsePath(S.ui.selected).id));
+        break;
+      case 'cat-store-show':
+        setCategoryStores(entity('category', parsePath(S.ui.selected).id), { show: [el.dataset.id] });
+        break;
       case 'menu-group-remove':
         removeMenuStoreGroup(activeMenu(), el.dataset.id);
         break;
