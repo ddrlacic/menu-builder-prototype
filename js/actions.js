@@ -530,57 +530,53 @@
           toast(`Added to ${menuName}`, 'success', { action: { label: 'Undo', onClick: undo } });
           break;
         }
-        const elsewhere = menusWithCategory(catId).some((x) => x.id !== m.id);
-        const catPath = `${m.id}>c:${catId}`;
-        const anyHidden = cat.children.some((pid) => placement(childPath(catPath, 'product', pid)).hidden);
-        openModal({
-          title: `Remove ${nameOf('category', cat)} from ${menuName}?`,
-          body: `<p>${m.publishedStoreIds.length ? `Customers stop seeing it in ${esc(menuName)} right away. ` : ''}${anyHidden ? `Products you hid in ${esc(menuName)} are shown again if you add it back. ` : ''}${cat.source === 'pos' ? 'It stays on POS.' : 'Nothing changes on POS.'}</p>
-            ${elsewhere ? '' : callout('warning', 'It is not in any other menu, so customers will not see it anywhere.')}`,
-          actions: [
-            { label: 'Cancel', kind: 'secondary', onClick: closeModal },
-            { label: 'Remove category', kind: 'danger', onClick: () => { closeModal(); removeLink(`${m.id}>c:${catId}`); } },
-          ],
-        });
+        confirmRemoveCategory(cat, m);
         break;
       }
       case 'cat-delete': {
         const cat = entity('category', el.dataset.id);
         const ms = menusWithCategory(cat.id);
-        const menuNames = listJoin(ms.map((m) => nameOf('menu', m)));
+        if (ms.some((m) => m.status === 'publishing')) break;
+        const remove = () => {
+          closeModal();
+          commit(() => {
+            S.data.menus.forEach((m) => (m.children = m.children.filter((c) => c !== cat.id)));
+            for (const k of Object.keys(S.data.placements)) if (k.split('>')[1] === `c:${cat.id}`) delete S.data.placements[k];
+            delete S.data.entities.category[cat.id];
+            S.ui.selected = activeMenu().id;
+          });
+          toast('Category deleted');
+        };
+        if (!ms.length) {
+          openModal({
+            title: `Delete ${nameOf('category', cat)}?`,
+            body: '<p>This will permanently delete the category</p>',
+            actions: [
+              { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+              { label: 'Delete', kind: 'danger', onClick: remove },
+            ],
+          });
+          break;
+        }
         openModal({
           title: `Delete ${nameOf('category', cat)}?`,
-          body: `<ul class="modal-list">
-              ${ms.length ? `<li>It is removed from ${ms.length > 1 ? `${ms.length} menus: ` : ''}${esc(menuNames)}, with its settings there.</li>` : ''}
-              <li>Its products are not deleted.</li>
-              <li>${cat.source === 'pos' ? 'It stays on POS. You can add it back from POS items.' : 'It exists only in this menu builder, so nothing changes on POS.'}</li>
+          size: 'lg',
+          body: `<h3 class="delete-warning-title">This action cannot be undone. Proceed with caution.</h3>
+            <ul class="delete-warning-list">
+              <li>${icon('alertCircle', 18)}<span>This category will be removed from all stores, online ordering channels, external channels, and associated order types</span></li>
+              <li>${icon('alertCircle', 18)}<span>This category will be removed from all menus</span></li>
+              <li>${icon('alertCircle', 18)}<span>Products within this category will not be deleted</span></li>
             </ul>
-            ${ms.length ? `<button type="button" class="check-toggle" role="checkbox" aria-checked="false" data-action="cat-delete-ack"><span class="check" aria-hidden="true"></span>Yes, I understand</button>` : ''}`,
+            <button type="button" class="check-toggle delete-confirm-check" role="checkbox" aria-checked="false" data-action="delete-confirm-toggle">
+              <span class="check" aria-hidden="true"></span>Yes, I understand
+            </button>`,
           actions: [
             { label: 'Cancel', kind: 'secondary', onClick: closeModal },
-            {
-              label: ms.length ? 'Delete forever' : 'Delete category',
-              kind: 'danger',
-              onClick: () => {
-                closeModal();
-                commit(() => {
-                  S.data.menus.forEach((m) => (m.children = m.children.filter((c) => c !== cat.id)));
-                  for (const k of Object.keys(S.data.placements)) if (k.split('>')[1] === `c:${cat.id}`) delete S.data.placements[k];
-                  delete S.data.entities.category[cat.id];
-                  S.ui.selected = activeMenu().id;
-                });
-                toast('Category deleted', 'success', { action: { label: 'Undo', onClick: undo } });
-              },
-            },
+            { label: 'Delete forever', kind: 'danger', disabled: true, onClick: remove },
           ],
         });
-        if (ms.length) {
-          $('#modal-root .modal-foot .btn.danger').disabled = true;
-          $('#modal-root [data-action="cat-delete-ack"]').focus({ preventScroll: true });
-        }
         break;
       }
-      case 'cat-delete-ack':
       case 'delete-ack': {
         const on = el.getAttribute('aria-checked') !== 'true';
         el.setAttribute('aria-checked', String(on));

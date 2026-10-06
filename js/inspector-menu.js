@@ -586,6 +586,7 @@
     }
     if (tab === 'stores') return categoryStoresTab(cat);
     const inMenus = menusWithCategory(cat.id);
+    const publishing = inMenus.some((m) => m.status === 'publishing');
     return (
       sourceSection('category', cat, path) +
       section(
@@ -598,14 +599,14 @@
       ) +
       section(
         'Catering',
-        toggle(cb('isBundle'), cat.isBundle, { label: 'Catering bundles', help: 'Quantities scale with the number of guests customers choose.' }) +
+        toggle(cb('isBundle'), cat.isBundle, { label: 'Catering bundles', help: 'Only for catering orders in Web App. Option quantities scale to the number of guests, and prices are hidden.' }) +
           (cat.isBundle && !isCateringMenu(menu) ? callout('info', `${esc(menu.name)} has no catering order types, so this has no effect there.`) : ''),
       ) +
       removeSection(path, 'category', cat) +
       section(
         '',
-        `<button type="button" class="btn secondary tone-danger" data-action="cat-delete" data-id="${cat.id}">${icon('trash', 15)}Delete category</button>
-        <p class="field-help">Removes it from ${inMenus.length > 1 ? `all ${inMenus.length} menus` : esc(menu.name)}. Its products are not deleted${cat.source === 'pos' ? ', and nothing changes on POS' : ''}.</p>`,
+        `<button type="button" class="btn secondary tone-danger" data-action="cat-delete" data-id="${cat.id}" ${publishing ? 'disabled' : ''}>${icon('trash', 15)}Delete category</button>
+        <p class="field-help">${publishing ? 'You can delete the category once publishing finishes.' : `Removes it from ${inMenus.length > 1 ? `all ${inMenus.length} menus` : esc(menu.name)}. Its products are not deleted${cat.source === 'pos' ? ', and nothing changes on POS' : ''}.`}</p>`,
       )
     );
   }

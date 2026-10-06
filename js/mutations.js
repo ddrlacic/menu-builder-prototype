@@ -627,9 +627,26 @@
     });
   }
 
+  function confirmRemoveCategory(cat, m) {
+    const menuName = nameOf('menu', m);
+    const catPath = `${m.id}>c:${cat.id}`;
+    const elsewhere = S.data.menus.some((x) => x.id !== m.id && x.children.includes(cat.id));
+    const anyHidden = cat.children.some((pid) => placement(childPath(catPath, 'product', pid)).hidden);
+    openModal({
+      title: `Remove ${nameOf('category', cat)} from ${menuName}?`,
+      body: `<p>${m.publishedStoreIds.length ? `Customers stop seeing it in ${esc(menuName)} right away. ` : ''}${anyHidden ? `Products you hid in ${esc(menuName)} are shown again if you add it back. ` : ''}${cat.source === 'pos' ? 'It stays on POS.' : 'Nothing changes on POS.'}</p>
+        ${elsewhere ? '' : callout('warning', 'It is not in any other menu, so customers will not see it anywhere.')}`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        { label: 'Remove category', kind: 'danger', onClick: () => { closeModal(); removeLink(catPath); } },
+      ],
+    });
+  }
+
   function confirmRemove(path) {
     const info = parsePath(path);
     if (info.kind === 'menu') return;
+    if (info.kind === 'category') return confirmRemoveCategory(entity('category', info.id), menuById(info.menuId));
     const pInfo = parsePath(info.parentPath);
     const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));
     const parentUses = pInfo.kind === 'menu' ? 1 : (ctx.usage.get(`${pInfo.kind}:${pInfo.id}`) || []).length;
