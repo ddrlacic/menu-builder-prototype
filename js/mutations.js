@@ -349,28 +349,23 @@
     const kids = p.children.map((id) => entity('product', id)).filter(Boolean);
     const name = nameOf('product', p);
     openModal({
-      title: `Copy details to ${plural(kids.length, 'choice', 'choices')}?`,
-      body: `<p>Each choice gets the name, description, and image of ${esc(name)}.${p.image ? '' : ' This product has no image, so the choices lose theirs.'}</p>
-        <p>The first time a choice gets a new name, its current name becomes its internal name, so your team can still tell the choices apart.</p>`,
+      title: `Copy description and image to ${plural(kids.length, 'choice', 'choices')}?`,
+      body: `<p>Each choice gets the description and image of ${esc(name)}.${p.image ? '' : ' This product has no image, so the choices lose theirs.'} Names stay as they are, so customers can tell the choices apart.</p>
+        <p>The choices change everywhere they are used.</p>`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },
         {
-          label: 'Copy details',
+          label: 'Copy',
           kind: 'primary',
           onClick: () => {
             closeModal();
             commit(() =>
               kids.forEach((x) => {
-                if (nameOf('product', x).toLowerCase() !== name.toLowerCase()) {
-                  if (!x.namePropagated) x.internalName = nameOf('product', x);
-                  x.namePropagated = true;
-                  x.name = name;
-                }
                 x.description = p.description;
                 x.image = p.image;
               }),
             );
-            toast(`Details copied to ${plural(kids.length, 'choice', 'choices')}`, 'success', { action: { label: 'Undo', onClick: undo } });
+            toast(`Description and image copied to ${plural(kids.length, 'choice', 'choices')}`, 'success', { action: { label: 'Undo', onClick: undo } });
           },
         },
       ],

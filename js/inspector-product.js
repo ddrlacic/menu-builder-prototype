@@ -107,8 +107,8 @@
         <p class="field-help">Customers pick one. Only the product they pick goes to POS, at its own POS price. Select a choice’s name to see its price. Shown applies only in ${esc(menuName)}.</p>
         ${add}`,
       ) +
-      section('Copy details', `<button type="button" class="btn secondary sm" data-action="copy-to-choices">${icon('copy', 14)}Copy details to choices</button>`, {
-        desc: 'Copying gives each choice this product’s name, description, and image.',
+      section('Copy details', `<button type="button" class="btn secondary sm" data-action="copy-to-choices">${icon('copy', 14)}Copy description and image to choices</button>`, {
+        desc: 'Gives each choice this product’s description and image. Names stay as they are.',
       })
     );
   }
