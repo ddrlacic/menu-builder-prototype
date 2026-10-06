@@ -3283,9 +3283,17 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 4px;
 }
 
-.position-control .tnum {
-  min-width: 56px;
-  font-weight: 500;
+.position-control .input {
+  width: 56px;
+  appearance: textfield;
+}
+
+.position-control .input::-webkit-inner-spin-button {
+  display: none;
+}
+
+.position-control .muted {
+  margin-right: 8px;
 }
 
 .kv-copy {

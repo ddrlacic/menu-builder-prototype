@@ -478,18 +478,9 @@
       );
     }
     if (tab === 'availability') {
-      const index = menu.children.indexOf(cat.id);
-      const count = menu.children.length;
-      const moveBtn = (delta, ic, label) =>
-        `<button type="button" class="icon-btn sm" data-action="cat-move" data-path="${esc(path)}" data-delta="${delta}" aria-label="${label}" title="${label}" ${index + delta < 0 || index + delta >= count ? 'disabled' : ''}>${icon(ic, 14)}</button>`;
+      const position = positionField(path);
       return (
-        section(
-          `In ${menu.name}`,
-          field('Position', `<div class="position-control"><span class="tnum">${index + 1} of ${count}</span>${moveBtn(-1, 'chevUp', 'Move up')}${moveBtn(1, 'chevDown', 'Move down')}</div>`, {
-              scope: crumbText(path),
-              help: `Order customers see in ${esc(menu.name)}. You can also drag it on the canvas.`,
-            }),
-        ) +
+        (position ? section(`In ${menu.name}`, position) : '') +
         categoryProductsSection(cat, path, menu) +
         categoryMenusSection(cat, menu)
       );

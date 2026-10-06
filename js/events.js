@@ -107,6 +107,14 @@
       }
     } else if (t.matches('select[data-bind], input[type="time"][data-bind], input[type="datetime-local"][data-bind]')) {
       commit(() => setBind(t.dataset.bind, t.value));
+    } else if (t.matches('[data-pos-set]')) {
+      const info = parsePath(t.dataset.path);
+      const pInfo = parsePath(info.parentPath);
+      const siblings = entity(pInfo.kind, pInfo.id).children;
+      const n = parseInt(t.value, 10);
+      const to = Number.isFinite(n) ? Math.max(1, Math.min(siblings.length, n)) : siblings.indexOf(info.id) + 1;
+      t.value = String(to);
+      moveChild(t.dataset.path, to - 1);
     } else if (t.matches('input[type="file"][data-image]')) {
       readImage(t.files[0], t.dataset.image);
     }

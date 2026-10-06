@@ -534,6 +534,7 @@
       return (
         section(
           `In ${parentName}`,
+          positionField(path) +
           toggle(`pl|${path}|hidden`, !pl.hidden, {
             label: `Show in ${parentName}`,
             scope: here,

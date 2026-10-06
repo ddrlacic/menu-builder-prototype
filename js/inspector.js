@@ -5,6 +5,34 @@
   const scopePill = (where) => `<span class="scope" title="Applies only to ${esc(where)}">Only here</span>`;
   const lockPill = (text = 'From POS') => `<span class="scope scope-pos" title="Set on POS. Change it on POS, then sync">${icon('lock', 11)}${esc(text)}</span>`;
 
+  function positionField(path) {
+    const info = parsePath(path);
+    const pInfo = parsePath(info.parentPath);
+    const parent = entity(pInfo.kind, pInfo.id);
+    const index = parent.children.indexOf(info.id);
+    const count = parent.children.length;
+    if (index < 0 || count < 2) return '';
+    const name = esc(nameOf(pInfo.kind, parent));
+    const where = {
+      menu: `Order customers see in ${name}.`,
+      category: `Same order in every menu with ${name}.`,
+      group: `Same order in every product that uses ${name}.`,
+      product: `Same order everywhere ${name} is used.`,
+    }[pInfo.kind];
+    const noun = { category: 'products', group: 'options', product: info.kind === 'group' ? 'groups' : 'choices' }[pInfo.kind];
+    const anyHidden = noun && parent.children.some((id) => id !== info.id && placement(childPath(info.parentPath, info.kind, id)).hidden);
+    const btn = (delta, ic, label) =>
+      `<button type="button" class="icon-btn sm" data-action="pos-move" data-path="${esc(path)}" data-delta="${delta}" data-focus-key="pos-move|${delta}|${esc(path)}" aria-label="${label}" title="${label}" ${index + delta < 0 || index + delta >= count ? 'disabled' : ''}>${icon(ic, 14)}</button>`;
+    return field(
+      'Position',
+      `<div class="position-control">
+        <input type="number" id="pos-input" class="input tnum" inputmode="numeric" min="1" max="${count}" step="1" value="${index + 1}" data-pos-set data-path="${esc(path)}" data-focus-key="pos-input|${esc(path)}">
+        <span class="muted tnum">of ${count}</span>${btn(-1, 'chevUp', 'Move up')}${btn(1, 'chevDown', 'Move down')}
+      </div>`,
+      { id: 'pos-input', scope: pInfo.kind === 'menu' ? crumbText(path) : '', help: where + (anyHidden ? ` Hidden ${noun} keep their place.` : '') },
+    );
+  }
+
   function field(label, control, { help = '', scope = '', id = '', error = '', pos = false } = {}) {
     return `<div class="field${error ? ' has-error' : ''}">
       ${label || scope || pos ? `<div class="field-head">${label ? `<label class="field-label"${id ? ` for="${id}"` : ''}>${esc(label)}</label>` : ''}${scope ? scopePill(scope) : ''}${pos ? lockPill() : ''}</div>` : ''}

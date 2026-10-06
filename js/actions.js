@@ -491,16 +491,10 @@
           setBind(el.dataset.bind, list);
         });
         break;
-      case 'cat-move': {
+      case 'pos-move': {
         const info = parsePath(path);
-        const m = menuById(info.menuId);
-        const from = m.children.indexOf(info.id);
-        const to = from + Number(el.dataset.delta);
-        if (from < 0 || to < 0 || to >= m.children.length) break;
-        commit(() => {
-          m.children.splice(from, 1);
-          m.children.splice(to, 0, info.id);
-        });
+        const pInfo = parsePath(info.parentPath);
+        moveChild(path, entity(pInfo.kind, pInfo.id).children.indexOf(info.id) + Number(el.dataset.delta));
         break;
       }
       case 'cat-only-hidden':

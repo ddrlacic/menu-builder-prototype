@@ -580,6 +580,22 @@
     if (ok && !quiet) toast(`${KIND_LABEL[info.kind]} removed`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
+  function moveChild(path, to) {
+    const info = parsePath(path);
+    const pInfo = parsePath(info.parentPath);
+    const parent = entity(pInfo.kind, pInfo.id);
+    const from = parent.children.indexOf(info.id);
+    const dest = Math.max(0, Math.min(parent.children.length - 1, to));
+    if (from < 0 || dest === from) return false;
+    return commit(
+      () => {
+        parent.children.splice(from, 1);
+        parent.children.splice(dest, 0, info.id);
+      },
+      { menu: menuById(info.menuId) },
+    );
+  }
+
   function dropRemovedStores(m) {
     const on = new Set(menuStores(m).map((s) => s.id));
     const gone = m.publishedStoreIds.filter((id) => !on.has(id));
