@@ -18,6 +18,7 @@
     cmp: null,
     opt: null,
     hh: null,
+    ms: null,
     halfFilter: 'all',
     flashPaths: new Set(),
     flashExt: new Set(),
@@ -29,8 +30,6 @@
     allergenQuery: '',
     storeQuery: '',
     storeKey: null,
-    openStoreGroup: null,
-    showSelectedStores: false,
     segmentDraft: null,
     tagDraft: null,
     placeQuery: '',
@@ -874,7 +873,7 @@
     closeModal(true);
     useDataset(ds);
     Object.assign(hist, { past: [], future: [], key: null, at: 0 });
-    Object.assign(T, { posSearchExpanded: {}, openCard: null, openStoreGroup: null, storeKey: null, focusRow: null });
+    Object.assign(T, { posSearchExpanded: {}, openCard: null, storeKey: null, focusRow: null });
     T.flashPaths.clear();
     T.flashExt.clear();
     load();

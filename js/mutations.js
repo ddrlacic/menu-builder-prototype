@@ -580,19 +580,6 @@
     if (ok && !quiet) toast(`${KIND_LABEL[info.kind]} removed`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
-  function setMenuGroupStores(m, groupId, storeIds, on) {
-    let grp = m.storeGroups.find((x) => x.id === groupId);
-    if (!grp) {
-      if (!on) return;
-      grp = { id: groupId, storeIds: [], newStores: true };
-      m.storeGroups.push(grp);
-    }
-    const all = groupStores(groupId);
-    const set = new Set(assignedStores(grp).map((s) => s.id));
-    storeIds.forEach((id) => (on ? set.add(id) : set.delete(id)));
-    grp.storeIds = set.size === all.length ? null : all.filter((s) => set.has(s.id)).map((s) => s.id);
-  }
-
   function dropRemovedStores(m) {
     const on = new Set(menuStores(m).map((s) => s.id));
     const gone = m.publishedStoreIds.filter((id) => !on.has(id));
@@ -601,24 +588,12 @@
     return gone;
   }
 
-  function changeMenuStores(m, fn) {
-    let gone = [];
-    const ok = commit(() => {
-      fn();
-      gone = dropRemovedStores(m);
-    });
-    if (ok && gone.length) {
-      toast(`Menu removed from ${gone.length === 1 ? storeById.get(gone[0]).name : plural(gone.length, 'store', 'stores')}`, 'success', { action: { label: 'Undo', onClick: undo } });
-    }
-  }
-
   function removeMenuStoreGroup(m, groupId) {
     const grp = m.storeGroups.find((a) => a.id === groupId);
     if (!grp) return;
     const name = (groupDef(groupId) || { name: groupId }).name;
     const published = assignedStores(grp).filter((s) => m.publishedStoreIds.includes(s.id)).length;
     const remove = () => {
-      if (T.openStoreGroup === groupId) T.openStoreGroup = null;
       const ok = commit(() => {
         m.storeGroups = m.storeGroups.filter((a) => a.id !== groupId);
         dropRemovedStores(m);

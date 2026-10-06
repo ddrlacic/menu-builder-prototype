@@ -142,31 +142,6 @@
     });
   }
 
-  function menuStoreRow(m, groupId, s, { on, groupName = '' }) {
-    const status = on ? (m.publishedStoreIds.includes(s.id) ? ['Published', 'ok'] : ['Ready to publish', 'neutral']) : null;
-    const meta = [groupName, on && m.ownTimesStoreIds.includes(s.id) ? 'Own serving times' : ''].filter(Boolean).join(' · ');
-    const name = meta
-      ? `<span class="store-name list-name"><span>${esc(s.name)}</span><span class="muted">${esc(meta)}</span></span>`
-      : `<span class="store-name">${esc(s.name)}</span>`;
-    return `<button type="button" class="store-row store-check" data-action="menu-group-store" data-group="${groupId}" data-id="${s.id}" aria-pressed="${on}">
-      <span class="check${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span>
-      ${name}${status ? `<span class="store-status tone-${status[1]}">${status[0]}</span>` : meta ? '' : `<span class="muted">${esc(s.city)}</span>`}</button>`;
-  }
-
-  function menuStoreMatches(m) {
-    const q = T.storeQuery.trim().toLowerCase();
-    if (!q) return [];
-    const onMenu = new Set(m.storeGroups.map((a) => a.id));
-    const groups = [...C.menuStoreGroups].sort((a, b) => onMenu.has(b.id) - onMenu.has(a.id));
-    return groups.flatMap((g) => {
-      const a = m.storeGroups.find((x) => x.id === g.id);
-      const sel = new Set(a ? assignedStores(a).map((s) => s.id) : []);
-      return groupStores(g.id)
-        .filter((s) => s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q) || s.id.includes(q))
-        .map((s) => ({ g, s, on: sel.has(s.id) }));
-    });
-  }
-
   function ownTimesNote(m) {
     const own = m.ownTimesStoreIds.map((id) => storeById.get(id)).filter(Boolean);
     if (!own.length) return '';
@@ -176,63 +151,142 @@
 
   function menuStoresTab(m) {
     const total = menuStores(m).length;
-    const free = C.menuStoreGroups.filter((g) => !m.storeGroups.some((a) => a.id === g.id));
     const error = m.storeGroups.length ? '' : 'Add at least one store group';
-    const searching = !!T.storeQuery.trim();
-    const matches = menuStoreMatches(m);
-    const allOn = matches.length && matches.every((r) => r.on);
-    const results = searching
-      ? `${matches.length ? `<div class="group-card-tools"><button type="button" class="btn ghost sm" data-action="menu-store-bulk" data-on="${allOn ? 0 : 1}">${allOn ? 'Remove' : 'Add'} ${plural(matches.length, 'matching store', 'matching stores')}</button></div>` : ''}
-        ${storeResults(matches, (r) => menuStoreRow(m, r.g.id, r.s, { on: r.on, groupName: r.g.name }))}`
-      : `<div class="group-cards">${m.storeGroups.map((a, i) => storeGroupCard(m, a, i)).join('')}</div>`;
     return section(
       'Store groups',
       `<p class="store-summary">${total ? `${plural(total, 'store', 'stores')} from ${plural(m.storeGroups.length, 'group', 'groups')}` : 'No stores yet'}</p>
       ${ownTimesNote(m)}
-      ${storeSearch('menu-store-q', 'Search by store or city')}
-      ${results}
-      ${field('', `<button type="button" class="btn secondary sm" data-action="menu-group-add" ${free.length ? '' : 'disabled'}>${icon('plus', 14)}Add store group</button>`, { error })}`,
+      <div class="group-cards">${m.storeGroups.map((a, i) => storeGroupCard(m, a, i)).join('')}</div>
+      ${field('', `<button type="button" class="btn secondary sm" data-action="menu-manage-stores">${icon('store', 14)}Manage stores</button>`, { error })}`,
       { desc: 'The menu goes live at these stores when you publish.' },
     );
   }
 
   function storeGroupCard(m, a, i) {
     const g = groupDef(a.id);
-    const all = groupStores(a.id);
-    const chosen = assignedStores(a);
-    const sel = new Set(chosen.map((s) => s.id));
-    const open = T.openStoreGroup === a.id;
-    const onlySelected = T.showSelectedStores;
-    const list = onlySelected ? chosen : [...chosen, ...all.filter((s) => !sel.has(s.id))];
-    const allOn = all.length && chosen.length === all.length;
-    const meta = `${chosen.length} of ${plural(all.length, 'store', 'stores')}${a.newStores ? ' · Plus new stores' : ''}`;
-    return `<div class="group-card${open ? ' is-open' : ''}">
+    const name = g ? g.name : a.id;
+    return `<div class="group-card">
       <div class="group-card-head">
-        <button type="button" class="group-card-toggle" data-action="menu-group-open" data-id="${a.id}" aria-expanded="${open}">
-          ${icon('chevRight', 14)}
-          <span class="group-card-title"><strong>${esc(g ? g.name : a.id)}</strong><span class="muted tnum">${meta}</span></span>
-        </button>
-        <button type="button" class="icon-btn sm" data-action="menu-group-remove" data-id="${a.id}" aria-label="Remove ${esc(g ? g.name : a.id)}" title="Remove store group">${icon('x', 14)}</button>
+        <span class="group-card-title"><strong>${esc(name)}</strong><span class="muted tnum">${assignedStores(a).length} of ${plural(groupStores(a.id).length, 'store', 'stores')}</span></span>
+        <button type="button" class="icon-btn sm" data-action="menu-group-remove" data-id="${a.id}" aria-label="Remove ${esc(name)}" title="Remove store group">${icon('x', 14)}</button>
       </div>
       ${emptyStoreGroupError(a) ? slotError(emptyStoreGroupError(a)) : ''}
-      ${
-        open
-          ? `<div class="group-card-body">
-            ${toggle(`m|${m.id}|storeGroups.${i}.newStores`, a.newStores, { label: 'Add new stores automatically', help: 'Stores added to this group later get the menu. Publish it at each new store to make it live.' })}
-            <div class="group-card-tools">
-              ${onlySelected ? '<span></span>' : `<button type="button" class="btn ghost sm" data-action="menu-group-bulk" data-group="${a.id}" data-on="${allOn ? 0 : 1}">${allOn ? 'Clear all' : 'Select all'}</button>`}
-              <button type="button" class="check-toggle" role="checkbox" aria-checked="${onlySelected}" data-action="menu-group-only-selected">
-                <span class="check${onlySelected ? ' is-on' : ''}" aria-hidden="true">${onlySelected ? icon('check', 12) : ''}</span>Show only selected</button>
-            </div>
-            ${
-              list.length
-                ? `<div class="store-list">${list.slice(0, 8).map((s) => menuStoreRow(m, a.id, s, { on: sel.has(s.id) })).join('')}</div>${list.length > 8 ? `<p class="field-help">And ${list.length - 8} more. Search to find a store.</p>` : ''}`
-                : '<p class="field-help">No stores selected in this group yet.</p>'
-            }
-          </div>`
-          : ''
-      }
+      ${toggle(`m|${m.id}|storeGroups.${i}.newStores`, a.newStores, { label: 'Add new stores automatically', help: 'Stores added to this group later get the menu. Publish it at each new store to make it live.' })}
     </div>`;
+  }
+
+  function openManageStores(m) {
+    const sel = {};
+    C.menuStoreGroups.forEach((g) => {
+      const a = m.storeGroups.find((x) => x.id === g.id);
+      sel[g.id] = new Set(a ? assignedStores(a).map((s) => s.id) : []);
+    });
+    const shown = C.menuStoreGroups.filter((g) => groupStores(g.id).length);
+    openModal({
+      title: 'Manage stores',
+      body: `<label class="search-field">${icon('search', 15)}<span class="sr-only">Search by store or city</span>
+          <input id="ms-search" type="search" placeholder="Search by store or city" autocomplete="off"></label>
+        <div id="ms-list"></div>`,
+      foot: '<div id="ms-warn"></div><div class="modal-foot" id="ms-foot"></div>',
+    });
+    T.ms = { menuId: m.id, sel, open: new Set(shown.length === 1 ? [shown[0].id] : []), query: '', onlySelected: false };
+    renderManageStores();
+    $('#ms-search').focus();
+  }
+
+  function manageStoresGroups() {
+    const o = T.ms;
+    const q = o.query.trim().toLowerCase();
+    return C.menuStoreGroups
+      .map((g) => {
+        let list = groupStores(g.id);
+        if (o.onlySelected) list = list.filter((s) => o.sel[g.id].has(s.id));
+        if (q && !g.name.toLowerCase().includes(q)) list = list.filter((s) => s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q));
+        return { g, list };
+      })
+      .filter((x) => x.list.length);
+  }
+
+  function manageStoresRemoved(o) {
+    const m = S.data.menus.find((x) => x.id === o.menuId);
+    const on = new Set(Object.values(o.sel).flatMap((set) => [...set]));
+    return m.publishedStoreIds.filter((id) => !on.has(id));
+  }
+
+  function renderManageStores() {
+    if (!T.ms || !$('#ms-list')) return;
+    const o = T.ms;
+    const q = o.query.trim();
+    const groups = manageStoresGroups();
+    const state = (gid, list) => {
+      const n = list.filter((s) => o.sel[gid].has(s.id)).length;
+      return n === 0 ? 'off' : n === list.length ? 'on' : 'mixed';
+    };
+    const box = (st) => `<span class="check${st === 'off' ? '' : ' is-on'}" aria-hidden="true">${st === 'on' ? icon('check', 12) : st === 'mixed' ? icon('minus', 12) : ''}</span>`;
+    const checked = (st) => (st === 'mixed' ? 'mixed' : String(st === 'on'));
+    const states = groups.map(({ g, list }) => state(g.id, list));
+    const allSt = states.every((st) => st === 'on') ? 'on' : states.every((st) => st === 'off') ? 'off' : 'mixed';
+    const storeRow = (g, s) => {
+      const on = o.sel[g.id].has(s.id);
+      return `<button type="button" class="ms-row ms-store" role="checkbox" aria-checked="${on}" data-action="ms-store" data-group="${g.id}" data-id="${s.id}">${box(on ? 'on' : 'off')}<span class="ms-name">${esc(s.name)}</span><span class="ms-city">${esc(s.city)}</span></button>`;
+    };
+    $('#ms-list').innerHTML = groups.length
+      ? `<div class="ms-tree">
+          <button type="button" class="ms-row ms-all" role="checkbox" aria-checked="${checked(allSt)}" data-action="ms-all" data-on="${allSt === 'on' ? 0 : 1}">${box(allSt)}Select all</button>
+          ${groups
+            .map(({ g, list }, i) => {
+              const st = states[i];
+              const open = !!q || o.open.has(g.id);
+              return `<div class="ms-group">
+                <div class="ms-group-head">
+                  <button type="button" class="icon-btn sm ms-chev" data-action="ms-open" data-id="${g.id}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'} ${esc(g.name)}">${icon('chevRight', 14)}</button>
+                  <button type="button" class="ms-row" role="checkbox" aria-checked="${checked(st)}" data-action="ms-group" data-id="${g.id}" data-on="${st === 'on' ? 0 : 1}">${box(st)}<strong class="ms-name">${esc(g.name)}</strong><span class="ms-city tnum">${o.sel[g.id].size} of ${groupStores(g.id).length}</span></button>
+                </div>
+                ${open ? `<div class="ms-stores">${list.map((s) => storeRow(g, s)).join('')}</div>` : ''}
+              </div>`;
+            })
+            .join('')}
+        </div>`
+      : q
+        ? '<div class="empty-small"><strong>No stores match</strong><span>Check the spelling or search by city.</span></div>'
+        : '<div class="empty-small"><strong>No stores selected</strong></div>';
+    const removed = manageStoresRemoved(o);
+    $('#ms-warn').innerHTML = removed.length
+      ? callout('warning', `The menu is published at ${plural(removed.length, 'store', 'stores')} you unticked. Saving removes it from them right away.`)
+      : '';
+    $('#ms-foot').innerHTML = `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="ms-only">${box(o.onlySelected ? 'on' : 'off')}Show only selected</button>
+      <button type="button" class="btn secondary" data-modal-close>Cancel</button>
+      <button type="button" class="btn primary" data-action="ms-save">Save</button>`;
+  }
+
+  function setManageStores(gid, ids, on) {
+    const set = T.ms.sel[gid];
+    ids.forEach((id) => (on ? set.add(id) : set.delete(id)));
+    renderManageStores();
+  }
+
+  function saveManageStores() {
+    const o = T.ms;
+    const m = S.data.menus.find((x) => x.id === o.menuId);
+    const removed = manageStoresRemoved(o);
+    const pick = (gid, newStores) => {
+      const all = groupStores(gid);
+      const set = o.sel[gid];
+      return { id: gid, storeIds: set.size === all.length ? null : all.filter((s) => set.has(s.id)).map((s) => s.id), newStores };
+    };
+    const next = [
+      ...m.storeGroups.filter((a) => o.sel[a.id] && o.sel[a.id].size).map((a) => pick(a.id, a.newStores)),
+      ...C.menuStoreGroups.filter((g) => o.sel[g.id].size && !m.storeGroups.some((a) => a.id === g.id)).map((g) => pick(g.id, true)),
+    ];
+    closeModal();
+    if (JSON.stringify(next) === JSON.stringify(m.storeGroups)) return;
+    const ok = commit(() => {
+      m.storeGroups = next;
+      dropRemovedStores(m);
+    });
+    if (!ok) return;
+    const msg = removed.length ? `Menu removed from ${removed.length === 1 ? storeById.get(removed[0]).name : plural(removed.length, 'store', 'stores')}` : 'Stores successfully updated';
+    toast(msg, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
   const menusWithCategory = (catId) => S.data.menus.filter((m) => m.children.includes(catId));

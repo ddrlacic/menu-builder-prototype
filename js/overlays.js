@@ -124,6 +124,7 @@
     T.cmp = null;
     T.opt = null;
     T.hh = null;
+    T.ms = null;
     if (immediate === true) {
       root.innerHTML = '';
       delete root.dataset.state;

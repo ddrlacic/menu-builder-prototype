@@ -38,6 +38,11 @@
       renderPicker();
       return;
     }
+    if (t.id === 'ms-search' && T.ms) {
+      T.ms.query = t.value;
+      renderManageStores();
+      return;
+    }
     if (t.matches('[data-store-search]')) {
       T.storeQuery = t.value;
       render();

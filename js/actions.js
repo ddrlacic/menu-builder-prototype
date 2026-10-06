@@ -242,50 +242,37 @@
           setBind(el.dataset.bind, list);
         });
         break;
-      case 'menu-group-add': {
-        const m = activeMenu();
-        const free = C.menuStoreGroups.filter((g) => !m.storeGroups.some((a) => a.id === g.id));
-        openPopover(
-          el,
-          free.map((g) => ({
-            label: g.name,
-            hint: plural(groupStores(g.id).length, 'store', 'stores'),
-            icon: 'store',
-            onClick: () => commit(() => m.storeGroups.push({ id: g.id, storeIds: null, newStores: true })),
-          })),
-        );
+      case 'menu-manage-stores':
+        openManageStores(activeMenu());
         break;
-      }
       case 'menu-group-remove':
         removeMenuStoreGroup(activeMenu(), el.dataset.id);
         break;
-      case 'menu-group-open':
-        T.openStoreGroup = T.openStoreGroup === el.dataset.id ? null : el.dataset.id;
-        T.storeQuery = '';
-        T.showSelectedStores = false;
-        render();
+      case 'ms-open':
+        T.ms.open.has(el.dataset.id) ? T.ms.open.delete(el.dataset.id) : T.ms.open.add(el.dataset.id);
+        renderManageStores();
         break;
-      case 'menu-group-only-selected':
-        T.showSelectedStores = !T.showSelectedStores;
-        render();
+      case 'ms-only':
+        T.ms.onlySelected = !T.ms.onlySelected;
+        renderManageStores();
         break;
-      case 'menu-group-store': {
-        const m = activeMenu();
-        changeMenuStores(m, () => setMenuGroupStores(m, el.dataset.group, [el.dataset.id], el.getAttribute('aria-pressed') !== 'true'));
+      case 'ms-store':
+        setManageStores(el.dataset.group, [el.dataset.id], el.getAttribute('aria-checked') !== 'true');
         break;
-      }
-      case 'menu-group-bulk': {
-        const m = activeMenu();
-        changeMenuStores(m, () => setMenuGroupStores(m, el.dataset.group, groupStores(el.dataset.group).map((s) => s.id), el.dataset.on === '1'));
+      case 'ms-group': {
+        const x = manageStoresGroups().find((r) => r.g.id === el.dataset.id);
+        if (x) setManageStores(x.g.id, x.list.map((s) => s.id), el.dataset.on === '1');
         break;
       }
-      case 'menu-store-bulk': {
-        const m = activeMenu();
-        const byGroup = new Map();
-        menuStoreMatches(m).forEach((r) => byGroup.set(r.g.id, [...(byGroup.get(r.g.id) || []), r.s.id]));
-        changeMenuStores(m, () => byGroup.forEach((ids, gid) => setMenuGroupStores(m, gid, ids, el.dataset.on === '1')));
+      case 'ms-all': {
+        const on = el.dataset.on === '1';
+        manageStoresGroups().forEach(({ g, list }) => list.forEach((s) => (on ? T.ms.sel[g.id].add(s.id) : T.ms.sel[g.id].delete(s.id))));
+        renderManageStores();
         break;
       }
+      case 'ms-save':
+        saveManageStores();
+        break;
       case 'segment-add': {
         T.segmentDraft = { base: el.dataset.bind, segmentId: '', tag: '' };
         render();
