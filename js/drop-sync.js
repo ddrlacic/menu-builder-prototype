@@ -296,6 +296,7 @@
         Object.assign(out, {
           is_original_name_propagated: !!e.namePropagated,
           external_id: e.reportingId || null,
+          has_image: !!e.image,
           is_virtual_container: e.ptype === 'container',
           is_product_container: e.ptype === 'size',
           is_linked_product: e.ptype === 'linked',

@@ -580,6 +580,7 @@
     else if (kind === 'product')
       ent = newProduct({
         ...base,
+        image: item.image || null,
         originCategoryExt: posCategoriesOf(posId)[0] || null,
         allergens: migrateAllergens(item.allergens),
         foodType: foodTypeFrom(item.foodTypes),
@@ -638,10 +639,10 @@
       const s = srcItems[id];
       const next = (s && s.image) || null;
       const old = it.image || null;
-      if (it.type !== 'category' || !s || old === next) continue;
+      if (!['category', 'product'].includes(it.type) || !s || old === next) continue;
       if (next) it.image = next;
       else delete it.image;
-      Object.values(S.data.entities.category).forEach((c) => c.source === 'pos' && c.externalId === id && (c.image || null) === old && (c.image = next));
+      Object.values(S.data.entities[it.type]).forEach((c) => c.source === 'pos' && c.externalId === id && (c.image || null) === old && (c.image = next));
     }
   }
 

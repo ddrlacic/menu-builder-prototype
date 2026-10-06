@@ -367,6 +367,7 @@
       else if (ent.children.length) meta = esc(plural(ent.children.length, 'group', 'groups'));
       else if (halves)
         meta = `<span class="half-meta">${icon('halves', 11)}${esc(halves.left && halves.right ? 'Left and right halves' : `${SIDE_LABEL[halves.left ? 'left' : 'right']} only`)}</span>`;
+      if (!r.half && ent.internalName) meta = `${esc(ent.internalName)}${meta ? ' · ' : ''}${meta}`;
     } else if (kind === 'group') {
       const rules = rulesOf(ent);
       const host = parsePath(info.parentPath);

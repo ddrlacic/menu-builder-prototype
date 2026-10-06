@@ -52,6 +52,7 @@
   }
 
   const productBind = (p) => (f) => `e|product|${p.id}|${f}`;
+  const PRODUCT_SHOWN = 'Shown in Web App and Kiosk, and sent to delivery partners.';
 
   const moveButtons = (bind, i, count, label) =>
     `<button type="button" class="icon-btn sm" data-action="arr-move" data-bind="${esc(bind)}" data-index="${i}" data-delta="-1" aria-label="Move ${esc(label)} up" title="Move up" ${i === 0 ? 'disabled' : ''}>${icon('chevUp', 14)}</button>` +
@@ -388,7 +389,7 @@
     if (tab === 'general') {
       let html = section(
         '',
-        nameBlock('product', p, { error: lengthError(p.name, 'Add a name') }) +
+        nameBlock('product', p, { error: lengthError(p.name, 'Add a name'), help: 'Customers see this name in the apps.' }) +
           (p.ptype === 'linked'
             ? field(
                 'Rings up as',
@@ -404,10 +405,10 @@
           field('Internal name', inputText(pb('internalName'), p.internalName, { id: 'p-int' }), {
             id: 'p-int',
             error: lengthError(p.internalName),
-            help: 'Only your team sees this. Use it to tell apart products with the same name.',
+            help: 'Use it to tell apart products with the same name. Only your team sees it.',
           }) +
-          descriptionField(pb('description'), p.description, 'p-desc') +
-          imageField(pb('image'), p.image),
+          descriptionField(pb('description'), p.description, 'p-desc', PRODUCT_SHOWN) +
+          imageField(pb('image'), p.image, { help: PRODUCT_SHOWN, posSrc: posItemImage(p) }),
       );
       return html + (p.ptype === 'container' ? '' : priceSection(path));
     }
