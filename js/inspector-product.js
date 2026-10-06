@@ -6,7 +6,7 @@
     if (st.pending) return section('Price', callout('info', 'Prices show up after you publish. They come from POS and can differ by store.'));
     const menu = activeMenu();
     const inGroup = parsePath(parsePath(path).parentPath).kind === 'group';
-    const label = { base: 'Customers pay', size: 'Customers pay', modifier: 'Customers pay extra', item: 'Added as its own item', from: 'Customers pay from' }[st.kind];
+    const label = { base: 'Customers pay', size: 'Customers pay', modifier: 'Customers pay extra', item: 'Added as its own item' }[st.kind];
     const plus = st.kind === 'modifier' || st.kind === 'item';
     const fmt = (v) => (v == null ? 'No price' : v === 0 && st.kind === 'modifier' ? 'Free' : `${plus ? '+' : ''}${money(v)}`);
     const missing = st.missingStores;
@@ -396,7 +396,7 @@
           descriptionField(pb('description'), p.description, 'p-desc', PRODUCT_SHOWN) +
           imageField(pb('image'), p.image, { help: PRODUCT_SHOWN, posSrc: posItemImage(p) }),
       );
-      return html + (p.ptype === 'container' ? '' : priceSection(path));
+      return html + priceSection(path);
     }
 
     if (tab === 'choices') return choicesSection(p, path);

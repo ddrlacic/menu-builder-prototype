@@ -414,11 +414,7 @@
     const ent = entity('product', info.id);
     const parent = parsePath(info.parentPath);
     const pEnt = entity(parent.kind, parent.id);
-    if (ent.ptype === 'container') return { kind: 'none', note: 'Customers pay for the options inside' };
-    if (ent.ptype === 'size') {
-      if (!ent.children.length) return { kind: 'from', note: 'Add products to choose from to show a price', sizes: [] };
-      return { kind: 'from', note: 'Lowest POS price of the choices', sizes: ent.children.map((pid) => priceSource(childPath(path, 'product', pid))) };
-    }
+    if (ent.ptype === 'container' || ent.ptype === 'size') return { kind: 'none' };
     const own = posIdOf('product', ent);
     const missingNote = isMissingOnPos(ent) ? 'Last known POS price' : null;
     const src = { own, ent };
@@ -436,10 +432,6 @@
 
   function priceAt(src, store) {
     if (src.kind === 'none') return null;
-    if (src.kind === 'from') {
-      const values = src.sizes.map((s) => priceAt(s, store)).filter(isNum);
-      return values.length ? Math.min(...values) : null;
-    }
     if (src.kind === 'modifier') return posOptionPrice(src.group, src.own, src.ent, store);
     return posPrice(src.own, src.ent, store);
   }
@@ -451,7 +443,6 @@
 
   function priceInputs(src) {
     if (src.kind === 'none') return 'none';
-    if (src.kind === 'from') return `from(${src.sizes.map(priceInputs).join(';')})`;
     const g = src.kind === 'modifier' ? posItemById(src.group) : null;
     const it = posItemById(src.own);
     return JSON.stringify([
@@ -508,8 +499,7 @@
 
   function priceText(st) {
     if (st.pending) return '—';
-    const text = rangeText(st, { plus: st.kind === 'modifier' || st.kind === 'item', freeWord: st.kind === 'modifier' });
-    return st.kind === 'from' && st.priced ? `From ${text}` : text;
+    return rangeText(st, { plus: st.kind === 'modifier' || st.kind === 'item', freeWord: st.kind === 'modifier' });
   }
 
   function groupRuleShort(r) {
