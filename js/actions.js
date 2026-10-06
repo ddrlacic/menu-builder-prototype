@@ -520,7 +520,7 @@
         const m = menuById(el.dataset.id);
         const menuName = nameOf('menu', m);
         if (!m.children.includes(catId)) {
-          commit(() => m.children.push(catId));
+          commit(() => m.children.push(catId), { menu: m });
           toast(`Added to ${menuName}`, 'success', { action: { label: 'Undo', onClick: undo } });
           break;
         }
@@ -529,7 +529,7 @@
         const anyHidden = cat.children.some((pid) => placement(childPath(catPath, 'product', pid)).hidden);
         openModal({
           title: `Remove ${nameOf('category', cat)} from ${menuName}?`,
-          body: `<p>${anyHidden ? `Products you hid in ${esc(menuName)} are shown again if you add it back. ` : ''}${cat.source === 'pos' ? 'It stays on POS.' : 'Nothing changes on POS.'}</p>
+          body: `<p>${m.publishedStoreIds.length ? `Customers stop seeing it in ${esc(menuName)} right away. ` : ''}${anyHidden ? `Products you hid in ${esc(menuName)} are shown again if you add it back. ` : ''}${cat.source === 'pos' ? 'It stays on POS.' : 'Nothing changes on POS.'}</p>
             ${elsewhere ? '' : callout('warning', 'It is not in any other menu, so customers will not see it anywhere.')}`,
           actions: [
             { label: 'Cancel', kind: 'secondary', onClick: closeModal },

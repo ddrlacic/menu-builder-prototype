@@ -576,7 +576,7 @@
         if (k === path || k.startsWith(`${path}>`)) delete S.data.placements[k];
       }
       if (S.ui.selected === path || S.ui.selected.startsWith(`${path}>`)) S.ui.selected = info.parentPath;
-    });
+    }, { menu: menuById(info.menuId) });
     if (ok && !quiet) toast(`${KIND_LABEL[info.kind]} removed`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 

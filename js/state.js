@@ -922,7 +922,7 @@
 
   /* ---------- history ---------- */
 
-  function commit(fn, { key = null } = {}) {
+  function commit(fn, { key = null, menu = null } = {}) {
     const snapshot = JSON.stringify(S.data);
     try {
       fn();
@@ -946,7 +946,7 @@
     hist.future = [];
     hist.key = key;
     hist.at = now;
-    const m = activeMenu();
+    const m = menu || activeMenu();
     if (m && m.status === 'published') m.status = 'changed';
     render();
     return true;

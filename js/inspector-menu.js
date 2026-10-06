@@ -417,19 +417,23 @@
     const big = all.length > 6;
     const q = big ? T.menuQuery.trim().toLowerCase() : '';
     const onlySelected = big && T.showSelectedMenus;
-    const list = (onlySelected ? selected : [...selected, ...all.filter((m) => !inMenus.has(m.id))]).filter((m) => !q || nameOf('menu', m).toLowerCase().includes(q));
+    const matches = (m) => !q || [nameOf('menu', m), m.internalName || ''].some((s) => s.toLowerCase().includes(q));
+    const list = (onlySelected ? selected : [...selected, ...all.filter((m) => !inMenus.has(m.id))]).filter(matches);
     const row = (m) => {
       const on = inMenus.has(m.id);
       const hint = m.id === menu.id ? 'This menu' : plural(m.children.length, 'category', 'categories');
+      const name = m.internalName
+        ? `<span class="store-name list-name"><span>${esc(nameOf('menu', m))}</span><span class="muted">${esc(m.internalName)}</span></span>`
+        : `<span class="store-name">${esc(nameOf('menu', m))}</span>`;
       return `<button type="button" class="store-row store-check" data-action="cat-menu-toggle" data-id="${m.id}" aria-pressed="${on}">
         <span class="check${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span>
-        <span class="store-name">${esc(nameOf('menu', m))}</span><span class="muted">${esc(hint)}</span></button>`;
+        ${name}<span class="muted">${esc(hint)}</span></button>`;
     };
     return section(
       'Menus',
       `${
         big
-          ? `<label class="search-field sm">${icon('search', 14)}<span class="sr-only">Search menus</span><input id="cat-menu-q" type="search" data-cat-menu-search data-focus-key="cat-menu-q" placeholder="Search ${all.length} menus" value="${esc(T.menuQuery)}" autocomplete="off"></label>
+          ? `<label class="search-field sm">${icon('search', 14)}<span class="sr-only">Search menus</span><input id="cat-menu-q" type="search" data-cat-menu-search data-focus-key="cat-menu-q" placeholder="Search by name or internal name" value="${esc(T.menuQuery)}" autocomplete="off"></label>
             <div class="group-card-tools"><span class="store-summary tnum">In ${selected.length} of ${all.length} menus</span>
               <button type="button" class="check-toggle" role="checkbox" aria-checked="${onlySelected}" data-action="cat-only-selected-menus"><span class="check${onlySelected ? ' is-on' : ''}" aria-hidden="true">${onlySelected ? icon('check', 12) : ''}</span>Show only selected</button></div>`
           : ''
