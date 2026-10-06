@@ -30,6 +30,20 @@
 
   const childPath = (path, kind, id) => `${path}>${SEG[kind]}:${id}`;
 
+  const inMenuCategory = (menu, pid) => menu.children.some((cid) => (entity('category', cid) || { children: [] }).children.includes(pid));
+
+  function choicePeerPaths(path) {
+    const info = parsePath(path);
+    if (info.kind !== 'product' || !info.parentPath) return [];
+    const holder = parsePath(info.parentPath);
+    if (holder.kind !== 'product' || (entity('product', holder.id) || {}).ptype !== 'size') return [];
+    const menu = menuById(info.menuId);
+    return menu.children
+      .filter((cid) => (entity('category', cid) || { children: [] }).children.includes(holder.id))
+      .map((cid) => childPath(childPath(childPath(menu.id, 'category', cid), 'product', holder.id), 'product', info.id))
+      .filter((p) => p !== path);
+  }
+
   function pathExists(path) {
     const segs = path.split('>');
     let kind = 'menu';

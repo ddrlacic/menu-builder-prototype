@@ -94,7 +94,10 @@
           else if (!posItemById(ent.posParentExt)) pAdd('error', `${name}: the POS product it rings up as was deleted on POS`, 'general');
         }
         if (ent.ptype === 'container' && !ent.children.length) pAdd('warning', `${name} has no groups. Customers see an empty option`, 'general');
-        if (ent.ptype === 'size' && !ent.children.length) pAdd('error', `${name} has no products to choose from`, 'choices');
+        if (ent.ptype === 'size' && !ent.children.length) pAdd('warning', `${name} has no choices. Customers see it as out of stock`, 'choices');
+        const holder = parsePath(parsePath(path).parentPath);
+        if (holder.kind === 'product' && !inMenuCategory(menu, id))
+          pAdd('warning', `${name} is not in a category of ${nameOf('menu', menu)}, so customers cannot pick it in ${nameOf('product', entity('product', holder.id))}`, 'availability');
         const ps = priceStats(path);
         if (ps.total && ps.missingStores.length && !isMissingOnPos(ent)) {
           const n = ps.missingStores.length;
@@ -311,6 +314,8 @@
   const setBind = (bind, value) => {
     const { obj, key } = bindTarget(bind, true);
     obj[key] = value;
+    const [scope, path, field] = bind.split('|');
+    if (scope === 'pl' && field === 'hidden') choicePeerPaths(path).forEach((p) => (S.data.placements[p] = { ...placement(p), hidden: value }));
   };
 
   function parseInput(el) {

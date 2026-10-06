@@ -34,6 +34,7 @@
     let newPath = null;
     let reused = false;
     let linked = null;
+    let alsoIn = null;
     commit(() => {
       const parent = entity(pInfo.kind, pInfo.id);
       if (pInfo.kind === 'menu' && d.origin === 'pos') linked = linkMenuToPosCategory(parent, d.posId);
@@ -70,15 +71,18 @@
       }
       newPath = childPath(parentPath, d.kind, id);
       if (d.origin === 'canvas' && newPath !== d.path) rekeyPlacements(d.path, newPath);
+      if (pInfo.kind === 'product' && parent.ptype === 'size') alsoIn = keepChoiceInMenu(parentPath, id);
       S.ui.expanded[parentPath] = true;
       S.ui.selected = newPath;
       flash(newPath);
     });
     if (newPath && linked) toast(`Linked to POS menu ${linked.name}`);
+    if (newPath && alsoIn) toast(alsoInText(nameOf('product', entity('product', parsePath(newPath).id)), alsoIn));
     if (newPath && reused) {
       const uses = (ctx.usage.get(`${d.kind}:${parsePath(newPath).id}`) || []).length;
       if (uses > 1) toast(`Reusing ${nameOf(d.kind, entity(d.kind, parsePath(newPath).id))}. Edits apply in all ${uses} places`, 'info');
     }
+    return { newPath, alsoIn };
   }
 
   function autoPlace(d) {

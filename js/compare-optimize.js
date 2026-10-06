@@ -181,7 +181,7 @@
     for (const [type, title] of groups) {
       const list = o.items.filter((i) => i.type === type);
       if (!list.length) continue;
-      body += `<section class="cmp-section"><header class="cmp-head"><h3 class="section-title">${title}<span class="tnum"> · ${list.length}</span></h3></header><div class="cmp-list">${list
+      body += `<section class="cmp-section"><header class="cmp-head"><h3 class="section-title">${title}<span class="tnum"> · ${list.length}</span></h3></header>${type === 'sizes' ? '<p class="section-desc">Each size stays in its category, hidden there, so it keeps its POS price. Customers find it inside the new product.</p>' : ''}<div class="cmp-list">${list
         .map((i) => {
           const isOn = !o.off.has(i.key);
           if (type === 'name')
@@ -215,11 +215,12 @@
         if (pids.length < 2) continue;
         const container = newProduct({ ptype: 'size', name: i.name, children: pids });
         S.data.entities.product[container.id] = container;
-        const firstIndex = cat.children.indexOf(pids[0]);
-        cat.children = cat.children.filter((pid) => !pids.includes(pid));
-        cat.children.splice(Math.min(firstIndex, cat.children.length), 0, container.id);
+        cat.children.splice(cat.children.indexOf(pids[0]), 0, container.id);
         const cp = childPath(catPath, 'product', container.id);
-        pids.forEach((pid) => rekeyPlacements(childPath(catPath, 'product', pid), childPath(cp, 'product', pid)));
+        pids.forEach((pid) => {
+          const sp = childPath(catPath, 'product', pid);
+          S.data.placements[sp] = { ...placement(sp), hidden: true };
+        });
         S.ui.expanded[catPath] = true;
         S.ui.expanded[cp] = true;
         flash(cp);

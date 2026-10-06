@@ -67,6 +67,8 @@
     const add = addButton('add-choice', 'Add POS product');
     if (!p.children.length)
       return section('Choices', `<div class="empty-small"><strong>No choices yet</strong><span>Add the POS products customers choose between, like Small and Large.</span></div>${add}`);
+    const menu = menuById(parsePath(path).menuId);
+    const menuName = nameOf('menu', menu);
     const rows = p.children
       .map((pid, i) => {
         const x = entity('product', pid);
@@ -75,6 +77,11 @@
         const hidden = !!placement(op).hidden;
         const name = nameOf('product', x);
         const st = priceStats(op);
+        const sub = !inMenuCategory(menu, pid)
+          ? `Not in a category of ${menuName}, so customers cannot pick it`
+          : st.missingStores.length && !isMissingOnPos(x)
+            ? `No POS price at ${st.missingStores.length === st.total ? 'any store' : plural(st.missingStores.length, 'store', 'stores')}`
+            : '';
         const open = T.openCard === `choice:${pid}`;
         const detail = open
           ? `<div class="opt-detail"><div class="opt-detail-foot">
@@ -83,8 +90,7 @@
             </div></div>`
           : '';
         return `<div class="opt-item${open ? ' is-open' : ''}"><div class="opt-row${hidden ? ' is-muted' : ''}">
-            <button type="button" class="opt-name" data-action="goto" data-path="${esc(op)}">${thumb('product', x, 'thumb-sm')}<span class="opt-name-text"><span class="opt-name-label" title="${esc(name)}">${esc(name)}</span></span></button>
-            <span class="opt-price tnum${st.missingStores.length ? ' tone-warning' : ''}" title="${esc(st.missingStores.length ? `No POS price at ${plural(st.missingStores.length, 'store', 'stores')}` : st.note)}">${esc(priceText(st))}</span>
+            <button type="button" class="opt-name" data-action="goto" data-path="${esc(op)}">${thumb('product', x, 'thumb-sm')}<span class="opt-name-text"><span class="opt-name-label" title="${esc(name)}">${esc(name)}</span>${sub ? `<span class="opt-name-sub"><span class="tone-warning">${esc(sub)}</span></span>` : ''}</span></button>
             <button type="button" class="switch" role="switch" aria-checked="${!hidden}" aria-label="Show ${esc(name)}" data-toggle="pl|${esc(op)}|hidden" data-focus-key="pl|${esc(op)}|hidden"><span class="switch-thumb"></span></button>
             <button type="button" class="icon-btn sm opt-expand" data-action="card-open" data-id="choice:${esc(pid)}" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings">${icon('chevDown', 14)}</button>
           </div>${detail}</div>`;
@@ -93,11 +99,11 @@
     return (
       section(
         'Choices',
-        `<div class="opt-table has-expand no-pre">
-          <div class="opt-head"><span>Choice</span><span>POS price</span><span>Shown</span><span class="sr-only">Settings</span></div>
+        `<div class="opt-table has-expand no-pre no-price">
+          <div class="opt-head"><span>Choice</span><span>Shown</span><span class="sr-only">Settings</span></div>
           ${rows}
         </div>
-        <p class="field-help">Customers pick one. Only the product they pick is sent to POS, at its own POS price. Ranges mean the price differs by store. Shown applies only in ${esc(crumbText(path))}.</p>
+        <p class="field-help">Customers pick one. Only the product they pick goes to POS, at its own POS price. Select a choice’s name to see its price. Shown applies only in ${esc(menuName)}.</p>
         ${add}`,
       ) +
       section('Copy details', `<button type="button" class="btn secondary sm" data-action="copy-to-choices">${icon('copy', 14)}Copy details to choices</button>`, {
@@ -518,14 +524,18 @@
     }
 
     if (tab === 'availability') {
+      const inChoice = parent.kind === 'product' && parentEnt.ptype === 'size';
+      const menuName = nameOf('menu', menuById(info.menuId));
       return (
         section(
           `In ${parentName}`,
           positionField(path) +
           toggle(`pl|${path}|hidden`, !pl.hidden, {
             label: `Show in ${parentName}`,
-            scope: here,
-            help: 'Hide it here without removing it. Other places stay as they are.',
+            scope: inChoice ? `${parentName} in ${menuName}` : here,
+            help: inChoice
+              ? `Hide it here without removing it. Applies everywhere ${esc(parentName)} is in ${esc(menuName)}.`
+              : 'Hide it here without removing it. Other places stay as they are.',
           }),
         ) +
         productAvailabilitySection(p) +

@@ -69,12 +69,12 @@
       keepOpen: true,
       onPick: (id) => {
         const chainCat = ck === 'product' ? (pi.kind === 'category' && !isVirtual(parent) ? parent.externalId : posCategoriesOf(id)[0] || null) : null;
-        performDrop(posDesc(id, { chainCat }), { path: parentPath, pos: 'inside' });
+        const res = performDrop(posDesc(id, { chainCat }), { path: parentPath, pos: 'inside' });
         const now = entity(pi.kind, pi.id);
         if (!T.picker || !now || !now.children.some((c) => posIdOf(ck, entity(ck, c)) === id)) return;
         T.picker.items = T.picker.items.filter((it) => it.id !== id);
         renderPicker();
-        toast(`${posLabel(id)} added`);
+        if (!(res && res.alsoIn)) toast(`${posLabel(id)} added`);
       },
     });
   }
@@ -151,6 +151,26 @@
       { label: 'Menu-only category', hint: 'Arrange products your own way. Not on POS', icon: 'dashed', onClick: createVirtualCategory },
     ]);
   }
+
+  function keepChoiceInMenu(choicePath, pid) {
+    const info = parsePath(choicePath);
+    const menu = menuById(info.menuId);
+    if (inMenuCategory(menu, pid)) return null;
+    const ent = entity('product', pid);
+    const d = { kind: 'product', name: nameOf('product', ent), source: ent.source, posId: ent.source === 'pos' ? ent.externalId : null, ptype: ent.ptype };
+    const home = parsePath(info.parentPath).id;
+    for (const cid of [home, ...menu.children.filter((c) => c !== home)]) {
+      const catPath = childPath(menu.id, 'category', cid);
+      if (!entity('category', cid) || dropError(catPath, d)) continue;
+      entity('category', cid).children.push(pid);
+      const pp = childPath(catPath, 'product', pid);
+      S.data.placements[pp] = { ...placement(pp), hidden: true };
+      return entity('category', cid);
+    }
+    return null;
+  }
+
+  const alsoInText = (name, cat) => `${name} added. It’s also in ${nameOf('category', cat)} now, hidden there, so it gets its POS price`;
 
   function createChoiceProduct(categoryPath) {
     commit(() => insertNew(categoryPath, 'product', newProduct({ ptype: 'size', name: 'New choice product' })));
@@ -328,7 +348,7 @@
             closeModal();
             commit(() =>
               kids.forEach((x) => {
-                if (nameOf('product', x) !== name) {
+                if (nameOf('product', x).toLowerCase() !== name.toLowerCase()) {
                   if (!x.namePropagated) x.internalName = nameOf('product', x);
                   x.namePropagated = true;
                   x.name = name;

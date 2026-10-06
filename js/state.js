@@ -306,6 +306,18 @@
     return fix;
   }
 
+  function migrateChoicesInMenus() {
+    for (const m of S.data.menus)
+      for (const cid of m.children) {
+        const cat = S.data.entities.category[cid];
+        if (!cat) continue;
+        for (const pid of [...cat.children]) {
+          const p = S.data.entities.product[pid];
+          if (p && p.ptype === 'size') p.children.forEach((kid) => S.data.entities.product[kid] && keepChoiceInMenu(childPath(childPath(m.id, 'category', cid), 'product', pid), kid));
+        }
+      }
+  }
+
   const hasOwn = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 
   function normalizeGroup(g) {
@@ -849,6 +861,7 @@
           const oldGroups = new Set(Object.values(S.data.entities.group).filter((g) => g.preselected === undefined).map((g) => g.id));
           Object.values(S.data.entities.group).forEach(migrateGroup);
           migratePreselections(oldGroups);
+          migrateChoicesInMenus();
           S.data.menus.forEach((m) => (m.pricedKeys = !m.publishedAt ? [] : m.pricedKeys || menuPriceKeys(m)));
           normalizeAll();
           S.ui = { ...defaultUi(), ...parsed.ui, posQuery: '', canvasQuery: '' };
