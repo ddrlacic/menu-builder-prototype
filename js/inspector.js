@@ -99,8 +99,9 @@
         : `<label class="dropzone" data-image-drop="${esc(bind)}">${icon('image', 20)}
             <span>Drop an image here or <span class="link">choose a file</span></span>
             <span class="field-help">JPG, PNG, or GIF up to 1 MB. Best at ${size} px.</span>
-            <input type="file" accept="${IMAGE_TYPES.join(',')}" data-image="${esc(bind)}" hidden></label>`) + posRow,
-      { help },
+            <input type="file" accept="${IMAGE_TYPES.join(',')}" data-image="${esc(bind)}" hidden></label>`) +
+        (help ? `<p class="field-help">${help}</p>` : '') +
+        posRow,
     );
   }
 
