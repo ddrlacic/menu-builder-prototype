@@ -235,7 +235,7 @@
               onClick: () => createVirtualGroup(productPath, 'linked', gid),
             })),
           )
-        : [{ empty: `<strong>No POS groups</strong><span>${esc(nameOf('product', p))} has no groups on POS. Create an add-on group instead.</span>` }],
+        : [{ empty: `<strong>No POS groups</strong><span>${esc(nameOf('product', p))} has no groups on POS. Use suggested products instead.</span>` }],
     );
   }
 
@@ -247,7 +247,7 @@
     if (which === 'add') {
       const customVersion = {
         label: 'Custom version',
-        hint: 'A POS product with its own name and image. Rings up as the original',
+        hint: 'Your name, image, and options for a POS product. POS gets the original',
         icon: 'link',
         onClick: () => openLinkedProductPicker(path),
       };
@@ -262,7 +262,7 @@
           },
           { heading: 'Create' },
           customVersion,
-          { label: 'Choice product', hint: 'Customers pick one product, like Small or Large', icon: 'package', onClick: () => createChoiceProduct(path) },
+          { label: 'Choice product', hint: 'Customers pick one product, like a size. Only that product goes to POS', icon: 'package', onClick: () => createChoiceProduct(path) },
         ];
         if (detectSizeSets(ent).length) items.push('-', { label: 'Group sizes', hint: 'Turn size variants into one choice product', icon: 'sparkles', onClick: () => openOptimize(path) });
         return openPopover(anchor, items);
@@ -277,13 +277,13 @@
         items.push(
           { heading: 'Create' },
           {
-            label: 'Custom version of a POS group',
-            hint: 'Show only some of its options. Rings up in that group',
+            label: 'Custom version',
+            hint: 'Your own list of options from a POS group. POS gets the original group',
             icon: 'link',
             submenu: true,
             onClick: () => linkedGroupMenu(anchor, path),
           },
-          { label: 'Add-on group', hint: 'Suggest extra products. Each is added as its own item', icon: 'dashed', onClick: () => createVirtualGroup(path, 'upsell') },
+          { label: 'Suggested products', hint: 'Products customers can add to this item. Each one goes on the order as its own item', icon: 'dashed', onClick: () => createVirtualGroup(path, 'upsell') },
         );
         return openPopover(anchor, items);
       }
@@ -301,7 +301,7 @@
         { heading: 'Create' },
         {
           label: 'Option folder',
-          hint: 'An option that opens more choices. Never sent to POS',
+          hint: 'An option that opens more options. POS gets only what customers pick inside',
           icon: 'dashed',
           onClick: () => createVirtualContainer(path),
         },

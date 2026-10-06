@@ -249,30 +249,30 @@
     if (kind === 'product' && ent.ptype === 'linked')
       return section(
         'Custom version',
-        `${callout('info', `Rings up on POS as <strong>${esc(ent.posParentExt ? posLabel(ent.posParentExt) : 'the POS product you choose')}</strong>, at its POS price. Name, image, and preselected options are only for customers.`, 'link')}
+        `${callout('info', `Customers see your name, image, and options. POS gets <strong>${esc(ent.posParentExt ? posLabel(ent.posParentExt) : 'the POS product you choose')}</strong>, at its POS price.`, 'link')}
         ${ent.posParentExt ? posKv([['Rings up as', esc(posLabel(ent.posParentExt))], ['POS ID', esc(ent.posParentExt), true]]) : ''}`,
       );
     if (kind === 'product' && ent.ptype === 'container')
       return section(
         'Option folder',
-        callout('info', 'An option that opens more choices. It is never sent to POS. The choices customers make inside go to POS with the product above it.', 'dashed') +
+        callout('info', 'An option that opens more options, like Sauces inside Toppings. POS gets only what customers pick inside, as part of the product above it.', 'dashed') +
           `<p class="field-help">Not available on option folders: price, POS ID, allergens, modifier codes, included ingredients, substitutes, half and whole, upsell, and cross-sell. Option folders go only in product groups, not in categories.</p>`,
       );
     if (kind === 'product' && ent.ptype === 'size')
       return section(
         'Choice product',
-        callout('info', 'Customers tap it and pick one product, like Small or Large. It is never sent to POS. The product they pick is sent instead, at its POS price.', 'package'),
+        callout('info', 'Customers tap it and pick one product, like a size. POS never gets the choice product, only the product they pick, at its POS price.', 'package'),
       );
     if (kind === 'group' && ent.gtype === 'linked')
       return section(
         'Custom version',
-        `${callout('info', `Shows only some options from <strong>${esc(posLabel(ent.posGroupExt))}</strong>. Choices ring up on POS in that group, at its POS prices.`, 'link')}
+        `${callout('info', `Customers see only the options you pick from <strong>${esc(posLabel(ent.posGroupExt))}</strong>. POS gets them in that group, at its POS prices.`, 'link')}
         ${posKv([['POS group', esc(posLabel(ent.posGroupExt))], ['POS ID', esc(ent.posGroupExt), true]])}`,
       );
     if (kind === 'group')
       return section(
-        'Add-on group',
-        callout('info', 'Suggests extra products. Each one customers pick is added to the order as its own item, at its own POS price.', 'dashed'),
+        'Suggested products',
+        callout('info', 'Products customers can add to this item, like fries and a drink. Each one goes on the order as its own item, at its own POS price.', 'dashed'),
       );
     return '';
   }

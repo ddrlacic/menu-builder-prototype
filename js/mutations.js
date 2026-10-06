@@ -439,7 +439,7 @@
     });
     openModal({
       title: `Unlink from ${was}?`,
-      body: `<p>It becomes an add-on group. Each choice is then added to the order as its own item, at its own POS price.</p>
+      body: `<p>Its options become suggested products. Each pick then goes on the order as its own item, at its own POS price.</p>
         ${dropped.length ? `<p>${plural(dropped.length, 'option is', 'options are')} sold only as options on POS, so ${dropped.length === 1 ? 'it is' : 'they are'} removed: ${esc(listJoin(dropped.map((pid) => nameOf('product', entity('product', pid)))))}.</p>` : ''}`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },

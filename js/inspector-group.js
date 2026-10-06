@@ -38,7 +38,7 @@
                 ? `${icon('lock', 12)} Set by the POS group.`
                 : g.gtype === 'linked'
                   ? `${icon('lock', 12)} Follows the linked POS group.`
-                  : `${icon('lock', 12)} Add-on groups are always Modifier groups. Linking a POS group uses its type instead.`,
+                  : `${icon('lock', 12)} Suggested products always use the Modifier type. Linking a POS group uses its type instead.`,
             }) +
             posField +
             field('External ID', inputText(gb('reportingId'), g.reportingId, { id: 'g-ext', mono: true }), {
@@ -81,7 +81,7 @@
       if (!g.children.length) {
         const hint =
           g.gtype === 'standalone'
-            ? 'Drag any POS product here. Each choice is added to the order as its own item, at its POS price.'
+            ? 'Drag any POS product here. Each one customers pick goes on the order as its own item, at its POS price.'
             : `Add options from ${esc(posLabel(gpos))}.`;
         return rulesHtml + section('Options', `<div class="empty-small"><strong>No options yet</strong><span>${hint}</span></div>`) + missingHtml;
       }
@@ -223,7 +223,7 @@
         <div class="opt-head"><span>Option</span><span>Preselected</span><span>Shown</span><span class="sr-only">Settings</span></div>
         ${rows}
       </div>
-      <p class="field-help">${g.gtype === 'standalone' ? 'Each choice is added to the order as its own item.' : 'Prices come from POS. Select an option’s name to see its price.'}${preHelp} Shown applies only in ${esc(here)}.</p>`,
+      <p class="field-help">${g.gtype === 'standalone' ? 'Each one customers pick goes on the order as its own item.' : 'Prices come from POS. Select an option’s name to see its price.'}${preHelp} Shown applies only in ${esc(here)}.</p>`,
     );
   }
 

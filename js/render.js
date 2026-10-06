@@ -320,13 +320,13 @@
     if (!isVirtual(ent)) return '';
     if (kind === 'category') return 'Arranges products your own way. Not on POS.';
     if (kind === 'product') {
-      if (ent.ptype === 'linked') return ent.posParentExt ? `Rings up on POS as ${posLabel(ent.posParentExt)}, at its price.` : 'Choose the POS product it rings up as.';
-      if (ent.ptype === 'container') return 'Opens more choices. Only the choices inside are sent to POS.';
-      if (ent.ptype === 'size') return 'Customers pick one product inside. Only that product is sent to POS.';
+      if (ent.ptype === 'linked') return ent.posParentExt ? `Your version of ${posLabel(ent.posParentExt)}. POS gets the original, at its price.` : 'Choose the POS product it rings up as.';
+      if (ent.ptype === 'container') return 'Opens more options. POS gets only what customers pick inside.';
+      if (ent.ptype === 'size') return 'Customers pick one product inside. Only that product goes to POS.';
       return '';
     }
-    if (ent.gtype === 'linked') return `Shows some options of ${posLabel(ent.posGroupExt)}. Rings up in that group.`;
-    return 'Each product customers pick is added to the order as its own item.';
+    if (ent.gtype === 'linked') return `Your own list of options from ${posLabel(ent.posGroupExt)}. POS gets them in that group.`;
+    return 'Products customers can add. Each one goes on the order as its own item.';
   }
 
   function kindLabel(kind, ent) {
@@ -335,7 +335,7 @@
     if (kind === 'product')
       return { pos: 'Product', linked: 'Custom version', container: 'Option folder', size: 'Choice product' }[ent.ptype];
     if (ent.gtype === 'linked') return 'Custom version';
-    if (ent.gtype === 'standalone') return 'Add-on group';
+    if (ent.gtype === 'standalone') return 'Suggested products';
     return `${C.groupTypes[rulesOf(ent).type].label} group`;
   }
 

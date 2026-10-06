@@ -589,15 +589,15 @@
     if (pi.kind === 'product') {
       if (d.source !== 'pos') return null;
       if (allowedPosGroupsFor(parentPath).includes(d.posId)) return null;
-      return `${d.name} is not a group of ${pName} on POS. To show these options here, create an add-on group`;
+      return `${d.name} is not a group of ${pName} on POS. To show these options here, use suggested products`;
     }
     if (d.ptype === 'container') return null;
     if (d.ptype === 'size') return 'Choice products go in a category';
     if (parent.gtype === 'standalone') return d.source === 'pos' ? standaloneError() : null;
-    if (d.source !== 'pos') return `Only POS products can be options in ${pName}. Put custom versions in an add-on group`;
+    if (d.source !== 'pos') return `Only POS products can be options in ${pName}. Put custom versions in suggested products`;
     const gpos = posIdOf('group', parent);
     if (posChildren(gpos).includes(d.posId)) return null;
-    return `${d.name} is not an option of ${posLabel(gpos)} on POS. To offer it here, create an add-on group`;
+    return `${d.name} is not an option of ${posLabel(gpos)} on POS. To offer it here, use suggested products`;
   }
 
   const SIZE_RE_TOKENS = [...SIZE_WORDS, ...Object.keys(SIZE_ABBR)].sort((a, b) => b.length - a.length).join('|');
