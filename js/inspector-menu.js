@@ -29,7 +29,7 @@
         'POS',
         m.posExt
           ? posKv([posIdRow(m.posExt), ...(posMenu ? [['POS name', esc(posMenu.name)]] : [])])
-          : '<p class="field-help">Not linked to a POS menu. Drag a POS menu onto the canvas to link it.</p>',
+          : '<p class="field-help">Not linked to a POS menu. Add a category from POS to link it.</p>',
       ) +
       section(
         'Identifiers',
