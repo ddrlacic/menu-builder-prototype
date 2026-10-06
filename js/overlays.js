@@ -119,7 +119,6 @@
     if (!T.modal) return;
     const prev = T.modal.prevFocus;
     T.modal = null;
-    T.preview = null;
     T.picker = null;
     T.cmp = null;
     T.opt = null;
@@ -308,7 +307,6 @@
       ]);
     }
     const items = [];
-    if (info.kind === 'product' && ent.ptype !== 'container') items.push({ label: 'Preview', icon: 'phone', onClick: () => openPreview(path) });
     if (info.kind === 'category' && detectSizeSets(ent).length) items.push({ label: 'Group sizes', icon: 'sparkles', onClick: () => openOptimize(path) });
     if (info.kind === 'category' && suggestedSizeSets(ent).length) items.push({ label: 'Dismiss suggestion', icon: 'x', onClick: () => dismissSizeHint(path) });
     if (info.kind === 'group' && halfSuggestions(ent).length) items.push({ label: 'Group halves', icon: 'sparkles', onClick: () => openHalfMatch(ent.id) });

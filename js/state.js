@@ -13,7 +13,6 @@
     markedRow: null,
     popover: null,
     modal: null,
-    preview: null,
     picker: null,
     cmp: null,
     opt: null,

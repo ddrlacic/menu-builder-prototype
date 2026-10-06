@@ -78,15 +78,6 @@
       render();
       return;
     }
-    if (t.id === 'pv-store' && T.preview) {
-      const store = menuStores(activeMenu()).find((s) => s.name.toLowerCase() === t.value.trim().toLowerCase());
-      if (store && store.id !== T.preview.storeId) {
-        T.preview.storeId = store.id;
-        S.ui.previewStoreId = store.id;
-        renderPreview();
-      }
-      return;
-    }
     if (t.matches('[data-bind]') && t.tagName !== 'SELECT' && t.type !== 'time' && t.type !== 'datetime-local') {
       const v = parseInput(t);
       commit(() => setBind(t.dataset.bind, v), { key: t.dataset.bind });

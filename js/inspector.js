@@ -328,7 +328,6 @@
             .map((c) => `<button type="button" class="crumb" data-action="goto" data-path="${esc(c.path)}">${esc(c.name)}</button>`)
             .join('<span class="crumb-sep">›</span>')}</nav>`;
 
-    const canPreview = kind === 'product' && ent.ptype !== 'container';
     $('#inspector-head').innerHTML = `
       <div class="insp-head">
         ${thumb(kind, ent, 'thumb-lg')}
@@ -338,7 +337,6 @@
           ${ent.internalName ? `<p class="insp-alt" title="Internal name: ${esc(ent.internalName)}">${esc(ent.internalName)}</p>` : ''}
           ${crumbHtml}
         </div>
-        ${canPreview ? `<button type="button" class="btn secondary sm" data-action="preview" data-path="${esc(path)}">${icon('phone', 14)}Preview</button>` : ''}
       </div>
       ${kind !== 'menu' && typeHelp(kind, ent) ? `<p class="insp-type-help">${esc(typeHelp(kind, ent))}</p>` : ''}
       ${

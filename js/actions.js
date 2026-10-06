@@ -171,9 +171,6 @@
         S.ui.tabs[el.dataset.kind] = el.dataset.tab;
         render();
         break;
-      case 'preview':
-        openPreview(path);
-        break;
       case 'group-sizes':
         e.stopPropagation();
         openOptimize(path);
@@ -702,34 +699,6 @@
       case 'opt-apply':
         applyOptimize();
         break;
-      case 'pv-pick':
-        if (el.getAttribute('aria-disabled') === 'true') return;
-        pvPick(el.dataset.gp, el.dataset.op, el.dataset.mode);
-        break;
-      case 'pv-step':
-        pvStep(el.dataset.gp, el.dataset.op, Number(el.dataset.delta));
-        break;
-      case 'pv-qty':
-        T.preview.qty = Math.max(1, T.preview.qty + Number(el.dataset.delta));
-        renderPreview();
-        break;
-      case 'pv-add': {
-        const { total, firstInvalid } = pvTotals();
-        if (firstInvalid) {
-          const head = [...document.querySelectorAll('.pv-group h4')].find((h) => h.textContent === nameOf('group', firstInvalid));
-          if (head) {
-            const sec = head.closest('.pv-group');
-            sec.scrollIntoView({ block: 'center', behavior: 'smooth' });
-            sec.classList.remove('is-nudged');
-            void sec.offsetWidth;
-            sec.classList.add('is-nudged');
-          }
-          return;
-        }
-        closeModal();
-        toast(`Preview only — nothing was ordered (${money(total)})`, 'info');
-        break;
-      }
       default:
         break;
     }
