@@ -6,6 +6,8 @@
   let dataset = 'example';
   const hist = { past: [], future: [], key: null, at: 0 };
   const T = {
+    idCard: null,
+    idCardTimer: null,
     drag: null,
     dropTarget: null,
     markedRow: null,

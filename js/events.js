@@ -108,6 +108,24 @@
   window.addEventListener('resize', closePopover);
   $('#canvas-scroll').addEventListener('scroll', closePopover, { passive: true });
 
+  document.addEventListener('pointerover', (e) => {
+    if (e.pointerType === 'touch' || document.body.dataset.dragKind) return;
+    const a = e.target.closest('[data-id-card]');
+    if (!a) return;
+    clearTimeout(T.idCardTimer);
+    if (T.idCard) return showIdCard(a);
+    T.idCardTimer = setTimeout(() => a.isConnected && showIdCard(a), 300);
+  });
+  document.addEventListener('pointerout', (e) => {
+    const a = e.target.closest('[data-id-card]');
+    if (!a || a.contains(e.relatedTarget)) return;
+    if (T.idCard) scheduleHideIdCard();
+    else clearTimeout(T.idCardTimer);
+  });
+  $('#canvas-scroll').addEventListener('scroll', () => hideIdCard(true), { passive: true });
+  window.addEventListener('resize', () => hideIdCard(true));
+  document.addEventListener('dragstart', () => hideIdCard(true));
+
   /* drag and drop */
 
   function clearDropMark() {
@@ -360,6 +378,7 @@
       return;
     }
     if (e.key === 'Escape') {
+      if (T.idCard) return hideIdCard();
       if (T.popover) {
         const a = T.popover.anchor;
         closePopover();

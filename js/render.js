@@ -76,6 +76,7 @@
         row.scrollIntoView({ block: 'nearest' });
       }
     }
+    if (T.idCard && !T.idCard.anchor.isConnected) hideIdCard(true);
     schedulePersist();
   }
 
@@ -425,7 +426,10 @@
     if (isCustomVersion(ent)) badges.push(`<span class="badge tone-virtual" title="Rings up on POS as the original">${icon('link', 12)}Custom</span>`);
     else if (isVirtual(ent)) badges.push(`<span class="badge tone-virtual" title="Exists only in this menu. Not on POS">Menu only</span>`);
     if (uses > 1) badges.push(`<span class="badge" title="Used in ${uses} places">${icon('copy', 12)}${uses}</span>`);
-    if (ent.source === 'pos' && !isMissingOnPos(ent)) badges.push(`<span class="pos-link" title="POS item ${esc(ent.externalId)}">${icon('link', 13)}</span>`);
+    const posLink =
+      ent.source === 'pos' && !isMissingOnPos(ent)
+        ? `<button type="button" class="pos-link" tabindex="-1" data-action="copy-text" data-value="${esc(ent.externalId)}" data-label="POS ID" data-id-card aria-label="Copy POS ID ${esc(ent.externalId)}">${icon('link', 13)}</button>`
+        : '';
 
     const flashCls = T.flashPaths.has(path) || (ent.externalId && T.flashExt.has(ent.externalId)) ? ' is-flash' : '';
     const addTitle = kind === 'category' ? 'Add product' : kind === 'product' ? (ent.ptype === 'size' ? 'Add choice' : 'Add group') : 'Add option';
@@ -442,6 +446,7 @@
           <button class="icon-btn sm" data-action="more" data-path="${esc(path)}" aria-label="More options for ${esc(name)}" title="More options">${icon('more', 15)}</button>
         </span>
       </span>
+      ${posLink}
     </div>`;
   }
 

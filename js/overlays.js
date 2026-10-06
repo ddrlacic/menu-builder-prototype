@@ -57,6 +57,46 @@
     setTimeout(() => el.remove(), 120);
   }
 
+  function showIdCard(anchor) {
+    clearTimeout(T.idCardTimer);
+    if (T.idCard && T.idCard.anchor === anchor) return;
+    hideIdCard(true);
+    const { value, label } = anchor.dataset;
+    const el = document.createElement('div');
+    el.className = 'id-card';
+    el.setAttribute('role', 'tooltip');
+    el.innerHTML = `${icon('link', 14)}<span class="mono">${esc(value)}</span><span class="id-card-sep" aria-hidden="true"></span>
+      <button type="button" data-action="copy-text" data-value="${esc(value)}" data-label="${esc(label)}">Copy</button>`;
+    $('#popover-root').appendChild(el);
+    const r = anchor.getBoundingClientRect();
+    const left = clamp(r.left + r.width / 2 - el.offsetWidth / 2, 8, window.innerWidth - el.offsetWidth - 8);
+    const below = r.top - el.offsetHeight - 10 < 8;
+    el.style.left = `${left}px`;
+    el.style.top = `${below ? r.bottom + 10 : r.top - el.offsetHeight - 10}px`;
+    el.style.setProperty('--arrow-x', `${r.left + r.width / 2 - left}px`);
+    el.dataset.side = below ? 'bottom' : 'top';
+    el.addEventListener('pointerenter', () => clearTimeout(T.idCardTimer));
+    el.addEventListener('pointerleave', () => scheduleHideIdCard());
+    el.addEventListener('click', (e) => e.target.closest('button') && setTimeout(() => hideIdCard(true)));
+    T.idCard = { el, anchor };
+    requestAnimationFrame(() => (el.dataset.open = 'true'));
+  }
+
+  function scheduleHideIdCard() {
+    clearTimeout(T.idCardTimer);
+    T.idCardTimer = setTimeout(() => hideIdCard(), 200);
+  }
+
+  function hideIdCard(now = false) {
+    clearTimeout(T.idCardTimer);
+    if (!T.idCard) return;
+    const { el } = T.idCard;
+    T.idCard = null;
+    if (now) return el.remove();
+    el.dataset.open = 'false';
+    setTimeout(() => el.remove(), 120);
+  }
+
   function openModal({ title, body, actions = [], size = 'md', foot = '' }) {
     closeModal(true);
     const root = $('#modal-root');

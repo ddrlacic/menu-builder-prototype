@@ -1255,10 +1255,20 @@ mark {
 }
 
 .pos-link {
+  flex: none;
   color: var(--ink-3);
   display: grid;
   place-items: center;
-  width: 20px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-xs);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pos-link:hover {
+    background: var(--hover);
+    color: var(--ink);
+  }
 }
 
 .issue-dot {
@@ -3460,6 +3470,76 @@ input[type='number']::-webkit-inner-spin-button {
 
 .popover[data-closing='true'] {
   transition-duration: 100ms;
+}
+
+.id-card {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 4px 0 10px;
+  border-radius: var(--radius-md);
+  background: var(--ink);
+  color: oklch(1 0 0);
+  box-shadow: var(--shadow-pop);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(2px);
+  transition-property: opacity, transform;
+  transition-duration: 120ms;
+  transition-timing-function: var(--ease-out);
+}
+
+.id-card[data-open='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+.id-card::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--arrow-x) - 5px);
+  top: 100%;
+  border: 5px solid transparent;
+  border-top-color: var(--ink);
+}
+
+.id-card[data-side='bottom']::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--ink);
+}
+
+.id-card > .icon {
+  flex: none;
+  opacity: 0.7;
+}
+
+.id-card .mono {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.id-card-sep {
+  align-self: stretch;
+  width: 1px;
+  margin: 6px 0;
+  background: oklch(1 0 0 / 0.2);
+}
+
+.id-card button {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+
+.id-card button:hover,
+.id-card button:focus-visible {
+  background: oklch(1 0 0 / 0.12);
+  outline: none;
 }
 
 .popover-issues {
