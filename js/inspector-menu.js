@@ -467,15 +467,10 @@
               error: lengthError(cat.internalName),
               help: 'Use it to tell apart categories with the same name. Only your team sees it.',
             }) +
-            descriptionField(cb('description'), cat.description, 'c-desc', 'Shown under the category name in Web App, and sent to delivery partners.'),
+            descriptionField(cb('description'), cat.description, 'c-desc', 'Shown under the category name in Web App, and sent to delivery partners.') +
+            imageField(cb('image'), cat.image, { help: 'Shown on Kiosk, and in apps built with the Ordering API.', posSrc: posItemImage(cat) }) +
+            imageField(cb('bannerImage'), cat.bannerImage, { label: 'Header image', size: '2114 × 288', wide: true, help: 'Shown across the top of the category in the apps.' }),
         )
-      );
-    }
-    if (tab === 'images') {
-      return section(
-        '',
-        imageField(cb('image'), cat.image, { help: 'Shown on Kiosk, and in apps built with the Ordering API.' }) +
-          imageField(cb('bannerImage'), cat.bannerImage, { label: 'Header image', size: '2114 × 288', wide: true, help: 'Shown across the top of the category in the apps.' }),
       );
     }
     if (tab === 'availability') {

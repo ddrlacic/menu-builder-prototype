@@ -353,6 +353,7 @@
   const posMenu = () => S.data.pos.menus.find((m) => m.id === S.ui.posMenuId) || S.data.pos.menus[0];
   const linkedPosMenu = (m) => (m && m.posExt && S.data.pos.menus.find((pm) => pm.id === m.posExt)) || null;
   const posImageOf = (m) => (linkedPosMenu(m) || {}).image || null;
+  const posItemImage = (ent) => (ent && ent.source === 'pos' && (posItem(ent) || {}).image) || null;
   const roundPrice = (v, f) => Math.round(v * f * 20) / 20;
 
   function posCategoriesOf(posId) {
@@ -562,7 +563,7 @@
       description: item.description || '',
     };
     let ent;
-    if (kind === 'category') ent = newCategory(base);
+    if (kind === 'category') ent = newCategory({ ...base, image: item.image || null });
     else if (kind === 'product')
       ent = newProduct({
         ...base,
@@ -618,6 +619,14 @@
       const old = pm.image;
       pm.image = s.image;
       if (old) S.data.menus.forEach((m) => m.image === old && (m.image = s.image));
+    }
+    const srcItems = DATASETS[dataset].pos.items;
+    for (const [id, it] of Object.entries(S.data.pos.items)) {
+      const s = srcItems[id];
+      if (it.type !== 'category' || !s || !s.image || it.image === s.image) continue;
+      const old = it.image || null;
+      it.image = s.image;
+      Object.values(S.data.entities.category).forEach((c) => c.source === 'pos' && c.externalId === id && (c.image || null) === old && (c.image = s.image));
     }
   }
 

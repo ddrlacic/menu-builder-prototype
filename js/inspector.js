@@ -262,7 +262,7 @@
 
   function tabsFor(kind, ent) {
     if (kind === 'menu') return [['general', 'General'], ['ordering', 'Ordering'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
-    if (kind === 'category') return [['general', 'General'], ['images', 'Images'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
+    if (kind === 'category') return [['general', 'General'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
     if (kind === 'group') {
       const tabs = [['general', 'General'], ['options', 'Options']];
       if (!ent.isSubstitutionContainer) tabs.push(['substitutes', 'Substitutes']);
