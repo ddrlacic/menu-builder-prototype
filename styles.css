@@ -3008,18 +3008,6 @@ input[type='number']::-webkit-inner-spin-button {
   margin-top: 4px;
 }
 
-.copy-field {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px;
-  align-items: center;
-}
-
-.copy-field .input[readonly] {
-  color: var(--ink-2);
-  background: var(--sunken);
-}
-
 .store-check .store-name {
   flex: 1;
 }

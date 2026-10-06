@@ -223,17 +223,16 @@
     return `<dl class="kv">${rows.map(([k, v, mono]) => `<dt>${esc(k)}</dt><dd${mono ? ' class="mono"' : ''}>${v}</dd>`).join('')}</dl>`;
   }
 
+  const posIdRow = (id) => [
+    'POS ID',
+    `<span class="kv-copy">${esc(id)}<button type="button" class="icon-btn sm" data-action="copy-text" data-value="${esc(id)}" data-label="POS ID" aria-label="Copy POS ID" title="Copy POS ID">${icon('copy', 13)}</button></span>`,
+    true,
+  ];
+
   function sourceSection(kind, ent, path) {
     if (ent.source === 'pos') {
       const pos = posItem(ent);
-      const rows = [
-        [
-          'POS ID',
-          `<span class="kv-copy">${esc(ent.externalId)}<button type="button" class="icon-btn sm" data-action="copy-text" data-value="${esc(ent.externalId)}" data-label="POS ID" aria-label="Copy POS ID" title="Copy POS ID">${icon('copy', 13)}</button></span>`,
-          true,
-        ],
-        ['POS name', esc(pos ? pos.name : ent.reviewed.name)],
-      ];
+      const rows = [posIdRow(ent.externalId), ['POS name', esc(pos ? pos.name : ent.reviewed.name)]];
       if (kind === 'product' && ent.originCategoryExt) rows.push(['POS category', esc(posLabel(ent.originCategoryExt))]);
       return section(
         'POS',

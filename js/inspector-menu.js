@@ -23,22 +23,21 @@
     if (tab === 'ordering') return menuOrderingTab(m, mb);
     if (tab === 'availability') return menuAvailabilityTab(m, mb);
     if (tab === 'stores') return menuStoresTab(m);
+    const posMenu = linkedPosMenu(m);
     return (
       section(
+        'POS',
+        m.posExt
+          ? posKv([posIdRow(m.posExt), ...(posMenu ? [['POS name', esc(posMenu.name)]] : [])])
+          : '<p class="field-help">Not linked to a POS menu. Drag a POS menu onto the canvas to link it.</p>',
+      ) +
+      section(
         'Identifiers',
-        field(
-          'POS ID',
-          m.posExt
-            ? `<div class="copy-field"><input type="text" class="input mono" value="${esc(m.posExt)}" readonly aria-label="POS ID">
-                <button type="button" class="icon-btn sm" data-action="copy-text" data-value="${esc(m.posExt)}" data-label="POS ID" aria-label="Copy POS ID" title="Copy POS ID">${icon('copy', 14)}</button></div>`
-            : '<p class="field-help">Not linked to a POS menu. Drag a POS menu onto the canvas to link it.</p>',
-          { pos: !!m.posExt },
-        ) +
-          field('External ID', inputText(mb('externalId'), m.externalId, { id: 'm-ext', mono: true }), {
-            id: 'm-ext',
-            error: lengthError(m.externalId),
-            help: 'Use it to match this menu in reports outside this platform.',
-          }),
+        field('External ID', inputText(mb('externalId'), m.externalId, { id: 'm-ext', mono: true }), {
+          id: 'm-ext',
+          error: lengthError(m.externalId),
+          help: 'Use it to match this menu in reports outside this platform.',
+        }),
       ) +
       section(
         '',
