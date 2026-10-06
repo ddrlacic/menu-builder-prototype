@@ -2667,43 +2667,6 @@ input[type='number']::-webkit-inner-spin-button {
   font-weight: 600;
 }
 
-.price-points {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.price-point {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 80px;
-  align-items: center;
-  gap: 10px;
-  font-size: var(--text-sm);
-}
-
-.price-point-value {
-  font-weight: 600;
-}
-
-.price-point .muted {
-  text-align: right;
-}
-
-.price-bar {
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--sunken);
-  overflow: hidden;
-}
-
-.price-bar span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent-line);
-}
-
 .store-more summary {
   margin-top: 4px;
   cursor: pointer;
@@ -3188,6 +3151,15 @@ input[type='number']::-webkit-inner-spin-button {
 .opt-table.has-expand.no-pre .opt-head,
 .opt-table.has-expand.no-pre .opt-row {
   grid-template-columns: minmax(0, 1fr) 84px 36px 24px;
+}
+
+.opt-table.has-expand.no-price .opt-head,
+.opt-table.has-expand.no-price .opt-row {
+  grid-template-columns: minmax(0, 1fr) 76px 36px 24px;
+}
+
+.opt-name-sub .tone-warning {
+  color: var(--warn);
 }
 
 .opt-table.has-expand .opt-price {
@@ -3970,11 +3942,6 @@ button.check:active {
   color: var(--ink-3);
   font-size: var(--text-xs);
   text-wrap: pretty;
-}
-
-.cmp-price {
-  color: var(--ink-2);
-  font-size: var(--text-sm);
 }
 
 .sug-line {

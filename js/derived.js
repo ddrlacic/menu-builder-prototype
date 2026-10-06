@@ -251,7 +251,7 @@
         const diffs = [];
         if (ent.reviewed.name !== it.name) diffs.push(`Name: ${ent.reviewed.name} → ${it.name}`);
         if (kind === 'product' && isNum(it.price) && ent.reviewed.price !== it.price)
-          diffs.push(`Price changed on POS. Now ${rangeText(statsOf((s) => posPrice(ent.externalId, ent, s), menuStores(menu)))}`);
+          diffs.push('Price changed on POS');
         if (diffs.length) changed.set(ent.id, { kind, ent, path, diffs });
       }
       for (const cid of posChildren(ent.externalId)) {

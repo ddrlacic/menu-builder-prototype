@@ -199,9 +199,11 @@
         else if (folder) subs.push('Option folder');
         if (name !== nameOf('product', p)) subs.push(`Product: ${nameOf('product', p)}`);
         if (preselectOverridden(op)) subs.push(`Preselects ${opl.preselected} here`);
+        const ps = priceStats(op);
+        const noPrice = !folder && ps.missingStores.length && !isMissingOnPos(p) ? `No POS price at ${ps.missingStores.length === ps.total ? 'any store' : plural(ps.missingStores.length, 'store', 'stores')}` : '';
+        const sub = [esc(subs.join(' · ')), noPrice && `<span class="tone-warning">${noPrice}</span>`].filter(Boolean).join(' · ');
         const row = `<div class="opt-row${opl.hidden ? ' is-muted' : ''}">
-            <button type="button" class="opt-name" data-action="goto" data-path="${esc(op)}">${thumb('product', p, 'thumb-sm')}<span class="opt-name-text"><span class="opt-name-label" title="${esc(name)}">${esc(name)}</span>${subs.length ? `<span class="opt-name-sub">${esc(subs.join(' · '))}</span>` : ''}</span></button>
-            <span class="opt-price tnum${priceStats(op).missingStores.length ? ' tone-warning' : ''}" title="${esc(priceStats(op).missingStores.length ? `No POS price at ${plural(priceStats(op).missingStores.length, 'store', 'stores')}` : priceStats(op).note)}">${folder ? '<span class="muted">—</span>' : esc(priceText(priceStats(op)))}</span>
+            <button type="button" class="opt-name" data-action="goto" data-path="${esc(op)}">${thumb('product', p, 'thumb-sm')}<span class="opt-name-text"><span class="opt-name-label" title="${esc(name)}">${esc(name)}</span>${sub ? `<span class="opt-name-sub">${sub}</span>` : ''}</span></button>
             ${preCell}
             <button type="button" class="switch" role="switch" aria-checked="${!opl.hidden}" aria-label="Show ${esc(name)}" data-toggle="pl|${esc(op)}|hidden" data-focus-key="pl|${esc(op)}|hidden"><span class="switch-thumb"></span></button>
             <button type="button" class="icon-btn sm opt-expand" data-action="card-open" data-id="opt:${esc(pid)}" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings">${icon('chevDown', 14)}</button>
@@ -217,11 +219,11 @@
           : ` ${pick ? 'Preselect one option at most. Preselection applies' : 'Preselected quantities apply'} everywhere this group is used. To change one place only, open the option there.`;
     return section(
       'Options',
-      `<div class="opt-table has-expand">
-        <div class="opt-head"><span>Option</span><span>POS price</span><span>Preselected</span><span>Shown</span><span class="sr-only">Settings</span></div>
+      `<div class="opt-table has-expand no-price">
+        <div class="opt-head"><span>Option</span><span>Preselected</span><span>Shown</span><span class="sr-only">Settings</span></div>
         ${rows}
       </div>
-      <p class="field-help">${g.gtype === 'standalone' ? 'Each choice is added to the order as its own item.' : 'Prices come from POS.'} Ranges mean the price differs by store.${preHelp} Shown applies only in ${esc(here)}.</p>`,
+      <p class="field-help">${g.gtype === 'standalone' ? 'Each choice is added to the order as its own item.' : 'Prices come from POS. Select an option’s name to see its price.'}${preHelp} Shown applies only in ${esc(here)}.</p>`,
     );
   }
 

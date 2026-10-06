@@ -95,7 +95,6 @@
   function openPosProductPicker(parentPath) {
     const pi = parsePath(parentPath);
     const parent = entity(pi.kind, pi.id);
-    const price = (id) => rangeText(statsOf((s) => posPrice(id, null, s), STORES));
     if (pi.kind === 'category') {
       const own = !isVirtual(parent);
       return openAddPicker({
@@ -103,7 +102,6 @@
         intro: own ? `Products in ${posLabel(parent.externalId)} on POS.` : 'Any product from POS. It keeps its POS price and options.',
         parentPath,
         ids: own ? posChildren(parent.externalId) : posProductChoices().map((c) => c.id),
-        priceOf: price,
         noun: own ? `products from ${posLabel(parent.externalId)}` : 'POS products',
       });
     }
@@ -113,7 +111,6 @@
         intro: parent.ptype === 'size' ? 'Customers pick one of these products. The one they pick is sent to POS.' : 'Each product customers pick is added to the order as its own item.',
         parentPath,
         ids: posProductChoices().map((c) => c.id),
-        priceOf: price,
         noun: 'POS products',
       });
     }
@@ -123,7 +120,6 @@
       intro: `Options of ${posLabel(gpos)} on POS.`,
       parentPath,
       ids: posChildren(gpos),
-      priceOf: (id) => rangeText(statsOf((s) => posOptionPrice(gpos, id, null, s), STORES), { plus: true, freeWord: true }),
       noun: `options from ${posLabel(gpos)}`,
     });
   }
@@ -169,7 +165,7 @@
         for (const pid of posChildren(cid)) {
           if (seen.has(pid) || !posItemById(pid)) continue;
           seen.add(pid);
-          out.push({ id: pid, name: posLabel(pid), alt: posItemById(pid).name, meta: `${posLabel(cid)} · ${pid}`, price: rangeText(statsOf((s) => posPrice(pid, null, s), STORES)) });
+          out.push({ id: pid, name: posLabel(pid), alt: posItemById(pid).name, meta: `${posLabel(cid)} · ${pid}` });
         }
       }
     }

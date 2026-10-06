@@ -470,15 +470,44 @@
     return byInputs.get(key);
   }
 
+  function priceKey(path) {
+    const info = parsePath(path);
+    let parent = parsePath(info.parentPath);
+    if (parent.kind === 'group') return `g:${parent.id}>${info.id}`;
+    while (parent.kind !== 'category' && parent.parentPath) parent = parsePath(parent.parentPath);
+    return `c:${parent.id}>${info.id}`;
+  }
+
+  function menuPriceKeys(menu) {
+    const keys = new Set();
+    walkMenu(menu, (kind, id, ent, path) => {
+      if (kind === 'product') keys.add(priceKey(path));
+    });
+    return [...keys];
+  }
+
+  const pricedKeySets = new WeakMap();
+  function hasPriceRows(path) {
+    const m = menuById(parsePath(path).menuId);
+    if (!m || !m.pricedKeys) return true;
+    if (!pricedKeySets.has(m.pricedKeys)) pricedKeySets.set(m.pricedKeys, new Set(m.pricedKeys));
+    return pricedKeySets.get(m.pricedKeys).has(priceKey(path));
+  }
+
   function priceStats(path) {
     if (priceCache.has(path)) return priceCache.get(path);
     const src = priceSource(path);
-    const st = src.kind === 'none' ? { ...src, priced: 0, total: 0, missingStores: [] } : { ...src, ...storePriceStats(src) };
+    const empty = { priced: 0, total: 0, missingStores: [] };
+    let st;
+    if (src.kind === 'none') st = { ...src, ...empty };
+    else if (!hasPriceRows(path)) st = { ...src, ...empty, pending: true };
+    else st = { ...src, ...storePriceStats(src) };
     priceCache.set(path, st);
     return st;
   }
 
   function priceText(st) {
+    if (st.pending) return '—';
     const text = rangeText(st, { plus: st.kind === 'modifier' || st.kind === 'item', freeWord: st.kind === 'modifier' });
     return st.kind === 'from' && st.priced ? `From ${text}` : text;
   }

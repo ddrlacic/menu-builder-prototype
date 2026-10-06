@@ -15,12 +15,10 @@
     for (const k of [...sel]) if (!data.missing.some((m) => m.key === k)) sel.delete(k);
     const posRow = (m, control) => {
       const it = posItemById(m.posId);
-      const price = it.type === 'product' ? rangeText(statsOf((s) => posPrice(m.posId, null, s))) : '';
       return `<div class="cmp-row">
         ${control}
         <span class="kind-glyph kind-${it.type}">${icon(KIND_ICON[it.type], 13)}</span>
         <span class="cmp-main"><span class="cmp-name">${esc(it.name)}</span><span class="cmp-meta">In ${esc(m.parentName)} · <span class="mono">${esc(m.posId)}</span></span></span>
-        ${price ? `<span class="tnum cmp-price">${esc(price)}</span>` : ''}
       </div>`;
     };
     let body = `<div class="segmented cmp-tabs" role="tablist">

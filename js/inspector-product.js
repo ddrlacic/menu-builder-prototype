@@ -3,25 +3,12 @@
   function priceSection(path) {
     const st = priceStats(path);
     if (st.kind === 'none') return '';
+    if (st.pending) return section('Price', callout('info', 'Prices show up after you publish. They come from POS and can differ by store.'));
     const menu = activeMenu();
     const inGroup = parsePath(parsePath(path).parentPath).kind === 'group';
     const label = { base: 'Customers pay', size: 'Customers pay', modifier: 'Customers pay extra', item: 'Added as its own item', from: 'Customers pay from' }[st.kind];
     const plus = st.kind === 'modifier' || st.kind === 'item';
     const fmt = (v) => (v == null ? 'No price' : v === 0 && st.kind === 'modifier' ? 'Free' : `${plus ? '+' : ''}${money(v)}`);
-    const points = [...st.points.entries()].sort((a, b) => b[1] - a[1]);
-    const shown = points.slice(0, 3);
-    const restStores = points.slice(3).reduce((n, [, c]) => n + c, 0);
-    const pointsHtml =
-      points.length > 1
-        ? `<div class="price-points">${shown
-            .map(
-              ([v, n]) => `<div class="price-point"><span class="tnum price-point-value">${fmt(v)}</span>
-                <span class="price-bar" aria-hidden="true"><span style="width:${Math.max(3, (n / st.total) * 100)}%"></span></span>
-                <span class="tnum muted">${plural(n, 'store', 'stores')}</span></div>`,
-            )
-            .join('')}</div>
-          ${restStores ? `<p class="field-help">${plural(points.length - 3, 'other price', 'other prices')} at ${plural(restStores, 'store', 'stores')}.</p>` : ''}`
-        : '';
     const missing = st.missingStores;
     const names = missing.slice(0, 12).map((s) => s.name);
     const missingHtml = missing.length
@@ -42,7 +29,6 @@
         <span class="price-hero-value tnum">${esc(priceText(st))}</span>
         <span class="price-hero-src">${icon('lock', 12)}${esc(st.note)}${st.min !== st.max ? '. Varies by store' : ''}</span>
       </div>
-      ${pointsHtml}
       ${missingHtml}
       ${field('Check a store', storeSearch('price-store-q', `Search ${st.total} stores`))}
       ${storeResults(matchStores(menuStores(menu)), check)}

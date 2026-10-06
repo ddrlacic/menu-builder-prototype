@@ -249,6 +249,7 @@
               m.status = 'published';
               m.publishedAt = Date.now();
               m.publishedStoreIds = menuStores(m).map((s) => s.id);
+              m.pricedKeys = menuPriceKeys(m);
               dataVersion++;
               render();
               toast('Menu successfully published');

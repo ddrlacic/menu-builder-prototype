@@ -61,6 +61,7 @@
       segments: [],
       storeGroups: [],
       publishedStoreIds: [],
+      pricedKeys: [],
       ownTimesStoreIds: [],
       status: 'draft',
       publishedAt: null,
@@ -525,7 +526,6 @@
   }
 
   function statsOf(fn, stores = menuStores(activeMenu())) {
-    const points = new Map();
     const missingStores = [];
     let min = Infinity;
     let max = -Infinity;
@@ -537,10 +537,9 @@
       }
       min = Math.min(min, v);
       max = Math.max(max, v);
-      points.set(v, (points.get(v) || 0) + 1);
     }
     const priced = stores.length - missingStores.length;
-    return { min: priced ? min : null, max: priced ? max : null, priced, missingStores, total: stores.length, points };
+    return { min: priced ? min : null, max: priced ? max : null, priced, missingStores, total: stores.length };
   }
 
   function rangeText(st, { plus = false, freeWord = false } = {}) {
@@ -851,6 +850,7 @@
           const oldGroups = new Set(Object.values(S.data.entities.group).filter((g) => g.preselected === undefined).map((g) => g.id));
           Object.values(S.data.entities.group).forEach(migrateGroup);
           migratePreselections(oldGroups);
+          S.data.menus.forEach((m) => m.pricedKeys || (m.pricedKeys = menuPriceKeys(m)));
           normalizeAll();
           S.ui = { ...defaultUi(), ...parsed.ui, posQuery: '', canvasQuery: '' };
           S.ui.selected = fixPath(S.ui.selected);
@@ -865,6 +865,7 @@
       /* fall through to seed */
     }
     seed();
+    S.data.menus.forEach((m) => (m.pricedKeys = menuPriceKeys(m)));
     normalizeAll();
     S.ui = defaultUi();
     focusPosCategory();
