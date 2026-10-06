@@ -353,6 +353,15 @@
   const posMenu = () => S.data.pos.menus.find((m) => m.id === S.ui.posMenuId) || S.data.pos.menus[0];
   const linkedPosMenu = (m) => (m && m.posExt && S.data.pos.menus.find((pm) => pm.id === m.posExt)) || null;
   const posImageOf = (m) => (linkedPosMenu(m) || {}).image || null;
+  function linkMenuToPosCategory(m, posCatId) {
+    if (m.posExt) return null;
+    const shown = S.ui && posMenu();
+    const pm = shown && shown.roots.includes(posCatId) ? shown : S.data.pos.menus.find((x) => x.roots.includes(posCatId));
+    if (!pm) return null;
+    m.posExt = pm.id;
+    if (!m.image && pm.image) m.image = pm.image;
+    return pm;
+  }
   const posItemImage = (ent) => (ent && ent.source === 'pos' && (posItem(ent) || {}).image) || null;
   const roundPrice = (v, f) => Math.round(v * f * 20) / 20;
 
@@ -508,6 +517,10 @@
     if (m.externalId == null) m.externalId = '';
     if (m.image === undefined) m.image = null;
     if (m.posExt === undefined) m.posExt = null;
+    if (!m.posExt) {
+      const posCat = m.children.map((id) => S.data.entities.category[id]).find((c) => c && c.source === 'pos');
+      if (posCat) linkMenuToPosCategory(m, posCat.externalId);
+    }
     if (m.status === 'publishing') m.status = m.publishedAt ? 'changed' : 'draft';
   }
 

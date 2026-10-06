@@ -33,8 +33,10 @@
     const pInfo = parsePath(parentPath);
     let newPath = null;
     let reused = false;
+    let linked = null;
     commit(() => {
       const parent = entity(pInfo.kind, pInfo.id);
+      if (pInfo.kind === 'menu' && d.origin === 'pos') linked = linkMenuToPosCategory(parent, d.posId);
       const parentName = nameOf(pInfo.kind, parent);
       let id;
       if (d.origin === 'pos') {
@@ -72,6 +74,7 @@
       S.ui.selected = newPath;
       flash(newPath);
     });
+    if (newPath && linked) toast(`Linked to POS menu ${linked.name}`);
     if (newPath && reused) {
       const uses = (ctx.usage.get(`${d.kind}:${parsePath(newPath).id}`) || []).length;
       if (uses > 1) toast(`Reusing ${nameOf(d.kind, entity(d.kind, parsePath(newPath).id))}. Edits apply in all ${uses} places`, 'info');
@@ -107,27 +110,29 @@
     if (depth === chain.length - 1) return performDrop(d, { path, pos: 'inside' });
 
     let newPath = null;
+    let linked = null;
     commit(() => {
+      if (depth === 0) linked = linkMenuToPosCategory(menu, chain[0]);
       const leaf = importPos(chain[chain.length - 1]);
-      let childKind = leaf.kind;
+      let topKind = leaf.kind;
       let childId = leaf.id;
       for (let i = chain.length - 2; i >= depth; i--) {
         const posId = chain[i];
         const kind = posItemById(posId).type;
         const ent = findByExt(kind, posId) || newPosEntity(posId);
         if (!ent.children.includes(childId)) {
-          if (reaches(childKind, childId, kind, ent.id)) {
-            throw new Abort(`${nameOf(childKind, entity(childKind, childId))} already contains ${nameOf(kind, ent)}, so it cannot go inside it`);
+          if (reaches(topKind, childId, kind, ent.id)) {
+            throw new Abort(`${nameOf(topKind, entity(topKind, childId))} already contains ${nameOf(kind, ent)}, so it cannot go inside it`);
           }
           ent.children.push(childId);
         }
-        childKind = kind;
+        topKind = kind;
         childId = ent.id;
       }
       const info = parsePath(path);
       const anchor = entity(info.kind, info.id);
-      if (info.kind !== 'menu' && reaches(childKind, childId, info.kind, info.id)) {
-        throw new Abort(`${nameOf(childKind, entity(childKind, childId))} already contains ${nameOf(info.kind, anchor)}, so it cannot go inside it`);
+      if (info.kind !== 'menu' && reaches(topKind, childId, info.kind, info.id)) {
+        throw new Abort(`${nameOf(topKind, entity(topKind, childId))} already contains ${nameOf(info.kind, anchor)}, so it cannot go inside it`);
       }
       anchor.children.push(childId);
       newPath = path;
@@ -142,6 +147,7 @@
       flash(newPath);
     });
     if (newPath) toast(`Added to ${crumbText(parsePath(newPath).parentPath)}`, 'info');
+    if (newPath && linked) toast(`Linked to POS menu ${linked.name}`);
   }
 
   function placePosMenu(d) {
