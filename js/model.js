@@ -32,6 +32,12 @@
 
   const inMenuCategory = (menu, pid) => menu.children.some((cid) => (entity('category', cid) || { children: [] }).children.includes(pid));
 
+  function choiceProductCategoryPaths(choiceProductPath) {
+    const info = parsePath(choiceProductPath);
+    const menu = menuById(info.menuId);
+    return menu.children.filter((cid) => (entity('category', cid) || { children: [] }).children.includes(info.id)).map((cid) => childPath(menu.id, 'category', cid));
+  }
+
   function choicePeerPaths(path) {
     const info = parsePath(path);
     if (info.kind !== 'product' || !info.parentPath) return [];
@@ -581,7 +587,15 @@
     if (pi.kind === 'product' && parent.ptype === 'size') {
       if (d.ptype === 'container') return `Customers pick one product in ${pName}, so option folders cannot go in it`;
       if (d.ptype === 'size') return 'Choice products go in a category';
-      return d.source === 'pos' ? standaloneError() : null;
+      if (d.source !== 'pos') return null;
+      const homeError = standaloneError();
+      if (homeError) return homeError;
+      for (const catPath of choiceProductCategoryPaths(parentPath)) {
+        const cat = entity('category', parsePath(catPath).id);
+        if (!isVirtual(cat) && !posChildren(cat.externalId).includes(d.posId))
+          return `${d.name} is not in ${nameOf('category', cat)} on POS, so it cannot be a choice in ${pName}`;
+      }
+      return null;
     }
     if (pi.kind === 'category') {
       if (d.ptype === 'container') return 'Option folders go inside a group, not in a category';

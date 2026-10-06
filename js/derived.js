@@ -96,8 +96,15 @@
         if (ent.ptype === 'container' && !ent.children.length) pAdd('warning', `${name} has no groups. Customers see an empty option`, 'general');
         if (ent.ptype === 'size' && !ent.children.length) pAdd('warning', `${name} has no choices. Customers see it as out of stock`, 'choices');
         const holder = parsePath(parsePath(path).parentPath);
-        if (holder.kind === 'product' && !inMenuCategory(menu, id))
-          pAdd('warning', `${name} is not in a category of ${nameOf('menu', menu)}, so customers cannot pick it in ${nameOf('product', entity('product', holder.id))}`, 'availability');
+        if (holder.kind === 'product') {
+          const home = entity('category', parsePath(holder.parentPath).id);
+          if (home && !home.children.includes(id))
+            pAdd(
+              'warning',
+              `${name} is not in ${nameOf('category', home)}, so ${inMenuCategory(menu, id) ? 'delivery apps leave it out of' : 'customers cannot pick it in'} ${nameOf('product', entity('product', holder.id))}`,
+              'availability',
+            );
+        }
         const ps = priceStats(path);
         if (ps.total && ps.missingStores.length && !isMissingOnPos(ent)) {
           const n = ps.missingStores.length;

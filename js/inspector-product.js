@@ -69,6 +69,7 @@
       return section('Choices', `<div class="empty-small"><strong>No choices yet</strong><span>Add the POS products customers choose between, like Small and Large.</span></div>${add}`);
     const menu = menuById(parsePath(path).menuId);
     const menuName = nameOf('menu', menu);
+    const home = entity('category', parsePath(parsePath(path).parentPath).id);
     const rows = p.children
       .map((pid, i) => {
         const x = entity('product', pid);
@@ -77,8 +78,8 @@
         const hidden = !!placement(op).hidden;
         const name = nameOf('product', x);
         const st = priceStats(op);
-        const sub = !inMenuCategory(menu, pid)
-          ? `Not in a category of ${menuName}, so customers cannot pick it`
+        const sub = !home.children.includes(pid)
+          ? `Not in ${nameOf('category', home)}, so ${inMenuCategory(menu, pid) ? 'delivery apps leave it out' : 'customers cannot pick it'}`
           : st.missingStores.length && !isMissingOnPos(x)
             ? `No POS price at ${st.missingStores.length === st.total ? 'any store' : plural(st.missingStores.length, 'store', 'stores')}`
             : '';

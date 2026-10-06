@@ -105,10 +105,25 @@
         noun: own ? `products from ${posLabel(parent.externalId)}` : 'POS products',
       });
     }
-    if (parent.gtype === 'standalone' || parent.ptype === 'size') {
+    if (parent.ptype === 'size') {
+      const home = entity('category', parsePath(pi.parentPath).id);
+      const own = !isVirtual(home);
       return openAddPicker({
         title: 'Add POS product',
-        intro: parent.ptype === 'size' ? 'Customers pick one of these products. The one they pick is sent to POS.' : 'Each product customers pick is added to the order as its own item.',
+        intro: own
+          ? `Products in ${posLabel(home.externalId)} on POS, where ${nameOf('product', parent)} is. Customers pick one. Only that product is sent to POS.`
+          : 'Customers pick one of these products. Only that product is sent to POS.',
+        parentPath,
+        ids: posProductChoices()
+          .map((c) => c.id)
+          .filter((id) => !dropError(parentPath, posDesc(id))),
+        noun: own ? `products from ${posLabel(home.externalId)}` : 'POS products',
+      });
+    }
+    if (parent.gtype === 'standalone') {
+      return openAddPicker({
+        title: 'Add POS product',
+        intro: 'Each product customers pick is added to the order as its own item.',
         parentPath,
         ids: posProductChoices().map((c) => c.id),
         noun: 'POS products',
@@ -152,25 +167,23 @@
     ]);
   }
 
-  function keepChoiceInMenu(choicePath, pid) {
-    const info = parsePath(choicePath);
-    const menu = menuById(info.menuId);
-    if (inMenuCategory(menu, pid)) return null;
+  function keepChoiceInMenu(choiceProductPath, pid) {
     const ent = entity('product', pid);
     const d = { kind: 'product', name: nameOf('product', ent), source: ent.source, posId: ent.source === 'pos' ? ent.externalId : null, ptype: ent.ptype };
-    const home = parsePath(info.parentPath).id;
-    for (const cid of [home, ...menu.children.filter((c) => c !== home)]) {
-      const catPath = childPath(menu.id, 'category', cid);
-      if (!entity('category', cid) || dropError(catPath, d)) continue;
-      entity('category', cid).children.push(pid);
+    const added = [];
+    for (const catPath of choiceProductCategoryPaths(choiceProductPath)) {
+      const cat = entity('category', parsePath(catPath).id);
+      if (cat.children.includes(pid) || dropError(catPath, d)) continue;
+      cat.children.push(pid);
       const pp = childPath(catPath, 'product', pid);
       S.data.placements[pp] = { ...placement(pp), hidden: true };
-      return entity('category', cid);
+      added.push(cat);
     }
-    return null;
+    return added.length ? added : null;
   }
 
-  const alsoInText = (name, cat) => `${name} added. It’s also in ${nameOf('category', cat)} now, hidden there, so it gets its POS price`;
+  const alsoInText = (name, cats) =>
+    `${name} added. It’s also in ${cats.map((c) => nameOf('category', c)).join(' and ')} now, hidden there, so it gets its POS price`;
 
   function createChoiceProduct(categoryPath) {
     commit(() => insertNew(categoryPath, 'product', newProduct({ ptype: 'size', name: 'New choice product' })));
