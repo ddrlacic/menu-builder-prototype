@@ -157,10 +157,16 @@
         if (T.popover && T.popover.anchor === el) closePopover();
         else rowMenu(el, path, a);
         break;
-      case 'goto':
+      case 'goto': {
+        const { menuId } = parsePath(path);
+        if (menuId !== S.ui.activeMenuId) {
+          S.ui.activeMenuId = menuId;
+          S.ui.canvasQuery = '';
+        }
         expandTo(path);
         select(path, { focusRow: false });
         break;
+      }
       case 'tab':
         S.ui.tabs[el.dataset.kind] = el.dataset.tab;
         render();
