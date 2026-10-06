@@ -355,7 +355,7 @@
     let meta = '';
     if (kind === 'category') {
       const hiddenKids = ent.children.filter((pid) => placement(childPath(path, 'product', pid)).hidden).length;
-      meta = esc(plural(ent.children.length, 'product', 'products') + (hiddenKids ? ` · ${hiddenKids} hidden` : ''));
+      meta = esc((ent.internalName ? `${ent.internalName} · ` : '') + plural(ent.children.length, 'product', 'products') + (hiddenKids ? ` · ${hiddenKids} hidden` : ''));
     } else if (kind === 'product') {
       const halves = r.half ? null : wholeHalves(path);
       if (r.half) {

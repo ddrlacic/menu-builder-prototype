@@ -1638,6 +1638,20 @@ body[data-drag-kind='group'] .row[data-kind='product'] {
   line-height: 1.2;
   text-wrap: balance;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.insp-alt {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .crumbs {

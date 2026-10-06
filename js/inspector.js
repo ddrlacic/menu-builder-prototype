@@ -291,7 +291,7 @@
       headPosId
         ? `<button type="button" class="src-chip src-id" data-action="copy-text" data-value="${esc(headPosId)}" data-label="POS ID" aria-label="Copy POS ID ${esc(headPosId)}" title="Copy POS ID ${esc(headPosId)}">${icon('link', 12)}<span class="mono">${esc(headPosId)}</span>${icon('copy', 12)}</button>`
         : '',
-      kind !== 'menu' && isVirtual(ent) && !isCustomVersion(ent) ? '<span class="src-chip">Menu only</span>' : '',
+      !['menu', 'category'].includes(kind) && isVirtual(ent) && !isCustomVersion(ent) ? '<span class="src-chip">Menu only</span>' : '',
     ].join('');
 
     const crumbHtml =
@@ -307,7 +307,8 @@
         ${thumb(kind, ent, 'thumb-lg')}
         <div class="insp-titles">
           <div class="insp-kicker">${kicker}</div>
-          <h2 class="insp-title">${esc(nameOf(kind, ent))}</h2>
+          <h2 class="insp-title" title="${esc(nameOf(kind, ent))}">${esc(nameOf(kind, ent))}</h2>
+          ${ent.internalName ? `<p class="insp-alt" title="Internal name: ${esc(ent.internalName)}">${esc(ent.internalName)}</p>` : ''}
           ${crumbHtml}
         </div>
         ${canPreview ? `<button type="button" class="btn secondary sm" data-action="preview" data-path="${esc(path)}">${icon('phone', 14)}Preview</button>` : ''}

@@ -467,7 +467,7 @@
               error: lengthError(cat.internalName),
               help: 'Use it to tell apart categories with the same name. Only your team sees it.',
             }) +
-            descriptionField(cb('description'), cat.description, 'c-desc'),
+            descriptionField(cb('description'), cat.description, 'c-desc', 'Shown under the category name in Web App, and sent to delivery partners.'),
         )
       );
     }
