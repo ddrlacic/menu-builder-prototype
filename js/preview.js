@@ -18,8 +18,9 @@
       }
     });
     const prev = T.preview && T.preview.storeId;
-    T.preview = { path, sel, order, qty: 1, storeId: prev || S.ui.previewStoreId || menuStores(activeMenu())[0].id };
-    if (!menuStores(activeMenu()).some((s) => s.id === T.preview.storeId)) T.preview.storeId = menuStores(activeMenu())[0].id;
+    const firstStore = (menuStores(activeMenu())[0] || STORES[0]).id;
+    T.preview = { path, sel, order, qty: 1, storeId: prev || S.ui.previewStoreId || firstStore };
+    if (!menuStores(activeMenu()).some((s) => s.id === T.preview.storeId)) T.preview.storeId = firstStore;
     openModal({ title: 'Web App preview', body: '<div id="pv"></div>', size: 'preview', foot: '<div id="pv-foot" class="pv-foot"></div>' });
     renderPreview();
   }

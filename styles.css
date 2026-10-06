@@ -2799,10 +2799,14 @@ input[type='number']::-webkit-inner-spin-button {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 10px 12px 12px;
+  padding: 8px 8px 8px 12px;
   border-radius: var(--radius-md);
   background: var(--panel);
   box-shadow: var(--shadow-border);
+}
+
+.group-card.is-open {
+  padding: 10px 12px 12px;
 }
 
 .group-card-head {

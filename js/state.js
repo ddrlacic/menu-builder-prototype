@@ -61,6 +61,7 @@
       segments: [],
       storeGroups: [],
       publishedStoreIds: [],
+      ownTimesStoreIds: [],
       status: 'draft',
       publishedAt: null,
       children: [],
@@ -410,7 +411,7 @@
   function groupStores(id) {
     if (!groupStoreCache.has(id)) {
       const g = groupDef(id);
-      groupStoreCache.set(id, g ? STORES.filter((s) => (g.airport ? s.airport : g.cities.includes(s.city))) : []);
+      groupStoreCache.set(id, g ? STORES.filter((s) => (g.airport ? s.airport : !s.airport && g.cities.includes(s.city))) : []);
     }
     return groupStoreCache.get(id);
   }
@@ -431,15 +432,17 @@
     return menuStoreCache.get(key);
   }
   const storeCountLabel = (m) => plural(menuStores(m).length, 'store', 'stores');
+  const emptyStoreGroupError = (a) => (assignedStores(a).length ? '' : `Choose stores in ${(groupDef(a.id) || { name: a.id }).name} or remove the group`);
+
+  const SEED_OWN_TIMES = ['st-023', 'st-046', 'st-079'];
 
   function defaultStoreGroups() {
-    return C.menuStoreGroups.filter((g) => !g.airport).map((g) => ({ id: g.id, storeIds: null, newStores: true }));
+    return C.menuStoreGroups.map((g) => ({ id: g.id, storeIds: null, newStores: true }));
   }
 
   function storeGroupsFromIds(storeIds) {
     const set = new Set(storeIds);
     return C.menuStoreGroups
-      .filter((g) => !g.airport)
       .map((g) => {
         const all = groupStores(g.id);
         const chosen = all.filter((s) => set.has(s.id)).map((s) => s.id);
@@ -450,6 +453,26 @@
       .filter(Boolean);
   }
 
+  function migrateAirportStores() {
+    if (S.data.oneGroupPerStore) return;
+    S.data.oneGroupPerStore = true;
+    const airport = C.menuStoreGroups.find((g) => g.airport);
+    S.data.menus.forEach((m) => {
+      if (!m.storeGroups || m.storeGroups.some((a) => a.id === airport.id)) return;
+      const moved = new Set();
+      m.storeGroups.forEach((a) => {
+        const g = groupDef(a.id);
+        if (!g || g.airport) return;
+        STORES.filter((s) => s.airport && g.cities.includes(s.city) && (!a.storeIds || a.storeIds.includes(s.id))).forEach((s) => moved.add(s.id));
+        if (a.storeIds) a.storeIds = a.storeIds.filter((id) => !storeById.get(id).airport);
+        if (a.storeIds && a.storeIds.length === groupStores(a.id).length) a.storeIds = null;
+      });
+      if (!moved.size) return;
+      const all = groupStores(airport.id);
+      m.storeGroups.push({ id: airport.id, storeIds: moved.size === all.length ? null : all.filter((s) => moved.has(s.id)).map((s) => s.id), newStores: moved.size === all.length });
+    });
+  }
+
   function migrateMenu(m) {
     if (!m.storeGroups) m.storeGroups = m.storeIds ? storeGroupsFromIds(m.storeIds) : defaultStoreGroups();
     if (!m.externalChannels) m.externalChannels = m.channelTag ? [m.channelTag] : [];
@@ -458,6 +481,7 @@
     if (!m.channels) m.channels = ['web', 'mobile', 'kiosk'];
     if (!m.segments) m.segments = [];
     if (!m.publishedStoreIds) m.publishedStoreIds = m.status === 'draft' ? [] : menuStores(m).map((s) => s.id);
+    if (!m.ownTimesStoreIds) m.ownTimesStoreIds = S.data.menus[0] === m ? [...SEED_OWN_TIMES] : [];
     if (m.externalId == null) m.externalId = '';
     if (m.image === undefined) m.image = null;
     if (m.posExt === undefined) m.posExt = null;
@@ -551,6 +575,7 @@
       menus: [],
       placements: {},
       ignored: {},
+      oneGroupPerStore: true,
     };
     if (!S.data.pos.syncedAt) S.data.pos.syncedAt = Date.now() - 1000 * 60 * 18;
     if (src.menu) seedImported(src);
@@ -558,6 +583,7 @@
     S.data.menus.forEach((m) => {
       if (!m.image) m.image = posImageOf(m);
     });
+    S.data.menus[0].ownTimesStoreIds = [...SEED_OWN_TIMES];
   }
 
   function migratePosImages() {
@@ -761,6 +787,7 @@
         if (parsed && parsed.version === 2) {
           S.data = parsed.data;
           migratePosImages();
+          migrateAirportStores();
           S.data.menus.forEach(migrateMenu);
           Object.values(S.data.entities.category).forEach(migrateCategory);
           Object.values(S.data.entities.product).forEach(migrateProduct);

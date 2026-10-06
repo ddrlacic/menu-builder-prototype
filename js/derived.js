@@ -55,7 +55,10 @@
     if (!menu.channels.length) add(menu.id, 'error', 'Choose at least one channel');
     if (!menu.orderTypes.length) add(menu.id, 'error', 'Choose at least one order type');
     if (!menu.storeGroups.length) add(menu.id, 'error', 'Add at least one store group');
-    else if (!menuStores(menu).length) add(menu.id, 'error', 'Choose at least one store');
+    menu.storeGroups.forEach((a) => {
+      const err = emptyStoreGroupError(a);
+      if (err) add(menu.id, 'error', err);
+    });
     scheduleProblems(menu.schedule).forEach((t) => add(menu.id, 'error', t));
     if (segmentErrors(menu.segments).some(Boolean)) add(menu.id, 'error', 'Fix the customer segments');
     if (!menu.children.some((cid) => (entity('category', cid) || { children: [] }).children.length)) add(menu.id, 'error', 'Add a category with at least one product');

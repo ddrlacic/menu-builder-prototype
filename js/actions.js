@@ -256,12 +256,9 @@
         );
         break;
       }
-      case 'menu-group-remove': {
-        const m = activeMenu();
-        if (T.openStoreGroup === el.dataset.id) T.openStoreGroup = null;
-        commit(() => (m.storeGroups = m.storeGroups.filter((a) => a.id !== el.dataset.id)));
+      case 'menu-group-remove':
+        removeMenuStoreGroup(activeMenu(), el.dataset.id);
         break;
-      }
       case 'menu-group-open':
         T.openStoreGroup = T.openStoreGroup === el.dataset.id ? null : el.dataset.id;
         T.storeQuery = '';
@@ -272,22 +269,21 @@
         T.showSelectedStores = !T.showSelectedStores;
         render();
         break;
-      case 'menu-group-store':
+      case 'menu-group-store': {
+        const m = activeMenu();
+        changeMenuStores(m, () => setMenuGroupStores(m, el.dataset.group, [el.dataset.id], el.getAttribute('aria-pressed') !== 'true'));
+        break;
+      }
       case 'menu-group-bulk': {
         const m = activeMenu();
-        const grp = m.storeGroups.find((x) => x.id === el.dataset.group);
-        if (!grp) break;
-        const all = groupStores(grp.id);
-        commit(() => {
-          const set = new Set(assignedStores(grp).map((s) => s.id));
-          if (a === 'menu-group-store') {
-            set.has(el.dataset.id) ? set.delete(el.dataset.id) : set.add(el.dataset.id);
-          } else {
-            const scope = T.storeQuery.trim() ? matchStores(all) : all;
-            scope.forEach((s) => (el.dataset.on === '1' ? set.add(s.id) : set.delete(s.id)));
-          }
-          grp.storeIds = set.size === all.length ? null : all.filter((s) => set.has(s.id)).map((s) => s.id);
-        });
+        changeMenuStores(m, () => setMenuGroupStores(m, el.dataset.group, groupStores(el.dataset.group).map((s) => s.id), el.dataset.on === '1'));
+        break;
+      }
+      case 'menu-store-bulk': {
+        const m = activeMenu();
+        const byGroup = new Map();
+        menuStoreMatches(m).forEach((r) => byGroup.set(r.g.id, [...(byGroup.get(r.g.id) || []), r.s.id]));
+        changeMenuStores(m, () => byGroup.forEach((ids, gid) => setMenuGroupStores(m, gid, ids, el.dataset.on === '1')));
         break;
       }
       case 'segment-add': {

@@ -142,14 +142,55 @@
     });
   }
 
+  function menuStoreRow(m, groupId, s, { on, groupName = '' }) {
+    const status = on ? (m.publishedStoreIds.includes(s.id) ? ['Published', 'ok'] : ['Ready to publish', 'neutral']) : null;
+    const meta = [groupName, on && m.ownTimesStoreIds.includes(s.id) ? 'Own serving times' : ''].filter(Boolean).join(' · ');
+    const name = meta
+      ? `<span class="store-name list-name"><span>${esc(s.name)}</span><span class="muted">${esc(meta)}</span></span>`
+      : `<span class="store-name">${esc(s.name)}</span>`;
+    return `<button type="button" class="store-row store-check" data-action="menu-group-store" data-group="${groupId}" data-id="${s.id}" aria-pressed="${on}">
+      <span class="check${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span>
+      ${name}${status ? `<span class="store-status tone-${status[1]}">${status[0]}</span>` : meta ? '' : `<span class="muted">${esc(s.city)}</span>`}</button>`;
+  }
+
+  function menuStoreMatches(m) {
+    const q = T.storeQuery.trim().toLowerCase();
+    if (!q) return [];
+    const onMenu = new Set(m.storeGroups.map((a) => a.id));
+    const groups = [...C.menuStoreGroups].sort((a, b) => onMenu.has(b.id) - onMenu.has(a.id));
+    return groups.flatMap((g) => {
+      const a = m.storeGroups.find((x) => x.id === g.id);
+      const sel = new Set(a ? assignedStores(a).map((s) => s.id) : []);
+      return groupStores(g.id)
+        .filter((s) => s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q) || s.id.includes(q))
+        .map((s) => ({ g, s, on: sel.has(s.id) }));
+    });
+  }
+
+  function ownTimesNote(m) {
+    const own = m.ownTimesStoreIds.map((id) => storeById.get(id)).filter(Boolean);
+    if (!own.length) return '';
+    const who = own.length <= 3 ? `${listJoin(own.map((s) => s.name))} ${own.length === 1 ? 'has' : 'have'}` : `${own.length} stores have`;
+    return `<p class="field-help">${esc(who)} their own serving times, so the menu’s times do not apply there. Change them on each store’s menu page.</p>`;
+  }
+
   function menuStoresTab(m) {
     const total = menuStores(m).length;
     const free = C.menuStoreGroups.filter((g) => !m.storeGroups.some((a) => a.id === g.id));
-    const error = !m.storeGroups.length ? 'Add at least one store group' : total ? '' : 'Choose at least one store';
+    const error = m.storeGroups.length ? '' : 'Add at least one store group';
+    const searching = !!T.storeQuery.trim();
+    const matches = menuStoreMatches(m);
+    const allOn = matches.length && matches.every((r) => r.on);
+    const results = searching
+      ? `${matches.length ? `<div class="group-card-tools"><button type="button" class="btn ghost sm" data-action="menu-store-bulk" data-on="${allOn ? 0 : 1}">${allOn ? 'Remove' : 'Add'} ${plural(matches.length, 'matching store', 'matching stores')}</button></div>` : ''}
+        ${storeResults(matches, (r) => menuStoreRow(m, r.g.id, r.s, { on: r.on, groupName: r.g.name }))}`
+      : `<div class="group-cards">${m.storeGroups.map((a, i) => storeGroupCard(m, a, i)).join('')}</div>`;
     return section(
       'Store groups',
       `<p class="store-summary">${total ? `${plural(total, 'store', 'stores')} from ${plural(m.storeGroups.length, 'group', 'groups')}` : 'No stores yet'}</p>
-      <div class="group-cards">${m.storeGroups.map((a, i) => storeGroupCard(m, a, i)).join('')}</div>
+      ${ownTimesNote(m)}
+      ${storeSearch('menu-store-q', 'Search by store or city')}
+      ${results}
       ${field('', `<button type="button" class="btn secondary sm" data-action="menu-group-add" ${free.length ? '' : 'disabled'}>${icon('plus', 14)}Add store group</button>`, { error })}`,
       { desc: 'The menu goes live at these stores when you publish.' },
     );
@@ -160,51 +201,33 @@
     const all = groupStores(a.id);
     const chosen = assignedStores(a);
     const sel = new Set(chosen.map((s) => s.id));
-    const published = new Set(m.publishedStoreIds);
     const open = T.openStoreGroup === a.id;
-    const row = (s) => {
-      const on = sel.has(s.id);
-      const status = on ? (published.has(s.id) ? ['Published', 'ok'] : ['Ready to publish', 'neutral']) : null;
-      return `<button type="button" class="store-row store-check" data-action="menu-group-store" data-group="${a.id}" data-id="${s.id}" aria-pressed="${on}">
-        <span class="check${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span>
-        <span class="store-name">${esc(s.name)}</span>${status ? `<span class="store-status tone-${status[1]}">${status[0]}</span>` : `<span class="muted">${esc(s.city)}</span>`}</button>`;
-    };
-    const q = T.storeQuery.trim();
     const onlySelected = T.showSelectedStores;
-    const pool = onlySelected ? chosen : all;
-    const results = matchStores(pool);
-    const scope = q ? results : all;
     const list = onlySelected ? chosen : [...chosen, ...all.filter((s) => !sel.has(s.id))];
-    const allOn = scope.length && scope.every((s) => sel.has(s.id));
-    const bulkLabel = q
-      ? `${allOn ? 'Remove' : 'Add'} ${plural(results.length, 'matching store', 'matching stores')}`
-      : allOn
-        ? 'Clear all'
-        : 'Select all';
+    const allOn = all.length && chosen.length === all.length;
+    const meta = `${chosen.length} of ${plural(all.length, 'store', 'stores')}${a.newStores ? ' · Plus new stores' : ''}`;
     return `<div class="group-card${open ? ' is-open' : ''}">
       <div class="group-card-head">
         <button type="button" class="group-card-toggle" data-action="menu-group-open" data-id="${a.id}" aria-expanded="${open}">
           ${icon('chevRight', 14)}
-          <span class="group-card-title"><strong>${esc(g ? g.name : a.id)}</strong><span class="muted tnum">${chosen.length} of ${all.length} stores</span></span>
+          <span class="group-card-title"><strong>${esc(g ? g.name : a.id)}</strong><span class="muted tnum">${meta}</span></span>
         </button>
         <button type="button" class="icon-btn sm" data-action="menu-group-remove" data-id="${a.id}" aria-label="Remove ${esc(g ? g.name : a.id)}" title="Remove store group">${icon('x', 14)}</button>
       </div>
-      ${toggle(`m|${m.id}|storeGroups.${i}.newStores`, a.newStores, { label: 'Add new stores automatically', help: 'Stores added to this group later get the menu too.' })}
+      ${emptyStoreGroupError(a) ? slotError(emptyStoreGroupError(a)) : ''}
       ${
         open
           ? `<div class="group-card-body">
-            ${storeSearch(`msg-q-${a.id}`, 'Search by store or city')}
+            ${toggle(`m|${m.id}|storeGroups.${i}.newStores`, a.newStores, { label: 'Add new stores automatically', help: 'Stores added to this group later get the menu. Publish it at each new store to make it live.' })}
             <div class="group-card-tools">
-              ${scope.length && !onlySelected ? `<button type="button" class="btn ghost sm" data-action="menu-group-bulk" data-group="${a.id}" data-on="${allOn ? 0 : 1}">${bulkLabel}</button>` : '<span></span>'}
+              ${onlySelected ? '<span></span>' : `<button type="button" class="btn ghost sm" data-action="menu-group-bulk" data-group="${a.id}" data-on="${allOn ? 0 : 1}">${allOn ? 'Clear all' : 'Select all'}</button>`}
               <button type="button" class="check-toggle" role="checkbox" aria-checked="${onlySelected}" data-action="menu-group-only-selected">
                 <span class="check${onlySelected ? ' is-on' : ''}" aria-hidden="true">${onlySelected ? icon('check', 12) : ''}</span>Show only selected</button>
             </div>
             ${
-              q
-                ? storeResults(results, row)
-                : list.length
-                  ? `<div class="store-list">${list.slice(0, 8).map(row).join('')}</div>${list.length > 8 ? `<p class="field-help">And ${list.length - 8} more. Search to find a store.</p>` : ''}`
-                  : '<p class="field-help">No stores selected in this group yet.</p>'
+              list.length
+                ? `<div class="store-list">${list.slice(0, 8).map((s) => menuStoreRow(m, a.id, s, { on: sel.has(s.id) })).join('')}</div>${list.length > 8 ? `<p class="field-help">And ${list.length - 8} more. Search to find a store.</p>` : ''}`
+                : '<p class="field-help">No stores selected in this group yet.</p>'
             }
           </div>`
           : ''
