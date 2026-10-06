@@ -507,6 +507,7 @@
     if (m.externalId == null) m.externalId = '';
     if (m.image === undefined) m.image = null;
     if (m.posExt === undefined) m.posExt = null;
+    if (m.status === 'publishing') m.status = m.publishedAt ? 'changed' : 'draft';
   }
 
   function statsOf(fn, stores = menuStores(activeMenu())) {

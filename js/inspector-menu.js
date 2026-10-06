@@ -40,7 +40,11 @@
             help: 'Use it to match this menu in reports outside this platform.',
           }),
       ) +
-      section('', `<button type="button" class="btn secondary tone-danger" data-action="delete-menu" data-id="${m.id}">${icon('trash', 15)}Delete menu</button>`)
+      section(
+        '',
+        `<button type="button" class="btn secondary tone-danger" data-action="delete-menu" data-id="${m.id}" ${m.status === 'publishing' ? 'disabled' : ''}>${icon('trash', 15)}Delete menu</button>` +
+          (m.status === 'publishing' ? '<p class="field-help">You can delete the menu once publishing finishes.</p>' : ''),
+      )
     );
   }
 

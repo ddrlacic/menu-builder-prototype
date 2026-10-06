@@ -24,6 +24,7 @@
         break;
       case 'delete-menu': {
         const m = menuById(el.dataset.id);
+        if (m.status === 'publishing') break;
         const remove = () => {
           closeModal();
           commit(() => {

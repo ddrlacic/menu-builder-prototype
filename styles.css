@@ -425,6 +425,11 @@ mark {
   box-shadow: var(--shadow-border);
 }
 
+.btn.secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btn.ghost {
   color: var(--ink-2);
 }
@@ -488,7 +493,7 @@ mark {
   .btn.primary:hover:not(:disabled):not([aria-disabled='true']) {
     background: var(--accent-hover);
   }
-  .btn.secondary:hover {
+  .btn.secondary:hover:not(:disabled) {
     box-shadow: var(--shadow-border-hover);
   }
   .btn.ghost:hover {
@@ -498,7 +503,7 @@ mark {
   .btn.danger:hover:not(:disabled) {
     background: oklch(0.49 0.2 27);
   }
-  .btn.secondary.tone-danger:hover {
+  .btn.secondary.tone-danger:hover:not(:disabled) {
     background: var(--danger-soft);
   }
   .icon-btn:hover:not(:disabled) {
