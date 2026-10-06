@@ -32,6 +32,9 @@
 
   const inMenuCategory = (menu, pid) => menu.children.some((cid) => (entity('category', cid) || { children: [] }).children.includes(pid));
 
+  const choiceProductsHolding = (category, pid) =>
+    category.children.map((c) => entity('product', c)).filter((p) => p && p.ptype === 'size' && p.id !== pid && p.children.includes(pid));
+
   function choiceProductCategoryPaths(choiceProductPath) {
     const info = parsePath(choiceProductPath);
     const menu = menuById(info.menuId);

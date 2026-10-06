@@ -599,14 +599,22 @@
     const info = parsePath(path);
     const pInfo = parsePath(info.parentPath);
     const parent = entity(pInfo.kind, pInfo.id);
+    const choiceProducts = info.kind === 'product' && pInfo.kind === 'category' ? choiceProductsHolding(parent, info.id) : [];
     const ok = commit(() => {
       parent.children = parent.children.filter((c) => c !== info.id);
+      const segs = choiceProducts.map((p) => `>p:${p.id}>p:${info.id}`);
       for (const k of Object.keys(S.data.placements)) {
-        if (k === path || k.startsWith(`${path}>`)) delete S.data.placements[k];
+        if (k === path || k.startsWith(`${path}>`) || segs.some((s) => k.endsWith(s) || k.includes(`${s}>`))) delete S.data.placements[k];
       }
-      if (S.ui.selected === path || S.ui.selected.startsWith(`${path}>`)) S.ui.selected = info.parentPath;
+      choiceProducts.forEach((p) => (p.children = p.children.filter((c) => c !== info.id)));
+      if (S.ui.selected === path || S.ui.selected.startsWith(`${path}>`) || segs.some((s) => S.ui.selected.endsWith(s) || S.ui.selected.includes(`${s}>`)))
+        S.ui.selected = info.parentPath;
     }, { menu: menuById(info.menuId) });
-    if (ok && !quiet) toast(`${KIND_LABEL[info.kind]} removed`, 'success', { action: { label: 'Undo', onClick: undo } });
+    if (!ok || quiet) return;
+    const text = choiceProducts.length
+      ? `${nameOf('product', entity('product', info.id))} removed from ${nameOf('category', parent)} and ${choiceProducts.map((p) => nameOf('product', p)).join(' and ')}`
+      : `${KIND_LABEL[info.kind]} removed`;
+    toast(text, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
   function moveChild(path, to) {
@@ -681,9 +689,11 @@
     const parentUses = pInfo.kind === 'menu' ? 1 : (ctx.usage.get(`${pInfo.kind}:${pInfo.id}`) || []).length;
     if (parentUses <= 1) return removeLink(path);
     const name = nameOf(info.kind, entity(info.kind, info.id));
+    const choiceNames =
+      info.kind === 'product' && pInfo.kind === 'category' ? choiceProductsHolding(entity('category', pInfo.id), info.id).map((p) => nameOf('product', p)) : [];
     openModal({
       title: `Remove ${name}?`,
-      body: `<p>${esc(parentName)} is used in ${parentUses} places, so ${esc(name)} is removed from all of them. Nothing changes on POS.</p>`,
+      body: `<p>${esc(parentName)} is used in ${parentUses} places, so ${esc(name)} is removed from all of them${choiceNames.length ? `, and from ${esc(choiceNames.join(' and '))}` : ''}. Nothing changes on POS.</p>`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },
         { label: `Remove ${KIND_LABEL[info.kind].toLowerCase()}`, kind: 'danger', onClick: () => { closeModal(); removeLink(path); } },
