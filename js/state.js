@@ -623,10 +623,12 @@
     const srcItems = DATASETS[dataset].pos.items;
     for (const [id, it] of Object.entries(S.data.pos.items)) {
       const s = srcItems[id];
-      if (it.type !== 'category' || !s || !s.image || it.image === s.image) continue;
+      const next = (s && s.image) || null;
       const old = it.image || null;
-      it.image = s.image;
-      Object.values(S.data.entities.category).forEach((c) => c.source === 'pos' && c.externalId === id && (c.image || null) === old && (c.image = s.image));
+      if (it.type !== 'category' || !s || old === next) continue;
+      if (next) it.image = next;
+      else delete it.image;
+      Object.values(S.data.entities.category).forEach((c) => c.source === 'pos' && c.externalId === id && (c.image || null) === old && (c.image = next));
     }
   }
 

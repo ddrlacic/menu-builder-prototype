@@ -1,17 +1,17 @@
 window.POS_SEED = (() => {
   const items = {};
-  const cat = (id, name, children, image) => (items[id] = { type: 'category', name, children, ...(image ? { image } : {}) });
+  const cat = (id, name, children) => (items[id] = { type: 'category', name, children });
   const prd = (id, name, price, extra = {}) =>
     (items[id] = { type: 'product', name, price, children: [], ...extra });
   const grp = (id, name, groupType, min, max, children, extra = {}) =>
     (items[id] = { type: 'group', name, groupType, min, max, children, ...extra });
 
-  cat('pos-cat-burgers', 'Burgers', ['pos-truffle', 'pos-cheeseburger', 'pos-mushroom-swiss', 'pos-beyond'], 'img/pos/cat-burgers.svg');
-  cat('pos-cat-pizza', 'Pizza', ['pos-byo-pizza', 'pos-margherita', 'pos-pepperoni-pizza'], 'img/pos/cat-pizza.svg');
+  cat('pos-cat-burgers', 'Burgers', ['pos-truffle', 'pos-cheeseburger', 'pos-mushroom-swiss', 'pos-beyond']);
+  cat('pos-cat-pizza', 'Pizza', ['pos-byo-pizza', 'pos-margherita', 'pos-pepperoni-pizza']);
   cat('pos-cat-combos', 'Combos', ['pos-burger-combo']);
-  cat('pos-cat-sides', 'Sides', ['pos-fries', 'pos-onion-rings', 'pos-caesar', 'pos-mac'], 'img/pos/cat-sides.svg');
-  cat('pos-cat-drinks', 'Drinks', ['pos-lemonade-s', 'pos-lemonade-l', 'pos-iced-tea-s', 'pos-iced-tea-l', 'pos-ipa', 'pos-sparkling'], 'img/pos/cat-drinks.svg');
-  cat('pos-cat-desserts', 'Desserts', ['pos-lava-cake', 'pos-cheesecake'], 'img/pos/cat-desserts.svg');
+  cat('pos-cat-sides', 'Sides', ['pos-fries', 'pos-onion-rings', 'pos-caesar', 'pos-mac']);
+  cat('pos-cat-drinks', 'Drinks', ['pos-lemonade-s', 'pos-lemonade-l', 'pos-iced-tea-s', 'pos-iced-tea-l', 'pos-ipa', 'pos-sparkling']);
+  cat('pos-cat-desserts', 'Desserts', ['pos-lava-cake', 'pos-cheesecake']);
   cat('pos-cat-platters', 'Platters', ['pos-slider-platter', 'pos-wrap-platter']);
 
   prd('pos-truffle', 'Signature Truffle Burger', 18.5, {
