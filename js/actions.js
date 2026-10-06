@@ -242,6 +242,9 @@
           setBind(el.dataset.bind, list);
         });
         break;
+      case 'own-times-view':
+        openOwnTimesStores(activeMenu());
+        break;
       case 'menu-manage-stores':
         openManageStores(activeMenu());
         break;

@@ -99,7 +99,8 @@
             (sameTimes ? slotError('Each time slot needs different start and end times') : '') +
             '<p class="field-help">Customers can order only when the store is open too.</p>'
           : '<p class="field-help">Customers can order from this menu whenever the store is open.</p>'
-      }`;
+      }
+      ${ownTimesNote(m)}`;
 
     return section('Serving times', schedule, { desc: 'Products can narrow these times further.' }) + segmentsSection(mb('segments'), m.segments, 'menu');
   }
@@ -142,11 +143,39 @@
     });
   }
 
+  const ownTimesStores = (m) => m.ownTimesStoreIds.map((id) => storeById.get(id)).filter(Boolean);
+
   function ownTimesNote(m) {
-    const own = m.ownTimesStoreIds.map((id) => storeById.get(id)).filter(Boolean);
+    const own = ownTimesStores(m);
     if (!own.length) return '';
-    const who = own.length <= 3 ? `${listJoin(own.map((s) => s.name))} ${own.length === 1 ? 'has' : 'have'}` : `${own.length} stores have`;
-    return `<p class="field-help">${esc(who)} their own serving times, so the menu’s times do not apply there. Change them on each store’s menu page.</p>`;
+    const few = own.length <= 3;
+    const who = few ? `${listJoin(own.map((s) => s.name))} ${own.length === 1 ? 'has' : 'have'}` : `${own.length} of ${menuStores(m).length} stores have`;
+    return `${callout('info', `${esc(who)} their own serving times, so the menu’s times do not apply there. Change them on each store’s menu page.`)}${
+      few ? '' : '<div class="hint-actions"><button type="button" class="btn secondary sm" data-action="own-times-view">View stores</button></div>'
+    }`;
+  }
+
+  function openOwnTimesStores(m) {
+    openModal({
+      title: 'Stores with own serving times',
+      body: `<p>The menu’s serving times do not apply at these stores. Change them on each store’s menu page.</p>
+        <label class="search-field">${icon('search', 15)}<span class="sr-only">Search by store or city</span>
+          <input id="ot-search" type="search" placeholder="Search by store or city" autocomplete="off"></label>
+        <div id="ot-list"></div>`,
+      actions: [{ label: 'Close', kind: 'secondary', onClick: closeModal }],
+    });
+    T.ot = { menuId: m.id, query: '' };
+    renderOwnTimesStores();
+    $('#ot-search').focus();
+  }
+
+  function renderOwnTimesStores() {
+    if (!T.ot || !$('#ot-list')) return;
+    const q = T.ot.query.trim().toLowerCase();
+    const list = ownTimesStores(S.data.menus.find((x) => x.id === T.ot.menuId)).filter((s) => !q || s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q));
+    $('#ot-list').innerHTML = list.length
+      ? `<div class="store-list">${list.map((s) => `<div class="store-row"><span class="store-name">${esc(s.name)}</span><span class="ms-city">${esc(s.city)}</span></div>`).join('')}</div>`
+      : '<div class="empty-small"><strong>No stores match</strong><span>Check the spelling or search by city.</span></div>';
   }
 
   function menuStoresTab(m) {
@@ -155,7 +184,6 @@
     return section(
       'Store groups',
       `<p class="store-summary">${total ? `${plural(total, 'store', 'stores')} from ${plural(m.storeGroups.length, 'group', 'groups')}` : 'No stores yet'}</p>
-      ${ownTimesNote(m)}
       <div class="group-cards">${m.storeGroups.map((a, i) => storeGroupCard(m, a, i)).join('')}</div>
       ${field('', `<button type="button" class="btn secondary sm" data-action="menu-manage-stores">${icon('store', 14)}Manage stores</button>`, { error })}`,
       { desc: 'The menu goes live at these stores when you publish.' },
