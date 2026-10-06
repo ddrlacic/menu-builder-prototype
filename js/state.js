@@ -435,6 +435,17 @@
   const emptyStoreGroupError = (a) => (assignedStores(a).length ? '' : `Choose stores in ${(groupDef(a.id) || { name: a.id }).name} or remove the group`);
 
   const SEED_OWN_TIMES = STORES.filter((s, i) => i % 13 === 5).map((s) => s.id);
+  const WEEKDAYS = [1, 2, 3, 4, 5];
+  const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
+  const OWN_TIMES_PATTERNS = [
+    [{ days: WEEKDAYS, from: '11:00', to: '21:00' }, { days: [0, 6], from: '12:00', to: '20:00' }],
+    [{ days: EVERY_DAY, from: '10:00', to: '22:00' }],
+    [{ days: WEEKDAYS, from: '07:00', to: '14:00' }],
+    [{ days: EVERY_DAY, from: '16:00', to: '23:00' }],
+    [{ days: [0, 1, 2, 3, 4], from: '11:00', to: '21:00' }, { days: [5, 6], from: '11:00', to: '23:30' }],
+  ];
+  const storeIndex = new Map(STORES.map((s, i) => [s.id, i]));
+  const ownTimesOf = (storeId) => OWN_TIMES_PATTERNS[storeIndex.get(storeId) % OWN_TIMES_PATTERNS.length];
 
   function seedOwnTimes(m) {
     const on = new Set(menuStores(m).map((s) => s.id));

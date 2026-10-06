@@ -155,7 +155,7 @@
     const who = few ? `${listJoin(own.map((s) => s.name))} ${own.length === 1 ? 'has' : 'have'}` : `${own.length} of ${menuStores(m).length} stores have`;
     return `${callout('info', `${esc(who)} their own serving times, so the menu’s times do not apply there.`)}
       <div class="hint-actions">
-        ${few ? '' : '<button type="button" class="btn secondary sm" data-action="own-times-view">View stores</button>'}
+        <button type="button" class="btn secondary sm" data-action="own-times-view">View stores</button>
         <button type="button" class="btn ghost sm" data-action="own-times-reset-all">Reset to menu times</button>
       </div>`;
   }
@@ -211,7 +211,7 @@
       ? `<div class="ms-tree ot-tree">
           <button type="button" class="ms-row ms-all" role="checkbox" aria-checked="${allOn ? 'true' : n ? 'mixed' : 'false'}" data-action="ot-all" data-on="${allOn ? 0 : 1}"><span class="check${n ? ' is-on' : ''}" aria-hidden="true">${allOn ? icon('check', 12) : n ? icon('minus', 12) : ''}</span>Select all</button>
           <div class="ms-stores">${list
-            .map((s) => `<button type="button" class="ms-row" role="checkbox" aria-checked="${sel.has(s.id)}" data-action="ot-store" data-id="${s.id}">${box(sel.has(s.id))}<span class="ms-name">${esc(s.name)}</span><span class="ms-city">${esc(s.city)}</span></button>`)
+            .map((s) => `<button type="button" class="ms-row" role="checkbox" aria-checked="${sel.has(s.id)}" data-action="ot-store" data-id="${s.id}">${box(sel.has(s.id))}<span class="ms-name">${esc(s.name)}${ownTimesOf(s.id).map((t) => `<span class="ms-sub">${esc(scheduleSummary([t]))}</span>`).join('')}</span><span class="ms-city">${esc(s.city)}</span></button>`)
             .join('')}</div>
         </div>`
       : '<div class="empty-small"><strong>No stores match</strong><span>Check the spelling or search by city.</span></div>';

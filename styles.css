@@ -2776,6 +2776,13 @@ input[type='number']::-webkit-inner-spin-button {
   padding-left: 12px;
 }
 
+.ms-sub {
+  display: block;
+  margin-top: 1px;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
 .ms-name {
   flex: 1;
   min-width: 0;
