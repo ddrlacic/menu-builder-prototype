@@ -469,7 +469,7 @@
             }) +
             descriptionField(cb('description'), cat.description, 'c-desc', 'Shown under the category name in Web App, and sent to delivery partners.') +
             imageField(cb('image'), cat.image, { help: 'Shown on Kiosk, and in apps built with the Ordering API.', posSrc: posItemImage(cat) }) +
-            imageField(cb('bannerImage'), cat.bannerImage, { label: 'Header image', size: '2114 × 288', wide: true, help: 'Shown across the top of the category in the apps.' }),
+            imageField(cb('bannerImage'), cat.bannerImage, { label: 'Header image', size: '2114 × 288', wide: true, help: 'Shown across the top of the category in Web App, on desktop and tablet.' }),
         )
       );
     }
