@@ -2772,6 +2772,10 @@ input[type='number']::-webkit-inner-spin-button {
   padding-left: 68px;
 }
 
+.ot-tree .ms-row {
+  padding-left: 12px;
+}
+
 .ms-name {
   flex: 1;
   min-width: 0;

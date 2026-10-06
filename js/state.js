@@ -434,7 +434,18 @@
   const storeCountLabel = (m) => plural(menuStores(m).length, 'store', 'stores');
   const emptyStoreGroupError = (a) => (assignedStores(a).length ? '' : `Choose stores in ${(groupDef(a.id) || { name: a.id }).name} or remove the group`);
 
-  const SEED_OWN_TIMES = ['st-023', 'st-046', 'st-079'];
+  const SEED_OWN_TIMES = STORES.filter((s, i) => i % 13 === 5).map((s) => s.id);
+
+  function seedOwnTimes(m) {
+    const on = new Set(menuStores(m).map((s) => s.id));
+    m.ownTimesStoreIds = [...new Set([...m.ownTimesStoreIds, ...SEED_OWN_TIMES.filter((id) => on.has(id))])];
+  }
+
+  function migrateOwnTimesDemo() {
+    if (S.data.ownTimesDemo) return;
+    S.data.ownTimesDemo = true;
+    if (S.data.menus[0]) seedOwnTimes(S.data.menus[0]);
+  }
 
   function defaultStoreGroups() {
     return C.menuStoreGroups.map((g) => ({ id: g.id, storeIds: null, newStores: true }));
@@ -481,7 +492,7 @@
     if (!m.channels) m.channels = ['web', 'mobile', 'kiosk'];
     if (!m.segments) m.segments = [];
     if (!m.publishedStoreIds) m.publishedStoreIds = m.status === 'draft' ? [] : menuStores(m).map((s) => s.id);
-    if (!m.ownTimesStoreIds) m.ownTimesStoreIds = S.data.menus[0] === m ? [...SEED_OWN_TIMES] : [];
+    if (!m.ownTimesStoreIds) m.ownTimesStoreIds = [];
     if (m.externalId == null) m.externalId = '';
     if (m.image === undefined) m.image = null;
     if (m.posExt === undefined) m.posExt = null;
@@ -576,6 +587,7 @@
       placements: {},
       ignored: {},
       oneGroupPerStore: true,
+      ownTimesDemo: true,
     };
     if (!S.data.pos.syncedAt) S.data.pos.syncedAt = Date.now() - 1000 * 60 * 18;
     if (src.menu) seedImported(src);
@@ -583,7 +595,7 @@
     S.data.menus.forEach((m) => {
       if (!m.image) m.image = posImageOf(m);
     });
-    S.data.menus[0].ownTimesStoreIds = [...SEED_OWN_TIMES];
+    seedOwnTimes(S.data.menus[0]);
   }
 
   function migratePosImages() {
@@ -789,6 +801,7 @@
           migratePosImages();
           migrateAirportStores();
           S.data.menus.forEach(migrateMenu);
+          migrateOwnTimesDemo();
           Object.values(S.data.entities.category).forEach(migrateCategory);
           Object.values(S.data.entities.product).forEach(migrateProduct);
           const fixPath = migrateChoiceProducts();

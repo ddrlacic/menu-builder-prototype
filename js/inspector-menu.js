@@ -143,39 +143,88 @@
     });
   }
 
-  const ownTimesStores = (m) => m.ownTimesStoreIds.map((id) => storeById.get(id)).filter(Boolean);
+  function ownTimesStores(m) {
+    const on = new Set(menuStores(m).map((s) => s.id));
+    return m.ownTimesStoreIds.filter((id) => on.has(id)).map((id) => storeById.get(id));
+  }
 
   function ownTimesNote(m) {
     const own = ownTimesStores(m);
     if (!own.length) return '';
     const few = own.length <= 3;
     const who = few ? `${listJoin(own.map((s) => s.name))} ${own.length === 1 ? 'has' : 'have'}` : `${own.length} of ${menuStores(m).length} stores have`;
-    return `${callout('info', `${esc(who)} their own serving times, so the menu’s times do not apply there. Change them on each store’s menu page.`)}${
-      few ? '' : '<div class="hint-actions"><button type="button" class="btn secondary sm" data-action="own-times-view">View stores</button></div>'
-    }`;
+    return `${callout('info', `${esc(who)} their own serving times, so the menu’s times do not apply there.`)}
+      <div class="hint-actions">
+        ${few ? '' : '<button type="button" class="btn secondary sm" data-action="own-times-view">View stores</button>'}
+        <button type="button" class="btn ghost sm" data-action="own-times-reset-all">Reset to menu times</button>
+      </div>`;
   }
 
-  function openOwnTimesStores(m) {
+  const ownTimesWho = (ids) => (ids.length === 1 ? storeById.get(ids[0]).name : plural(ids.length, 'store', 'stores'));
+
+  function confirmOwnTimesReset(m, ids, onCancel = closeModal) {
+    openModal({
+      title: `Reset ${ownTimesWho(ids)} to menu times?`,
+      body: `<p>Their own serving times are replaced with the menu’s. From then on, they follow the menu when its times change.</p>`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: onCancel },
+        { label: 'Reset to menu times', kind: 'primary', onClick: () => { closeModal(); resetOwnTimes(m, ids); } },
+      ],
+    });
+  }
+
+  function resetOwnTimes(m, ids) {
+    const gone = new Set(ids);
+    const ok = commit(() => {
+      m.ownTimesStoreIds = m.ownTimesStoreIds.filter((id) => !gone.has(id));
+    });
+    if (ok) toast(`${ownTimesWho(ids)} reset to menu times`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function openOwnTimesStores(m, sel = new Set(), query = '') {
     openModal({
       title: 'Stores with own serving times',
-      body: `<p>The menu’s serving times do not apply at these stores. Change them on each store’s menu page.</p>
+      body: `<p>The menu’s serving times do not apply at these stores. Edit a store’s times on its menu page, or reset stores to the menu’s times here.</p>
         <label class="search-field">${icon('search', 15)}<span class="sr-only">Search by store or city</span>
-          <input id="ot-search" type="search" placeholder="Search by store or city" autocomplete="off"></label>
+          <input id="ot-search" type="search" placeholder="Search by store or city" autocomplete="off" value="${esc(query)}"></label>
         <div id="ot-list"></div>`,
-      actions: [{ label: 'Close', kind: 'secondary', onClick: closeModal }],
+      foot: '<div class="modal-foot" id="ot-foot"></div>',
     });
-    T.ot = { menuId: m.id, query: '' };
+    T.ot = { menuId: m.id, query, sel };
     renderOwnTimesStores();
     $('#ot-search').focus();
   }
 
+  function ownTimesShown() {
+    const q = T.ot.query.trim().toLowerCase();
+    return ownTimesStores(S.data.menus.find((x) => x.id === T.ot.menuId)).filter((s) => !q || s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q));
+  }
+
   function renderOwnTimesStores() {
     if (!T.ot || !$('#ot-list')) return;
-    const q = T.ot.query.trim().toLowerCase();
-    const list = ownTimesStores(S.data.menus.find((x) => x.id === T.ot.menuId)).filter((s) => !q || s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q));
+    const { sel } = T.ot;
+    const list = ownTimesShown();
+    const box = (on) => `<span class="check${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span>`;
+    const n = list.filter((s) => sel.has(s.id)).length;
+    const allOn = n === list.length;
     $('#ot-list').innerHTML = list.length
-      ? `<div class="store-list">${list.map((s) => `<div class="store-row"><span class="store-name">${esc(s.name)}</span><span class="ms-city">${esc(s.city)}</span></div>`).join('')}</div>`
+      ? `<div class="ms-tree ot-tree">
+          <button type="button" class="ms-row ms-all" role="checkbox" aria-checked="${allOn ? 'true' : n ? 'mixed' : 'false'}" data-action="ot-all" data-on="${allOn ? 0 : 1}"><span class="check${n ? ' is-on' : ''}" aria-hidden="true">${allOn ? icon('check', 12) : n ? icon('minus', 12) : ''}</span>Select all</button>
+          <div class="ms-stores">${list
+            .map((s) => `<button type="button" class="ms-row" role="checkbox" aria-checked="${sel.has(s.id)}" data-action="ot-store" data-id="${s.id}">${box(sel.has(s.id))}<span class="ms-name">${esc(s.name)}</span><span class="ms-city">${esc(s.city)}</span></button>`)
+            .join('')}</div>
+        </div>`
       : '<div class="empty-small"><strong>No stores match</strong><span>Check the spelling or search by city.</span></div>';
+    $('#ot-foot').innerHTML = `<button type="button" class="btn secondary" data-modal-close>Close</button>
+      <button type="button" class="btn primary" data-action="ot-reset"${sel.size ? '' : ' disabled'}>Reset to menu times</button>`;
+  }
+
+  function resetSelectedOwnTimes() {
+    const { menuId, sel, query } = T.ot;
+    const m = S.data.menus.find((x) => x.id === menuId);
+    const ids = ownTimesStores(m).map((s) => s.id).filter((id) => sel.has(id));
+    if (!ids.length) return;
+    confirmOwnTimesReset(m, ids, () => openOwnTimesStores(m, sel, query));
   }
 
   function menuStoresTab(m) {

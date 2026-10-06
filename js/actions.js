@@ -245,6 +245,24 @@
       case 'own-times-view':
         openOwnTimesStores(activeMenu());
         break;
+      case 'own-times-reset-all': {
+        const m = activeMenu();
+        confirmOwnTimesReset(m, ownTimesStores(m).map((s) => s.id));
+        break;
+      }
+      case 'ot-store':
+        T.ot.sel.has(el.dataset.id) ? T.ot.sel.delete(el.dataset.id) : T.ot.sel.add(el.dataset.id);
+        renderOwnTimesStores();
+        break;
+      case 'ot-all': {
+        const on = el.dataset.on === '1';
+        ownTimesShown().forEach((s) => (on ? T.ot.sel.add(s.id) : T.ot.sel.delete(s.id)));
+        renderOwnTimesStores();
+        break;
+      }
+      case 'ot-reset':
+        resetSelectedOwnTimes();
+        break;
       case 'menu-manage-stores':
         openManageStores(activeMenu());
         break;
