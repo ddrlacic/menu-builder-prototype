@@ -15,6 +15,16 @@
     select(row.dataset.path);
   });
 
+  document.addEventListener('beforeinput', (e) => {
+    const t = e.target;
+    const type = t.dataset && t.dataset.type;
+    if (type !== 'int' && type !== 'num') return;
+    const data = e.data != null ? e.data : e.dataTransfer ? e.dataTransfer.getData('text/plain') : null;
+    if (data == null) return;
+    const next = t.value.slice(0, t.selectionStart) + data + t.value.slice(t.selectionEnd);
+    if (!(type === 'int' ? /^\d*$/ : /^\d*\.?\d*$/).test(next)) e.preventDefault();
+  });
+
   document.addEventListener('input', (e) => {
     const t = e.target;
     if (t.id === 'pos-search') {
@@ -25,11 +35,6 @@
     }
     if (t.id === 'canvas-search') {
       S.ui.canvasQuery = t.value;
-      render();
-      return;
-    }
-    if (t.id === 'allergen-filter') {
-      T.allergenQuery = t.value;
       render();
       return;
     }

@@ -153,8 +153,8 @@
     return section(
       'Quantity limits',
       `<div class="grid-2">
-        ${field('Minimum', inputNum(pb('minQty'), p.minQty, { int: true, id: 'p-min', min: 1, max: QTY_MAX, placeholder: 'No limit' }), { id: 'p-min', error: qtyError(p.minQty) })}
-        ${field('Maximum', inputNum(pb('maxQty'), p.maxQty, { int: true, id: 'p-max', min: 1, max: QTY_MAX, placeholder: 'No limit' }), { id: 'p-max', error: maxErr })}
+        ${field('Minimum', inputNum(pb('minQty'), p.minQty, { int: true, id: 'p-min', placeholder: 'No limit' }), { id: 'p-min', error: qtyError(p.minQty) })}
+        ${field('Maximum', inputNum(pb('maxQty'), p.maxQty, { int: true, id: 'p-max', placeholder: 'No limit' }), { id: 'p-max', error: maxErr })}
       </div>
       ${
         hasLimit
@@ -463,25 +463,22 @@
     }
 
     if (tab === 'dietary') {
-      const q = T.allergenQuery.trim().toLowerCase();
-      const allergenOpts = C.allergens.map((a) => [a, allergenLabel(a)]).filter(([, l]) => !q || l.toLowerCase().includes(q));
       const nut = p.nutrition || {};
-      const allergens =
-        p.ptype === 'container'
-          ? ''
-          : section(
-          'Allergens',
-          `<div class="allergen-head">
-            <label class="search-field sm">${icon('search', 14)}<span class="sr-only">Filter allergens</span>
-              <input id="allergen-filter" type="search" data-focus-key="allergen-filter" placeholder="Filter ${C.allergens.length} allergens" value="${esc(T.allergenQuery)}" autocomplete="off"></label>
-            <span class="count tnum">${p.allergens.length} selected</span>
-          </div>
-          ${allergenOpts.length ? chips(pb('allergens'), p.allergens, allergenOpts) : '<p class="field-help">No allergens match. Check the spelling.</p>'}`,
-          { desc: p.allergens.length ? `Contains ${esc(listJoin(p.allergens.map((a) => allergenLabel(a).toLowerCase())))}.` : 'Shown to customers on the product and in the cart.' },
-        );
+      const lowerAllergens = (list) => listJoin(list.map((a) => allergenLabel(a).toLowerCase()));
+      const choiceAllergens = p.ptype === 'size' ? choiceAllergensMissing(p) : [];
+      const allergens = section(
+        'Allergens',
+        chips(pb('allergens'), p.allergens, C.allergens.map((a) => [a, allergenLabel(a)])) +
+          (choiceAllergens.length
+            ? `<div class="suggest-row"><span class="field-help">Choices contain ${esc(lowerAllergens(choiceAllergens))}.</span>
+                <button type="button" class="btn secondary sm" data-action="add-choice-allergens">Add to ${esc(nameOf('product', p))}</button></div>`
+            : ''),
+        { desc: p.allergens.length ? `Contains ${esc(lowerAllergens(p.allergens))}.` : 'Listed in the product details in Web App and Kiosk, and sent to delivery partners.' },
+      );
       return (
+        (p.ptype === 'size' ? callout('info', `Customers see these on ${esc(nameOf('product', p))} before they pick a choice. Each choice keeps its own. Set nutrition facts on each choice.`) : '') +
         section('Food type', segmented(pb('foodType'), p.foodType || '', [['', 'None'], ...C.foodTypes.slice().reverse()]), {
-          desc: 'Shown to customers as a badge on the product.',
+          desc: 'Customers see it as a tag on the product. Also sent to delivery partners.',
         }) +
         allergens +
         section(
@@ -489,26 +486,31 @@
           field('Calories', range(pb('caloriesFrom'), p.caloriesFrom, pb('caloriesTo'), p.caloriesTo, 'Cal', 'p-cal'), {
             id: 'p-cal',
             error: rangeError(p.caloriesFrom, p.caloriesTo),
-            help: 'Leave the second value empty for a single value.',
           }) +
-            field('Serves', range(pb('servingFrom'), p.servingFrom, pb('servingTo'), p.servingTo, 'people', 'p-serv', { min: 1 }), {
+            field('Serves', range(pb('servingFrom'), p.servingFrom, pb('servingTo'), p.servingTo, 'people', 'p-serv'), {
               id: 'p-serv',
               error: rangeError(p.servingFrom, p.servingTo, 1),
+              help: 'Shown only for catering orders in Web App.',
             }),
         ) +
         section(
           'Alcohol',
-          toggle(pb('isAlcoholic'), p.isAlcoholic, { label: 'Contains alcohol', help: 'Customers see an Alcohol tag on the product.' }) +
+          toggle(pb('isAlcoholic'), p.isAlcoholic, { label: 'Contains alcohol', help: 'Customers see an Alcohol tag on the product. Also sent to delivery partners.' }) +
             (p.isAlcoholic
-              ? field('Alcohol by volume', inputNum(pb('alcoholVol'), p.alcoholVol, { suffix: '%', id: 'p-abv', max: 100 }), {
+              ? field('Alcohol by volume', inputNum(pb('alcoholVol'), p.alcoholVol, { suffix: '%', id: 'p-abv' }), {
                   id: 'p-abv',
                   help: 'From 0 to 100%.',
                 })
               : ''),
         ) +
-        section(
+        (p.ptype === 'size'
+          ? ''
+          : section(
           'Nutrition facts',
-          toggle(pb('nutrition.active'), nut.active, { label: 'Nutrition facts', help: 'Show macronutrients per serving.' }) +
+          toggle(pb('nutrition.active'), nut.active, {
+            label: 'Nutrition facts',
+            help: 'Per serving. Customers see them in the product details in Web App. Kiosk and delivery partners don’t show them.',
+          }) +
             (nut.active
               ? `<div class="grid-2">${[
                   ['protein', 'Protein'],
@@ -520,7 +522,7 @@
                   .map(([k, l]) => field(l, inputNum(pb(`nutrition.${k}`), nut[k], { suffix: 'g', id: `p-n-${k}`, int: true }), { id: `p-n-${k}` }))
                   .join('')}</div>`
               : ''),
-        )
+        ))
       );
     }
 

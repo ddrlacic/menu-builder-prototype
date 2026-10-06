@@ -150,14 +150,14 @@
     const bindOf = (k) => (fromPos ? gb(`ruleOverrides.${k}`) : gb(k));
     const posText = (k) => (k === 'max' && posR.max == null ? 'no limit' : posR[k]);
     const cells = [
-      ['Minimum', 'min', 'g-min', 0, '0 makes the group optional.'],
-      ['Maximum', 'max', 'g-max', 1, 'Leave it empty for no limit.'],
-      ['Per option', 'maxSingle', 'g-single', 1, 'Times the same option can be picked.'],
-      ['Free choices', 'freeCount', 'g-free', 0, 'Included in the price.'],
+      ['Minimum', 'min', 'g-min', '0 makes the group optional.'],
+      ['Maximum', 'max', 'g-max', 'Leave it empty for no limit.'],
+      ['Per option', 'maxSingle', 'g-single', 'Times the same option can be picked.'],
+      ['Free choices', 'freeCount', 'g-free', 'Included in the price.'],
     ];
     const grid = cells
-      .map(([l, k, id, min, help]) =>
-        field(l, inputNum(bindOf(k), rawRule(g, k), { int: true, id, min, max: QTY_MAX, placeholder: k === 'max' ? 'No limit' : '' }), {
+      .map(([l, k, id, help]) =>
+        field(l, inputNum(bindOf(k), rawRule(g, k), { int: true, id, placeholder: k === 'max' ? 'No limit' : '' }), {
           id,
           help: fromPos && hasOwn(g.ruleOverrides, k) ? `POS: ${posText(k)}. ${help}` : help,
           error: errs[k],
@@ -239,7 +239,7 @@
       help: 'Customers see this name in this group. Leave it empty to use the product name.',
     });
     if (rules.type === 1 && !folder && max !== 1)
-      body += field('Max per option', inputNum(gb(`optionSettings.${pid}.maxQty`), s.maxQty, { int: true, id: `g-om-${pid}`, min: 1, max: max != null ? max : QTY_MAX, placeholder: String(rules.maxSingle) }), {
+      body += field('Max per option', inputNum(gb(`optionSettings.${pid}.maxQty`), s.maxQty, { int: true, id: `g-om-${pid}`, placeholder: String(rules.maxSingle) }), {
         id: `g-om-${pid}`,
         error: optionMaxError(s.maxQty, max),
         help: `Times customers can pick this option. Leave it empty to use the group setting (${rules.maxSingle}).`,

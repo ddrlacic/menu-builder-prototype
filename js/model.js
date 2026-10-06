@@ -35,6 +35,11 @@
   const choiceProductsHolding = (category, pid) =>
     category.children.map((c) => entity('product', c)).filter((p) => p && p.ptype === 'size' && p.id !== pid && p.children.includes(pid));
 
+  function choiceAllergensMissing(p) {
+    const inChoices = new Set(p.children.flatMap((cid) => (entity('product', cid) || { allergens: [] }).allergens));
+    return C.allergens.filter((a) => inChoices.has(a) && !p.allergens.includes(a));
+  }
+
   function choiceProductCategoryPaths(choiceProductPath) {
     const info = parsePath(choiceProductPath);
     const menu = menuById(info.menuId);

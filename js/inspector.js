@@ -46,10 +46,10 @@
     return multiline ? `<textarea ${attrs} rows="${rows}">${esc(value || '')}</textarea>` : `<input type="text" ${attrs} value="${esc(value || '')}">`;
   }
 
-  function inputNum(bind, value, { id = '', prefix = '', suffix = '', int = false, min = 0, max = null, placeholder = '', disabled = false, label = '' } = {}) {
+  function inputNum(bind, value, { id = '', prefix = '', suffix = '', int = false, placeholder = '', disabled = false, label = '' } = {}) {
     return `<div class="input-affix${disabled ? ' is-disabled' : ''}">
       ${prefix ? `<span class="affix">${prefix}</span>` : ''}
-      <input type="number" ${id ? `id="${id}"` : ''} class="input tnum" inputmode="${int ? 'numeric' : 'decimal'}" data-bind="${esc(bind)}" data-type="${int ? 'int' : 'num'}" data-focus-key="${esc(bind)}" step="${int ? 1 : 0.01}" min="${min}"${max != null ? ` max="${max}"` : ''}${label ? ` aria-label="${esc(label)}"` : ''} value="${isNum(value) ? value : ''}" placeholder="${esc(placeholder)}" ${disabled ? 'disabled' : ''}>
+      <input type="text" ${id ? `id="${id}"` : ''} class="input tnum" inputmode="${int ? 'numeric' : 'decimal'}" autocomplete="off" data-bind="${esc(bind)}" data-type="${int ? 'int' : 'num'}" data-focus-key="${esc(bind)}"${label ? ` aria-label="${esc(label)}"` : ''} value="${isNum(value) ? value : ''}" placeholder="${esc(placeholder)}" ${disabled ? 'disabled' : ''}>
       ${suffix ? `<span class="affix">${suffix}</span>` : ''}
     </div>`;
   }
@@ -99,8 +99,13 @@
     </div>`;
   }
 
-  function range(bindFrom, vFrom, bindTo, vTo, suffix, idFrom, { min = 0 } = {}) {
-    return `<div class="range">${inputNum(bindFrom, vFrom, { int: true, id: idFrom, min })}<span class="range-sep">–</span>${inputNum(bindTo, vTo, { int: true, suffix, min, label: 'Up to' })}</div>`;
+  function range(bindFrom, vFrom, bindTo, vTo, suffix, idFrom) {
+    if (isNum(vTo)) T.rangeOpen.add(bindTo);
+    const on = T.rangeOpen.has(bindTo);
+    const inputs = on
+      ? `<div class="range">${inputNum(bindFrom, vFrom, { int: true, id: idFrom, suffix, placeholder: 'From' })}<span class="range-sep">–</span>${inputNum(bindTo, vTo, { int: true, suffix, placeholder: 'To', label: 'To' })}</div>`
+      : inputNum(bindFrom, vFrom, { int: true, id: idFrom, suffix });
+    return `${inputs}<button type="button" class="check-toggle range-toggle" role="checkbox" aria-checked="${on}" data-action="range-toggle" data-bind="${esc(bindTo)}"><span class="check${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span>Enter as range</button>`;
   }
 
   const section = (title, body, { desc = '' } = {}) =>
@@ -256,7 +261,7 @@
       return section(
         'Option folder',
         callout('info', 'An option that opens more options, like Sauces inside Toppings. POS gets only what customers pick inside, as part of the product above it.', 'dashed') +
-          `<p class="field-help">Not available on option folders: price, POS ID, allergens, modifier codes, included ingredients, substitutes, half and whole, upsell, and cross-sell. Option folders go only in product groups, not in categories.</p>`,
+          `<p class="field-help">Not available on option folders: price, POS ID, dietary info, modifier codes, included ingredients, substitutes, half and whole, upsell, and cross-sell. Option folders go only in product groups, not in categories.</p>`,
       );
     if (kind === 'product' && ent.ptype === 'size')
       return section(
@@ -298,6 +303,7 @@
     }
     const tabs = [['general', 'General'], ['dietary', 'Dietary'], ['ordering', 'Ordering'], ['availability', 'Availability'], ['advanced', 'Advanced']];
     if (ent.ptype === 'size') tabs.splice(1, 0, ['choices', 'Choices']);
+    if (ent.ptype === 'container') return tabs.filter((t) => t[0] !== 'dietary');
     return tabs;
   }
 

@@ -207,7 +207,6 @@
           name: 'Double Smash Burger',
           price: 15,
           description: 'Two crispy-edged patties, onions, and pickles.',
-          allergens: ['milk', 'wheat'],
           children: ['pos-g-temp', 'pos-g-side'],
         };
         items['pos-cat-burgers'].children.push('pos-smash');

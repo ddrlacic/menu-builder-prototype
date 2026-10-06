@@ -27,7 +27,6 @@
     posScrollTo: null,
     focusName: false,
     focusRow: null,
-    allergenQuery: '',
     storeQuery: '',
     storeKey: null,
     segmentDraft: null,
@@ -39,6 +38,7 @@
     catOnlyHidden: false,
     menuQuery: '',
     showSelectedMenus: false,
+    rangeOpen: new Set(),
   };
   let ctx = null;
 
@@ -149,6 +149,9 @@
     ...o,
   });
 
+  const DIETARY_KEYS = ['foodType', 'allergens', 'caloriesFrom', 'caloriesTo', 'servingFrom', 'servingTo', 'isAlcoholic', 'alcoholVol', 'nutrition'];
+  const dietaryOf = (p) => JSON.parse(JSON.stringify(Object.fromEntries(DIETARY_KEYS.map((k) => [k, p[k]]))));
+
   const foodTypeFrom = (list) => ((list || []).includes('vegan') ? 'vegan' : (list || []).includes('vegetarian') ? 'vegetarian' : null);
 
   const ALLERGEN_MIGRATION = {
@@ -176,6 +179,7 @@
     delete p.isSelfServing;
     const d = productDefaults();
     for (const k of Object.keys(d)) if (p[k] === undefined) p[k] = d[k];
+    if (p.ptype === 'container') Object.assign(p, dietaryOf(d));
     if (!p.stores) p.stores = {};
     for (const [sid, v] of Object.entries(p.stores)) if (v === 'disabled') p.stores[sid] = 'hidden';
   }
@@ -592,10 +596,6 @@
         ...base,
         image: item.image || null,
         originCategoryExt: posCategoriesOf(posId)[0] || null,
-        allergens: migrateAllergens(item.allergens),
-        foodType: foodTypeFrom(item.foodTypes),
-        isAlcoholic: !!item.isAlcoholic,
-        caloriesFrom: isNum(item.calories) ? item.calories : null,
       });
     else
       ent = newGroup({
@@ -819,6 +819,7 @@
     const airports = STORES.filter((s) => s.airport);
     prod('pos-ipa').stores = { [airports[0].id]: 'out_of_stock', [airports[1].id]: 'oos_eod', [airports[2].id]: 'oos_eod' };
     prod('pos-m-avocado').stores = { [STORES[41].id]: 'hidden' };
+    for (const [ext, fields] of Object.entries(DATASETS.example.products || {})) if (prod(ext)) Object.assign(prod(ext), fields);
   }
 
   function defaultUi() {

@@ -113,7 +113,7 @@
         }
         if (qtyError(ent.minQty) || qtyError(ent.maxQty)) pAdd('error', `${name}: quantity limits need whole numbers from 1 to ${QTY_MAX}`, 'ordering');
         else if (isNum(ent.minQty) && isNum(ent.maxQty) && ent.maxQty < ent.minQty) pAdd('error', `${name}: maximum quantity is lower than the minimum`, 'ordering');
-        if (ent.isAlcoholic && !isNum(ent.alcoholVol)) pAdd('warning', `${name}: alcohol percentage is missing`, 'dietary');
+        if (ent.isAlcoholic && !isNum(ent.alcoholVol)) pAdd('warning', `${name} contains alcohol but has no alcohol by volume, so Skip The Dishes gets 0%`, 'dietary');
         if (rangeError(ent.caloriesFrom, ent.caloriesTo) || rangeError(ent.servingFrom, ent.servingTo, 1)) pAdd('error', `${name}: fix the calories or serves range`, 'dietary');
         if (ent.isModifierCodeRequired && ent.modifierCodes.length && ent.modifierCodes.every((c) => hiddenCodesAt(path).includes(c)))
           add(path, 'error', `${name}: a modifier code is required, but all codes are hidden here`, undefined, 'ordering');

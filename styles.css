@@ -2043,6 +2043,10 @@ input[type='number']::-webkit-inner-spin-button {
   color: var(--ink-3);
 }
 
+.range-toggle {
+  align-self: flex-start;
+}
+
 .scope {
   display: inline-flex;
   align-items: center;
@@ -3339,24 +3343,6 @@ input[type='number']::-webkit-inner-spin-button {
   }
 }
 
-/* allergens */
-
-.allergen-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.allergen-head .search-field {
-  flex: 1;
-}
-
-.count {
-  font-size: var(--text-xs);
-  color: var(--ink-3);
-  white-space: nowrap;
-}
-
 /* image */
 
 .dropzone {
@@ -3429,7 +3415,8 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: flex-start;
 }
 
-.pos-image {
+.pos-image,
+.suggest-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -3439,7 +3426,8 @@ input[type='number']::-webkit-inner-spin-button {
   background: var(--sunken);
 }
 
-.pos-image .field-help {
+.pos-image .field-help,
+.suggest-row .field-help {
   flex: 1 1 auto;
 }
 

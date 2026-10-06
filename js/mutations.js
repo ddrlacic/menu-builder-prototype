@@ -208,7 +208,7 @@
   function openLinkedProductPicker(categoryPath) {
     openPicker({
       title: 'Create custom version',
-      intro: 'Choose the POS product it rings up as. The custom version gets its own name, image, and preselected options, and always uses that product’s POS price.',
+      intro: 'Choose the POS product it rings up as. The custom version gets its own name, image, and preselected options, and always uses that product’s POS price. It starts with that product’s description and dietary info.',
       placeholder: 'Search by product name or POS ID',
       items: posProductChoices(),
       onPick: (posId) => {
@@ -224,8 +224,7 @@
               posParentExt: posId,
               name: `${posLabel(posId)} (copy)`,
               description: source ? source.description : parentItem.description || '',
-              allergens: [...(source ? source.allergens : parentItem.allergens || [])],
-              foodType: source ? source.foodType : foodTypeFrom(parentItem.foodTypes),
+              ...(source ? dietaryOf(source) : {}),
             }),
           );
         });

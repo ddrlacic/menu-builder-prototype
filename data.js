@@ -16,25 +16,18 @@ window.POS_SEED = (() => {
 
   prd('pos-truffle', 'Signature Truffle Burger', 18.5, {
     description: 'Wagyu patty, truffle aioli, aged gruyère, and caramelized onions on a brioche bun.',
-    allergens: ['milk', 'wheat', 'eggs'],
-    calories: 980,
     children: ['pos-g-temp', 'pos-g-side', 'pos-g-addons', 'pos-g-sauce'],
   });
   prd('pos-cheeseburger', 'Classic Cheeseburger', 14, {
     description: 'Two smashed patties, American cheese, pickles, and house sauce.',
-    allergens: ['milk', 'wheat', 'sesame'],
-    calories: 860,
     children: ['pos-g-temp', 'pos-g-side', 'pos-g-addons', 'pos-g-sauce'],
   });
   prd('pos-mushroom-swiss', 'Mushroom Swiss Burger', 15.5, {
     description: 'Roasted cremini mushrooms, Swiss cheese, and garlic mayo.',
-    allergens: ['milk', 'wheat', 'eggs'],
     children: ['pos-g-side', 'pos-g-addons'],
   });
   prd('pos-beyond', 'Beyond Burger', 16, {
     description: 'Plant-based patty with vegan cheddar and smoky tomato jam.',
-    allergens: ['wheat', 'soybeans'],
-    foodTypes: ['vegan'],
     children: ['pos-g-side'],
   });
 
@@ -62,27 +55,23 @@ window.POS_SEED = (() => {
   grp('pos-g-addons', 'Burger Add-ons', 1, 0, 4, ['pos-m-bacon', 'pos-m-avocado', 'pos-m-egg', 'pos-m-cheese']);
   prd('pos-m-bacon', 'Applewood Bacon', 2.5);
   prd('pos-m-avocado', 'Avocado', 2);
-  prd('pos-m-egg', 'Fried Egg', 1.5, { allergens: ['eggs'] });
+  prd('pos-m-egg', 'Fried Egg', 1.5);
 
   grp('pos-g-sauce', 'Sauces', 1, 0, 3, ['pos-m-ketchup', 'pos-m-aioli', 'pos-m-chipotle']);
   prd('pos-m-ketchup', 'Ketchup', 0);
-  prd('pos-m-aioli', 'Truffle Aioli', 0.75, { allergens: ['eggs'] });
-  prd('pos-m-chipotle', 'Chipotle Mayo', 0.5, { allergens: ['eggs'] });
+  prd('pos-m-aioli', 'Truffle Aioli', 0.75);
+  prd('pos-m-chipotle', 'Chipotle Mayo', 0.5);
 
   prd('pos-byo-pizza', 'Build Your Own Pizza', 12, {
     description: 'Start with our 48-hour dough and make it yours.',
-    allergens: ['milk', 'wheat'],
     children: ['pos-g-size-pizza', 'pos-g-crust', 'pos-g-toppings'],
   });
   prd('pos-margherita', 'Margherita', 14, {
     description: 'San Marzano tomato, fior di latte, basil, and olive oil.',
-    allergens: ['milk', 'wheat'],
-    foodTypes: ['vegetarian'],
     children: ['pos-g-size-pizza'],
   });
   prd('pos-pepperoni-pizza', 'Pepperoni Pizza', 15, {
     description: 'Cup-and-char pepperoni with hot honey.',
-    allergens: ['milk', 'wheat'],
     children: ['pos-g-size-pizza'],
   });
 
@@ -121,35 +110,32 @@ window.POS_SEED = (() => {
   grp('pos-g-combo-drink', 'Choose Your Drink', 3, 1, 1, ['pos-lemonade-s', 'pos-iced-tea-s', 'pos-sparkling'],
     { childPrices: { 'pos-lemonade-s': 0, 'pos-iced-tea-s': 0, 'pos-sparkling': 0 } });
 
-  prd('pos-fries', 'FF REG', 4.5, { calories: 420 });
-  prd('pos-onion-rings', 'ONION RNGS', 5.5, { allergens: ['wheat', 'milk'] });
+  prd('pos-fries', 'FF REG', 4.5);
+  prd('pos-onion-rings', 'ONION RNGS', 5.5);
   prd('pos-caesar', 'Caesar Salad', 8, {
     description: 'Little gem, parmesan, garlic croutons.',
-    allergens: ['eggs', 'fish', 'milk', 'wheat'],
     children: ['pos-g-dressing'],
   });
-  prd('pos-mac', 'MAC N CHS', 6, { allergens: ['milk', 'wheat'], foodTypes: ['vegetarian'] });
+  prd('pos-mac', 'MAC N CHS', 6);
 
-  prd('pos-lemonade-s', 'SML LMNADE', 3, { calories: 120, foodTypes: ['vegan'] });
-  prd('pos-lemonade-l', 'LRG LMNADE', 4.5, { calories: 210, foodTypes: ['vegan'] });
-  prd('pos-iced-tea-s', 'SML ICD TEA', 2.75, { foodTypes: ['vegan'] });
-  prd('pos-iced-tea-l', 'LRG ICD TEA', 4, { foodTypes: ['vegan'] });
-  prd('pos-ipa', 'IPA DRFT 16OZ', 7.5, { isAlcoholic: true });
-  prd('pos-sparkling', 'SPRKLNG WTR', 3, { foodTypes: ['vegan'] });
+  prd('pos-lemonade-s', 'SML LMNADE', 3);
+  prd('pos-lemonade-l', 'LRG LMNADE', 4.5);
+  prd('pos-iced-tea-s', 'SML ICD TEA', 2.75);
+  prd('pos-iced-tea-l', 'LRG ICD TEA', 4);
+  prd('pos-ipa', 'IPA DRFT 16OZ', 7.5);
+  prd('pos-sparkling', 'SPRKLNG WTR', 3);
 
   prd('pos-lava-cake', 'Chocolate Lava Cake', 8, {
     description: 'Warm dark chocolate cake with a molten center.',
-    allergens: ['milk', 'eggs', 'wheat'],
-    foodTypes: ['vegetarian'],
     children: ['pos-g-scoop'],
   });
   grp('pos-g-scoop', 'Add a Scoop', 1, 0, 2, ['pos-m-vanilla', 'pos-m-whip']);
-  prd('pos-m-vanilla', 'Vanilla Ice Cream', 2, { allergens: ['milk'] });
-  prd('pos-m-whip', 'Whipped Cream', 1, { allergens: ['milk'] });
-  prd('pos-cheesecake', 'NY CHSCAKE', 7.5, { allergens: ['milk', 'eggs', 'wheat'] });
+  prd('pos-m-vanilla', 'Vanilla Ice Cream', 2);
+  prd('pos-m-whip', 'Whipped Cream', 1);
+  prd('pos-cheesecake', 'NY CHSCAKE', 7.5);
 
-  prd('pos-slider-platter', 'SLIDER PLTR 12CT', 48, { allergens: ['milk', 'wheat'] });
-  prd('pos-wrap-platter', 'WRAP PLTR', 42, { allergens: ['wheat'] });
+  prd('pos-slider-platter', 'SLIDER PLTR 12CT', 48);
+  prd('pos-wrap-platter', 'WRAP PLTR', 42);
 
   return {
     syncedAt: Date.now() - 1000 * 60 * 42,
@@ -165,6 +151,30 @@ window.POS_SEED = (() => {
     items,
   };
 })();
+
+window.EXAMPLE_PRODUCTS = {
+  'pos-truffle': { allergens: ['milk', 'wheat', 'eggs'], caloriesFrom: 980 },
+  'pos-cheeseburger': { allergens: ['milk', 'wheat', 'sesame'], caloriesFrom: 860 },
+  'pos-mushroom-swiss': { allergens: ['milk', 'wheat', 'eggs'] },
+  'pos-beyond': { allergens: ['wheat', 'soybeans'], foodType: 'vegan' },
+  'pos-m-egg': { allergens: ['eggs'] },
+  'pos-m-aioli': { allergens: ['eggs'] },
+  'pos-m-chipotle': { allergens: ['eggs'] },
+  'pos-margherita': { allergens: ['milk', 'wheat'], foodType: 'vegetarian' },
+  'pos-fries': { caloriesFrom: 420 },
+  'pos-lemonade-s': { caloriesFrom: 120, foodType: 'vegan' },
+  'pos-lemonade-l': { caloriesFrom: 210, foodType: 'vegan' },
+  'pos-iced-tea-s': { foodType: 'vegan' },
+  'pos-iced-tea-l': { foodType: 'vegan' },
+  'pos-ipa': { isAlcoholic: true },
+  'pos-sparkling': { foodType: 'vegan' },
+  'pos-lava-cake': { allergens: ['milk', 'eggs', 'wheat'], foodType: 'vegetarian' },
+  'pos-m-vanilla': { allergens: ['milk'] },
+  'pos-m-whip': { allergens: ['milk'] },
+  'pos-cheesecake': { allergens: ['milk', 'eggs', 'wheat'] },
+  'pos-slider-platter': { allergens: ['milk', 'wheat'] },
+  'pos-wrap-platter': { allergens: ['wheat'] },
+};
 
 window.MENU_SUGGESTIONS = {
   names: {

@@ -43,5 +43,5 @@ This prototype re-creates Management Center (MC) menu building with better UX. I
 - Top-level code that runs on load may only use names from the same or earlier files; functions called from handlers can live anywhere.
 - Reuse existing CSS tokens and helpers in `js/` before adding new ones.
 - No comments that narrate the code.
-- Verify in the browser: `python3 -m http.server 5178 --bind 127.0.0.1`, then open `http://127.0.0.1:5178/`.
+- The user verifies results in the browser. Do not open the prototype in the browser yourself; list what changed and what to check. Local server: `python3 -m http.server 5178 --bind 127.0.0.1`, then `http://127.0.0.1:5178/`.
 - Pushing to `main` publishes to https://ddrlacic.github.io/menu-builder-prototype/ within about a minute.

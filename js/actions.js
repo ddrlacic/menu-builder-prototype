@@ -392,6 +392,14 @@
       case 'add-choice':
         openPosProductPicker(S.ui.selected);
         break;
+      case 'add-choice-allergens': {
+        const p = entity('product', parsePath(S.ui.selected).id);
+        const add = choiceAllergensMissing(p);
+        if (!add.length) break;
+        commit(() => (p.allergens = [...p.allergens, ...add]));
+        toast(`${add.length === 1 ? 'Allergen' : `${add.length} allergens`} added to ${nameOf('product', p)}`, 'success', { action: { label: 'Undo', onClick: undo } });
+        break;
+      }
       case 'copy-to-choices':
         confirmCopyToChoices(entity('product', parsePath(S.ui.selected).id));
         break;
@@ -418,6 +426,18 @@
         T.showSelectedPlaces = !T.showSelectedPlaces;
         render();
         break;
+      case 'range-toggle': {
+        const bind = el.dataset.bind;
+        if (!T.rangeOpen.has(bind)) {
+          T.rangeOpen.add(bind);
+          render();
+          break;
+        }
+        T.rangeOpen.delete(bind);
+        if (isNum(getBind(bind))) commit(() => setBind(bind, null));
+        else render();
+        break;
+      }
       case 'place-toggle':
         toggleProductPlace(entity('product', parsePath(S.ui.selected).id), el.dataset.kind, el.dataset.id);
         break;
