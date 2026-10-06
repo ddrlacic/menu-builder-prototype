@@ -850,7 +850,7 @@
           const oldGroups = new Set(Object.values(S.data.entities.group).filter((g) => g.preselected === undefined).map((g) => g.id));
           Object.values(S.data.entities.group).forEach(migrateGroup);
           migratePreselections(oldGroups);
-          S.data.menus.forEach((m) => m.pricedKeys || (m.pricedKeys = menuPriceKeys(m)));
+          S.data.menus.forEach((m) => (m.pricedKeys = !m.publishedAt ? [] : m.pricedKeys || menuPriceKeys(m)));
           normalizeAll();
           S.ui = { ...defaultUi(), ...parsed.ui, posQuery: '', canvasQuery: '' };
           S.ui.selected = fixPath(S.ui.selected);
@@ -865,7 +865,6 @@
       /* fall through to seed */
     }
     seed();
-    S.data.menus.forEach((m) => (m.pricedKeys = menuPriceKeys(m)));
     normalizeAll();
     S.ui = defaultUi();
     focusPosCategory();

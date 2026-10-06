@@ -168,9 +168,11 @@ mark {
 /* ---------- layout ---------- */
 
 .app {
+  position: relative;
   display: grid;
   grid-template-rows: 52px 1fr;
   height: 100dvh;
+  overflow: clip;
 }
 
 .workspace {
@@ -518,6 +520,7 @@ mark {
 /* ---------- search ---------- */
 
 .search-field {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
