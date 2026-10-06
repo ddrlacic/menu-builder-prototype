@@ -90,6 +90,24 @@
 
   const crumbText = (path) => crumbs(path).map((c) => c.name).join(' › ');
 
+  function rootProductIndex(segs) {
+    let root = -1;
+    for (let i = 2; i < segs.length; i++) if (segs[i].startsWith('p:') && !segs[i - 1].startsWith('g:')) root = i;
+    return root;
+  }
+
+  function productScopePath(path) {
+    const segs = path.split('>');
+    const root = rootProductIndex(segs);
+    return root < 0 || root === segs.length - 1 ? path : `@>${segs.slice(root).join('>')}`;
+  }
+
+  function productScopeText(path) {
+    const all = crumbs(path);
+    const root = rootProductIndex(path.split('>'));
+    return `${all.slice(root < 0 ? 0 : root).map((c) => c.name).join(' › ')}, in every menu`;
+  }
+
   function walkMenu(menu, visit) {
     const seen = new Set();
     const rec = (kind, id, path, depth) => {
@@ -236,6 +254,8 @@
   }
 
   const groupHiddenCodes = (g, pid) => (g && g.optionSettings && g.optionSettings[pid] && g.optionSettings[pid].hiddenCodes) || [];
+
+  const productCodes = (p) => p.modifierCodes.map((v) => C.modifierCodes.find(([c]) => c === v)).filter(Boolean);
 
   const groupParents = (gid) => Object.values(S.data.entities.product).filter((p) => p.children.includes(gid));
 

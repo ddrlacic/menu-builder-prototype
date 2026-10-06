@@ -2,7 +2,6 @@
 
   function groupTab(tab, g, path) {
     const gb = (f) => `e|group|${g.id}|${f}`;
-    const here = crumbText(path);
     const rules = rulesOf(g);
     const fromPos = g.gtype === 'pos';
     if (tab === 'general') {
@@ -25,6 +24,7 @@
           { help: 'Each choice is added to the order as its own item. Link a POS group to ring up choices as its options instead.' },
         );
       return (
+        placementSection(path) +
         section(
           '',
           nameBlock('group', g, { error: lengthError(g.name, 'Add a group name') }) +
@@ -89,26 +89,8 @@
     }
     if (tab === 'substitutes') return groupSwapsSection(g, gb);
     if (tab === 'halves') return groupHalvesSection(g);
-    const pInfo = parsePath(parsePath(path).parentPath);
-    const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));
-    const pl = placement(path);
-    const lockHide = rules.min > 0 && !pl.hidden;
     const parents = groupParents(g.id);
     return (
-      section(
-        `In ${parentName}`,
-        positionField(path) +
-        toggle(`pl|${path}|hidden`, !pl.hidden, {
-          label: `Show in ${parentName}`,
-          scope: here,
-          disabled: lockHide,
-          help: lockHide
-            ? rules.fixed
-              ? 'Customers always pick one option in this group, so it cannot be hidden.'
-              : 'Required groups cannot be hidden. Set the minimum to 0 first.'
-            : 'Hide it here without removing it. Other places stay as they are.',
-        }),
-      ) +
       groupAppearsInSection(g, path) +
       metadataSection(g, 'group') +
       sourceSection('group', g, path) +
@@ -119,6 +101,24 @@
         <p class="field-help">${parents.length > 1 ? `Removes it from all ${parents.length} products that use it.` : 'Removes it and its settings.'} Its options are not deleted.</p>`,
       )
     );
+  }
+
+  function groupPlacementFields(g, path) {
+    const pInfo = parsePath(parsePath(path).parentPath);
+    const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));
+    const rules = rulesOf(g);
+    const pl = placement(path);
+    const lockHide = rules.min > 0 && !pl.hidden;
+    return toggle(`pl|${path}|hidden`, !pl.hidden, {
+      label: `Show in ${parentName}`,
+      scope: crumbText(path),
+      disabled: lockHide,
+      help: lockHide
+        ? rules.fixed
+          ? 'Customers always pick one option in this group, so it cannot be hidden.'
+          : 'Required groups cannot be hidden. Set the minimum to 0 first.'
+        : 'Hide it here without removing it. Other places stay as they are.',
+    });
   }
 
   function groupRulesSection(g, gb, rules) {
@@ -198,7 +198,7 @@
         if (auto) subs.push('Auto-added by POS');
         else if (folder) subs.push('Option folder');
         if (name !== nameOf('product', p)) subs.push(`Product: ${nameOf('product', p)}`);
-        if (preselectOverridden(op)) subs.push(`Preselects ${opl.preselected} here`);
+        if (preselectOverridden(op)) subs.push(`Preselects ${placement(productScopePath(op)).preselected} here`);
         const ps = priceStats(op);
         const noPrice = !folder && ps.missingStores.length && !isMissingOnPos(p) ? `No POS price at ${ps.missingStores.length === ps.total ? 'any store' : plural(ps.missingStores.length, 'store', 'stores')}` : '';
         const sub = [esc(subs.join(' · ')), noPrice && `<span class="tone-warning">${noPrice}</span>`].filter(Boolean).join(' · ');
@@ -232,7 +232,7 @@
     const s = g.optionSettings[pid] || {};
     const folder = p.ptype === 'container';
     const hidden = groupHiddenCodes(g, pid);
-    const codes = C.modifierCodes.filter(([v]) => p.modifierCodes.includes(v));
+    const codes = productCodes(p);
     let body = field('Name in this group', inputText(gb(`optionSettings.${pid}.name`), s.name, { id: `g-on-${pid}`, placeholder: nameOf('product', p) }), {
       id: `g-on-${pid}`,
       error: lengthError(s.name),

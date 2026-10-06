@@ -248,9 +248,9 @@
     });
   }
 
-  function categorizedProducts() {
+  function categorizedProducts(menus = S.data.menus) {
     const out = new Map();
-    S.data.menus.forEach((m) =>
+    menus.forEach((m) =>
       m.children.forEach((cid) => {
         const c = entity('category', cid);
         if (!c) return;
@@ -286,21 +286,23 @@
 
   function openProductListPicker(p, bind, title) {
     const chosen = getBind(bind) || [];
-    const items = [...categorizedProducts().entries()]
+    const name = nameOf('product', p);
+    const menus = S.data.menus.filter((m) => categorizedProducts([m]).has(p.id));
+    const items = [...categorizedProducts(menus).entries()]
       .map(([pid, cats]) => ({ pid, cats, x: entity('product', pid) }))
       .filter(({ pid, x }) => x && pid !== p.id && ['pos', 'linked'].includes(x.ptype) && !chosen.includes(pid))
       .map(({ pid, cats, x }) => ({ id: pid, name: nameOf('product', x), alt: x.internalName || '', meta: listJoin(cats.map((c) => nameOf('category', c))), price: '' }));
     openListPicker({
       title,
-      intro: 'Products from the categories in your menus.',
+      intro: `Products from the menus that have ${name}.`,
       items,
-      empty: 'Every product is already added',
+      empty: menus.length ? 'Every product is already added' : `Add ${name} to a category first`,
       onAdd: (pid) => setBind(bind, [...(getBind(bind) || []), pid]),
     });
   }
 
   function openIncludedPicker(p) {
-    const taken = new Set(p.included.map((it) => `${it.gid}:${it.pid}`));
+    const taken = new Set([...posIncluded(p), ...p.included].map((it) => `${it.gid}:${it.pid}`));
     openListPicker({
       title: 'Add included ingredients',
       intro: `Options from the groups of ${nameOf('product', p)}.`,

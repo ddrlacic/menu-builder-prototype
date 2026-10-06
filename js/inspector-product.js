@@ -163,18 +163,29 @@
             })
           : ''
       }`,
-      { desc: 'Limit how many customers can order.' },
+      { desc: 'Limit how many customers can order when they order it on its own in Web App and Kiosk, not as an option. Delivery partners do not get these limits.' },
     );
   }
 
   function modifierCodesSection(p) {
     const pb = productBind(p);
-    const enabled = C.modifierCodes.filter(([v]) => p.modifierCodes.includes(v));
+    const enabled = productCodes(p);
+    const order =
+      enabled.length > 1
+        ? field(
+            'Order',
+            `<div class="store-list">${enabled
+              .map(([, l], i) => `<div class="store-row list-row"><span class="store-name">${esc(l)}</span><span class="row-tools">${moveButtons(pb('modifierCodes'), i, enabled.length, l)}</span></div>`)
+              .join('')}</div>`,
+            { help: 'Customers see the codes in this order.' },
+          )
+        : '';
     return section(
       'Modifier codes',
       field('Codes', chips(pb('modifierCodes'), p.modifierCodes, C.modifierCodes), {
-        help: 'Let customers ask for none, less, more, or on the side when this is an option.',
+        help: 'Customers pick one when they choose this product as an option, like Extra or On the side. Codes come from your brand’s modifier codes.',
       }) +
+        order +
         toggle(pb('isModifierCodeRequired'), p.isModifierCodeRequired, {
           label: 'Require a modifier code',
           help: enabled.length ? 'Customers need a code to choose this option. One code is always preselected.' : 'Add a code first.',
@@ -214,21 +225,31 @@
         )
       : '';
     return section('Group sections', `${rows ? `<div class="segment-list">${rows}</div>` : ''}${addButton('section-add', 'Add section')}${groups}`, {
-      desc: p.sections.length ? 'Customers see the groups under these headings, in this order.' : 'Split the groups under headings, like Base and Toppings.',
+      desc: p.sections.length ? 'Customers see the groups under these headings, in this order. Only Web App shows headings.' : 'Split the groups under headings, like Base and Toppings. Only Web App shows headings.',
     });
   }
 
   function includedSection(p) {
     if (!p.children.length) return section('Included ingredients', '<p class="field-help">Add a group to this product first. Ingredients come from its groups.</p>');
     const pb = productBind(p);
+    const fromPos = posIncluded(p);
+    const label = (it) => {
+      const g = entity('group', it.gid);
+      const x = entity('product', it.pid);
+      return g && x ? `<span class="store-name list-name"><span>${esc(nameOf('product', x))}</span><span class="muted">${esc(nameOf('group', g))}</span></span>` : '';
+    };
+    const posRows = fromPos
+      .map(
+        (it) => `<div class="store-row list-row">${label(it)}<span class="row-tools"><span class="scope scope-pos" title="POS adds it automatically, so customers cannot remove it">${icon('lock', 11)}Locked by POS</span></span></div>`,
+      )
+      .join('');
     const rows = p.included
       .map((it, i) => {
-        const g = entity('group', it.gid);
         const x = entity('product', it.pid);
-        if (!g || !x) return '';
+        const head = label(it);
+        if (!head) return '';
         const name = nameOf('product', x);
-        return `<div class="store-row list-row">
-          <span class="store-name list-name"><span>${esc(name)}</span><span class="muted">${esc(nameOf('group', g))}</span></span>
+        return `<div class="store-row list-row">${head}
           <span class="row-tools">
             <button type="button" class="icon-btn sm${it.locked ? ' is-on' : ''}" data-toggle="${esc(pb(`included.${i}.locked`))}" aria-pressed="${!!it.locked}" aria-label="Lock ${esc(name)}" title="${it.locked ? 'Locked. Customers cannot remove it.' : 'Customers can remove it. Select to lock.'}">${icon(it.locked ? 'lock' : 'unlock', 14)}</button>
             ${moveButtons(pb('included'), i, p.included.length, name)}${removeButton(pb('included'), i, name)}
@@ -236,17 +257,20 @@
         </div>`;
       })
       .join('');
-    const nameErr = p.includedName.trim() ? lengthError(p.includedName) : 'Add a group name';
+    const any = fromPos.length || p.included.length;
     return section(
       'Included ingredients',
-      (p.included.length
-        ? field('Group name', inputText(pb('includedName'), p.includedName, { id: 'p-inc-name' }), { id: 'p-inc-name', error: nameErr, help: 'Customers see this name above the ingredients.' }) +
-          `<div class="store-list">${rows}</div>`
+      (any
+        ? field('Group name', inputText(pb('includedName'), p.includedName, { id: 'p-inc-name', placeholder: 'Included ingredients' }), {
+            id: 'p-inc-name',
+            error: lengthError(p.includedName),
+            help: 'Customers see this name above the ingredients. Leave it empty to show “Included ingredients”.',
+          }) + `<div class="store-list">${posRows}${rows}</div>`
         : '') + addButton('add-included', 'Add ingredient'),
       {
-        desc: p.included.length
-          ? 'Customers see these together at the top of the product. Locked ones cannot be removed.'
-          : 'Ingredients that come with the product, like the patty and bun. Customers see them together at the top of the product.',
+        desc: any
+          ? 'When Group included ingredients is on in your brand’s configurations, Web App shows these together at the top of the product. Otherwise they stay in their groups. Locked ones cannot be removed.'
+          : 'Ingredients that come with the product, like the patty and bun. Options that POS adds automatically show here too.',
       },
     );
   }
@@ -290,7 +314,7 @@
       },
     );
     return section('Substitutes', `<div class="opt-cards">${cards}</div>`, {
-      desc: 'Let customers swap an option for another, like fries for a salad. Substitutes set on a group apply here unless you change them for this product.',
+      desc: 'Let customers swap an option for another, like fries for a salad. Substitutes set on a group apply here unless you change them for this product. Only Web App supports this.',
     });
   }
 
@@ -327,7 +351,7 @@
       },
     );
     return section('Half and whole', `<div class="opt-cards">${cards}</div>`, {
-      desc: 'Let customers put a topping on the left half, the right half, or the whole product. Halves set on a POS group apply here unless you change them for this product.',
+      desc: 'Let customers put a topping on the left half, the right half, or the whole product. Halves set on a POS group apply here unless you change them for this product. Only Web App supports this.',
     });
   }
 
@@ -343,7 +367,7 @@
       }) +
         productList(pb('upsell.products'), p.upsell.products, 'No products yet.') +
         addButton('pick-products', 'Add products', `data-bind="${esc(pb('upsell.products'))}" data-title="Add upsell products"`),
-      { desc: 'Offer these products, like a combo, after customers add this one.' },
+      { desc: 'When customers open this product, Web App and Kiosk offer these instead, like a combo. Customers can still carry on with this product. Delivery partners do not get upsells.' },
     );
   }
 
@@ -352,7 +376,7 @@
     return section(
       'Cross-sell',
       productList(pb('crossSell'), p.crossSell, 'No products yet.') + addButton('pick-products', 'Add products', `data-bind="${esc(pb('crossSell'))}" data-title="Add cross-sell products"`),
-      { desc: 'Suggest extra products when customers add this one. Applies in every menu.' },
+      { desc: 'When customers open this product, Web App suggests these under People also added. Individual product suggestions needs to be on in your brand’s cross-sell settings. Applies in every menu.' },
     );
   }
 
@@ -369,18 +393,63 @@
     );
   }
 
-  function productTab(tab, p, path) {
-    const pb = productBind(p);
+  function productPlacementFields(p, path) {
     const info = parsePath(path);
     const parent = parsePath(info.parentPath);
     const parentEnt = entity(parent.kind, parent.id);
     const parentName = nameOf(parent.kind, parentEnt);
-    const inGroup = parent.kind === 'group';
+    const inChoice = parent.kind === 'product' && parentEnt.ptype === 'size';
+    const menuName = nameOf('menu', menuById(info.menuId));
     const pl = placement(path);
-    const here = crumbText(path);
+    let html = toggle(`pl|${path}|hidden`, !pl.hidden, {
+      label: `Show in ${parentName}`,
+      scope: inChoice ? `${parentName} in ${menuName}` : crumbText(path),
+      help: inChoice
+        ? `Hide it here without removing it. Applies everywhere ${esc(parentName)} is in ${esc(menuName)}.`
+        : 'Hide it here without removing it. Other places stay as they are.',
+    });
+    if (parent.kind !== 'group' || p.ptype === 'container') return html;
+
+    const scope = productScopeText(path);
+    const rootName = nameOf('product', entity('product', productScopePath(path).split('>')[1].slice(2)));
+    const onlyRoot = `A change here applies only in ${esc(rootName)}, in every menu.`;
+    const pre = placement(productScopePath(path));
+    const groupHidden = groupHiddenCodes(parentEnt, p.id);
+    const shown = productCodes(p).filter(([v]) => !groupHidden.includes(v));
+    const pr = rulesOf(parentEnt);
+    const groupPre = parentEnt.preselected[p.id] || 0;
+    if (isAutoAdded(path))
+      html += field('Preselected', stepper(`pl|${path}|preselected`, 1, { label: 'preselected quantity', disabled: true }), { pos: true, help: 'POS adds this option automatically, so it’s always preselected.' });
+    else if (pr.type !== 1) {
+      const rule = pr.type === 2 ? 'Size groups preselect one option' : 'Combo groups preselect one option at most';
+      html += field('Preselected', `<p class="field-help">${groupPre ? 'Yes' : 'No'}. ${rule} everywhere they are used. Choose it on the Options tab of ${esc(parentName)}.</p>`);
+    } else
+      html += field('Preselected', stepper(`pl|${productScopePath(path)}|preselected`, preselectedAt(path), { max: optionMaxOf(parentEnt, p.id, pr), label: 'preselected quantity', keepZero: true, start: groupPre }), {
+        scope,
+        help: preselectOverridden(path)
+          ? `${esc(parentName)} preselects ${groupPre} in other products. <button type="button" class="link-btn" data-action="pre-reset" data-path="${esc(productScopePath(path))}">Use the same here</button>`
+          : `Follows ${esc(parentName)}. ${onlyRoot}`,
+      });
+    html += field('Name in this group', inputText(`e|group|${parentEnt.id}|optionSettings.${p.id}.name`, (parentEnt.optionSettings[p.id] || {}).name, { id: 'p-grp-name', placeholder: nameOf('product', p) }), {
+      id: 'p-grp-name',
+      error: lengthError((parentEnt.optionSettings[p.id] || {}).name),
+      help: `Customers see this name in ${esc(parentName)}, everywhere it’s used. Leave it empty to use the product name.`,
+    });
+    if (shown.length)
+      html += field('Modifier codes shown', chips(`pl|${productScopePath(path)}|hiddenCodes`, pre.hiddenCodes || [], shown, { invert: true }), {
+        scope,
+        help: `${groupHidden.length ? `Hidden in ${esc(parentName)} everywhere: ${esc(listJoin(groupHidden.map((c) => (C.modifierCodes.find((x) => x[0] === c) || [c, c])[1])))}. ` : ''}${onlyRoot}`,
+        error: p.isModifierCodeRequired && p.modifierCodes.every((c) => hiddenCodesAt(path).includes(c)) ? 'A code is required, so keep at least one visible' : '',
+      });
+    else if (groupHidden.length && p.modifierCodes.length) html += field('Modifier codes shown', `<p class="field-help">None. All codes are hidden in ${esc(parentName)}.</p>`);
+    return html;
+  }
+
+  function productTab(tab, p, path) {
+    const pb = productBind(p);
 
     if (tab === 'general') {
-      let html = section(
+      let html = placementSection(path) + section(
         '',
         nameBlock('product', p, { error: lengthError(p.name, 'Add a name'), help: 'Customers see this name in the apps.' }) +
           (p.ptype === 'linked'
@@ -409,57 +478,19 @@
     if (tab === 'choices') return choicesSection(p, path);
 
     if (tab === 'ordering') {
-      let html = '';
-      if (inGroup && p.ptype !== 'container') {
-        const auto = isAutoAdded(path);
-        const groupHidden = groupHiddenCodes(parentEnt, p.id);
-        const enabled = C.modifierCodes.filter(([v]) => p.modifierCodes.includes(v) && !groupHidden.includes(v));
-        const pr = rulesOf(parentEnt);
-        const groupPre = parentEnt.preselected[p.id] || 0;
-        const overridden = preselectOverridden(path);
-        const optMax = optionMaxOf(parentEnt, p.id, pr);
-        let preField;
-        if (auto) preField = field('Preselected', stepper(`pl|${path}|preselected`, 1, { label: 'preselected quantity', disabled: true }), { pos: true, help: 'POS adds this option automatically, so it’s always preselected.' });
-        else if (pr.type !== 1) {
-          const rule = pr.type === 2 ? 'Size groups preselect one option' : 'Combo groups preselect one option at most';
-          preField = field('Preselected', `<p class="field-help">${groupPre ? 'Yes' : 'No'}. ${rule} everywhere they are used. Choose it on the Options tab of ${esc(parentName)}.</p>`);
-        }
-        else
-          preField = field('Preselected', stepper(`pl|${path}|preselected`, preselectedAt(path), { max: optMax, label: 'preselected quantity', keepZero: true, start: groupPre }), {
-            scope: here,
-            help: overridden
-              ? `${esc(parentName)} preselects ${groupPre} in other places. <button type="button" class="link-btn" data-action="pre-reset" data-path="${esc(path)}">Use the same here</button>`
-              : `Follows ${esc(parentName)}. A change here applies only to this place.`,
-          });
-        html += section(
-          `In ${parentName}`,
-          preField +
-            field('Name in this group', inputText(`e|group|${parentEnt.id}|optionSettings.${p.id}.name`, (parentEnt.optionSettings[p.id] || {}).name, { id: 'p-grp-name', placeholder: nameOf('product', p) }), {
-              id: 'p-grp-name',
-              error: lengthError((parentEnt.optionSettings[p.id] || {}).name),
-              help: `Customers see this name in ${esc(parentName)}, everywhere it’s used. Leave it empty to use the product name.`,
-            }) +
-            (enabled.length
-              ? field('Modifier codes shown', chips(`pl|${path}|hiddenCodes`, pl.hiddenCodes || [], enabled, { invert: true }), {
-                  scope: here,
-                  help: groupHidden.length ? `Hidden in ${esc(parentName)} everywhere: ${esc(listJoin(groupHidden.map((c) => (C.modifierCodes.find((x) => x[0] === c) || [c, c])[1])))}.` : '',
-                  error:
-                    p.isModifierCodeRequired && p.modifierCodes.every((c) => hiddenCodesAt(path).includes(c))
-                      ? 'A code is required, so keep at least one visible'
-                      : '',
-                })
-              : groupHidden.length && p.modifierCodes.length
-                ? field('Modifier codes shown', `<p class="field-help">None. All codes are hidden in ${esc(parentName)}.</p>`)
-                : ''),
-        );
-      }
-      html += quantitySection(p);
-      if (p.ptype === 'size') return html;
-      if (p.ptype !== 'container') html += modifierCodesSection(p);
-      if (p.ptype === 'linked') html += linkedGroupsSection(p, path);
-      html += sectionsSection(p);
-      if (p.ptype === 'container') return html;
-      return html + includedSection(p) + substitutesSection(p) + halfWholeSection(p) + upsellSection(p) + crossSellSection(p);
+      if (p.ptype === 'container')
+        return sectionsSection(p) || section('Group sections', '<p class="field-help">Add a group to this option folder first. Its groups can then go under headings.</p>');
+      return (
+        quantitySection(p) +
+        modifierCodesSection(p) +
+        (p.ptype === 'linked' ? linkedGroupsSection(p, path) : '') +
+        sectionsSection(p) +
+        includedSection(p) +
+        substitutesSection(p) +
+        halfWholeSection(p) +
+        upsellSection(p) +
+        crossSellSection(p)
+      );
     }
 
     if (tab === 'dietary') {
@@ -527,20 +558,7 @@
     }
 
     if (tab === 'availability') {
-      const inChoice = parent.kind === 'product' && parentEnt.ptype === 'size';
-      const menuName = nameOf('menu', menuById(info.menuId));
       return (
-        section(
-          `In ${parentName}`,
-          positionField(path) +
-          toggle(`pl|${path}|hidden`, !pl.hidden, {
-            label: `Show in ${parentName}`,
-            scope: inChoice ? `${parentName} in ${menuName}` : here,
-            help: inChoice
-              ? `Hide it here without removing it. Applies everywhere ${esc(parentName)} is in ${esc(menuName)}.`
-              : 'Hide it here without removing it. Other places stay as they are.',
-          }),
-        ) +
         productAvailabilitySection(p) +
         section('Stores', storesList('product', p, STORE_STATES_PRODUCT, { activeLabel: 'Available', wide: true }), {
           desc: 'Status at each store, in every menu. Hidden products still work as upsells and options. Out of stock indefinitely also hides the product.',

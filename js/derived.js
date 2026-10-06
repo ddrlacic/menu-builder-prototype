@@ -116,9 +116,8 @@
         if (ent.isAlcoholic && !isNum(ent.alcoholVol)) pAdd('warning', `${name} contains alcohol but has no alcohol by volume, so Skip The Dishes gets 0%`, 'dietary');
         if (rangeError(ent.caloriesFrom, ent.caloriesTo) || rangeError(ent.servingFrom, ent.servingTo, 1)) pAdd('error', `${name}: fix the calories or serves range`, 'dietary');
         if (ent.isModifierCodeRequired && ent.modifierCodes.length && ent.modifierCodes.every((c) => hiddenCodesAt(path).includes(c)))
-          add(path, 'error', `${name}: a modifier code is required, but all codes are hidden here`, undefined, 'ordering');
+          add(path, 'error', `${name}: a modifier code is required, but all codes are hidden here`, undefined, 'general');
         if (ent.upsell.products.length && !ent.upsell.title.trim()) pAdd('error', `${name}: add an upsell title`, 'ordering');
-        if (ent.included.length && !ent.includedName.trim()) pAdd('error', `${name}: add a name for the included ingredients`, 'ordering');
         if (ent.sections.some((s) => !s.name.trim())) pAdd('error', `${name}: add a name to each group section`, 'ordering');
         if ([ent.upsell.title, ent.includedName, ...ent.sections.map((s) => s.name)].some((v) => lengthError(v)))
           pAdd('error', `${name}: a title on the Ordering tab is longer than ${TEXT_LIMIT} characters`, 'ordering');
@@ -168,7 +167,7 @@
         else if (max != null && pre > max) gAdd('error', `${label}: ${pre} options preselected, but the maximum is ${max}`, 'options', null);
         if (r.type === 2 && count && pre !== 1) gAdd('error', `${label}: preselect exactly one size`, 'options', null);
         if (placement(path).hidden && r.min > 0)
-          gAdd('error', r.fixed ? `${label} always needs a choice, so it cannot be hidden here. Show it` : `${label} is required, so it cannot be hidden here. Show it, or set the minimum to 0`, 'advanced', null);
+          gAdd('error', r.fixed ? `${label} always needs a choice, so it cannot be hidden here. Show it` : `${label} is required, so it cannot be hidden here. Show it, or set the minimum to 0`, 'general', null);
         if (halvesSupported(ent) && Object.values(ent.halves).some((h) => !h.left !== !h.right)) gAdd('warning', `${label}: some toppings have only one half set`, 'halves');
         const ungrouped = suggestedHalves(ent)
           .flatMap((s) => [s.left, s.right])
@@ -199,6 +198,15 @@
     return !!(posG && posG.autoAdded && posG.autoAdded.includes(ent.externalId));
   }
 
+  function posIncluded(p) {
+    return p.children.flatMap((gid) => {
+      const g = entity('group', gid);
+      const posG = g && posItemById(posIdOf('group', g));
+      if (!posG || !posG.autoAdded) return [];
+      return g.children.filter((pid) => posG.autoAdded.includes((entity('product', pid) || {}).externalId)).map((pid) => ({ gid, pid }));
+    });
+  }
+
   function groupOfOption(path) {
     const info = parsePath(path);
     if (info.kind !== 'product' || !info.parentPath) return null;
@@ -208,16 +216,16 @@
 
   function hiddenCodesAt(path) {
     const g = groupOfOption(path);
-    return [...new Set([...groupHiddenCodes(g, parsePath(path).id), ...(placement(path).hiddenCodes || [])])];
+    return [...new Set([...groupHiddenCodes(g, parsePath(path).id), ...(placement(productScopePath(path)).hiddenCodes || [])])];
   }
 
   const preselectOverridden = (path) => {
     const g = groupOfOption(path);
-    return !!g && rulesOf(g).type === 1 && isNum(placement(path).preselected);
+    return !!g && rulesOf(g).type === 1 && isNum(placement(productScopePath(path)).preselected);
   };
 
   function preselectedAt(path) {
-    const pl = placement(path);
+    const pl = placement(productScopePath(path));
     const g = groupOfOption(path);
     const own = g ? (preselectOverridden(path) ? pl.preselected : g.preselected[parsePath(path).id] || 0) : pl.preselected || 0;
     return Math.max(own, isAutoAdded(path) ? 1 : 0);

@@ -33,6 +33,17 @@
     );
   }
 
+  function placementSection(path) {
+    const info = parsePath(path);
+    if (!info.parentPath) return '';
+    const pInfo = parsePath(info.parentPath);
+    const parent = entity(pInfo.kind, pInfo.id);
+    const ent = entity(info.kind, info.id);
+    const more = { product: productPlacementFields, group: groupPlacementFields }[info.kind];
+    const body = positionField(path) + (more ? more(ent, path) : '');
+    return body ? section(`In ${nameOf(pInfo.kind, parent)}`, body) : '';
+  }
+
   function field(label, control, { help = '', scope = '', id = '', error = '', pos = false } = {}) {
     return `<div class="field${error ? ' has-error' : ''}">
       ${label || scope || pos ? `<div class="field-head">${label ? `<label class="field-label"${id ? ` for="${id}"` : ''}>${esc(label)}</label>` : ''}${scope ? scopePill(scope) : ''}${pos ? lockPill() : ''}</div>` : ''}
@@ -302,7 +313,7 @@
       return [...tabs, ['advanced', 'Advanced']];
     }
     const tabs = [['general', 'General'], ['dietary', 'Dietary'], ['ordering', 'Ordering'], ['availability', 'Availability'], ['advanced', 'Advanced']];
-    if (ent.ptype === 'size') tabs.splice(1, 0, ['choices', 'Choices']);
+    if (ent.ptype === 'size') return [tabs[0], ['choices', 'Choices'], ...tabs.slice(1).filter((t) => t[0] !== 'ordering')];
     if (ent.ptype === 'container') return tabs.filter((t) => t[0] !== 'dietary');
     return tabs;
   }

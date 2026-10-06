@@ -560,6 +560,7 @@
     const menu = activeMenu();
     if (tab === 'general') {
       return (
+        placementSection(path) +
         sizeHintSection(cat, path) +
         section(
           '',
@@ -575,14 +576,7 @@
         )
       );
     }
-    if (tab === 'availability') {
-      const position = positionField(path);
-      return (
-        (position ? section(`In ${menu.name}`, position) : '') +
-        categoryProductsSection(cat, path, menu) +
-        categoryMenusSection(cat, menu)
-      );
-    }
+    if (tab === 'availability') return categoryProductsSection(cat, path, menu) + categoryMenusSection(cat, menu);
     if (tab === 'stores') return categoryStoresTab(cat);
     const inMenus = menusWithCategory(cat.id);
     const publishing = inMenus.some((m) => m.status === 'publishing');

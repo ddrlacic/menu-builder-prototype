@@ -130,7 +130,7 @@
     upsell: { title: '', products: [] },
     crossSell: [],
     included: [],
-    includedName: 'Included ingredients',
+    includedName: '',
     substitutes: {},
     halfWhole: {},
     sections: [],
@@ -180,6 +180,7 @@
     const d = productDefaults();
     for (const k of Object.keys(d)) if (p[k] === undefined) p[k] = d[k];
     if (p.ptype === 'container') Object.assign(p, dietaryOf(d));
+    if (p.ptype === 'container' || p.ptype === 'size') Object.assign(p, { minQty: null, maxQty: null, qtyScope: null });
     if (!p.stores) p.stores = {};
     for (const [sid, v] of Object.entries(p.stores)) if (v === 'disabled') p.stores[sid] = 'hidden';
   }
@@ -195,7 +196,9 @@
   }
 
   function validIncluded(p) {
+    const fromPos = new Set(posIncluded(p).map((i) => `${i.gid}:${i.pid}`));
     return p.included.filter((i) => {
+      if (fromPos.has(`${i.gid}:${i.pid}`)) return false;
       const g = p.children.includes(i.gid) && entity('group', i.gid);
       return !!g && g.children.includes(i.pid) && !!entity('product', i.pid);
     });
@@ -225,6 +228,7 @@
   function normalizeProduct(p) {
     if (!p.modifierCodes || !p.prep) return;
     if (p.foodType === '') p.foodType = null;
+    p.modifierCodes = p.modifierCodes.filter((v) => C.modifierCodes.some(([c]) => c === v));
     if (p.preselectedCode === '' || (p.preselectedCode && !p.modifierCodes.includes(p.preselectedCode))) p.preselectedCode = null;
     if (!p.modifierCodes.length) p.isModifierCodeRequired = false;
     if (p.isModifierCodeRequired && !p.preselectedCode) p.preselectedCode = p.modifierCodes[0];
@@ -811,7 +815,7 @@
 
     const popularPath = `${lunch.id}>c:${popular.id}`;
     grp('pos-g-temp').preselected = { [prod('pos-m-medium').id]: 1 };
-    S.data.placements[`${popularPath}>p:${brunch.id}>g:${addons.id}>p:${prod('pos-m-egg').id}`] = { preselected: 1 };
+    S.data.placements[productScopePath(`${popularPath}>p:${brunch.id}>g:${addons.id}>p:${prod('pos-m-egg').id}`)] = { preselected: 1 };
     sauces.optionSettings = { [prod('pos-m-aioli').id]: { name: 'House truffle aioli' } };
     brunch.availability = { ...newAvailability(), active: true, slots: [{ days: [0, 6], from: '11:00', to: '14:00' }] };
     truffle.metadata = [{ key: 'Badge', value: 'Chef’s pick' }];
@@ -862,6 +866,7 @@
           const oldGroups = new Set(Object.values(S.data.entities.group).filter((g) => g.preselected === undefined).map((g) => g.id));
           Object.values(S.data.entities.group).forEach(migrateGroup);
           migratePreselections(oldGroups);
+          migrateProductScopedPlacements();
           migrateChoicesInMenus();
           S.data.menus.forEach((m) => (m.pricedKeys = !m.publishedAt ? [] : m.pricedKeys || menuPriceKeys(m)));
           normalizeAll();
@@ -901,6 +906,21 @@
       if (!g || rulesOf(g).type === 1) continue;
       if (pl.preselected > 0 && !Object.values(g.preselected).some((v) => v > 0)) g.preselected = { [last.slice(2)]: 1 };
       delete pl.preselected;
+    }
+  }
+
+  function migrateProductScopedPlacements() {
+    for (const [k, pl] of Object.entries(S.data.placements)) {
+      if (k.startsWith('@>')) continue;
+      const sk = productScopePath(k);
+      if (sk === k) continue;
+      for (const f of ['preselected', 'hiddenCodes']) {
+        if (pl[f] == null) continue;
+        const target = (S.data.placements[sk] = S.data.placements[sk] || {});
+        if (target[f] == null) target[f] = pl[f];
+        delete pl[f];
+      }
+      if (!Object.keys(pl).length) delete S.data.placements[k];
     }
   }
 
