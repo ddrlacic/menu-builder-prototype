@@ -197,7 +197,7 @@
         const ps = priceStats(op);
         const noPrice = !folder && ps.missingStores.length && !isMissingOnPos(p) ? `No POS price at ${ps.missingStores.length === ps.total ? 'any store' : plural(ps.missingStores.length, 'store', 'stores')}` : '';
         const halves = halvesNote(g, pid);
-        const sub = [esc(subs.join(' · ')), changed && `<span class="half-meta">${onlyHere ? 'Changed here' : `Changed in ${pName}`}</span>`, halves && `<span class="half-meta">${icon('halves', 11)}${esc(halves)}</span>`, noPrice && `<span class="tone-warning">${noPrice}</span>`].filter(Boolean).join(' · ');
+        const sub = [esc(subs.join(' · ')), changed && !onlyHere && `<span class="half-meta">Changed in ${pName}</span>`, halves && `<span class="half-meta">${icon('halves', 11)}${esc(halves)}</span>`, noPrice && `<span class="tone-warning">${noPrice}</span>`].filter(Boolean).join(' · ');
         const shownCell = onlyHere
           ? `<button type="button" class="switch" role="switch" aria-checked="${!hiddenInProduct(op)}" aria-label="Show ${esc(name)} in ${pName}" data-toggle="pl|${esc(productScopePath(op))}|hidden" data-focus-key="pl|${esc(productScopePath(op))}|hidden"><span class="switch-thumb"></span></button>`
           : '';
