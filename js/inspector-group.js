@@ -186,12 +186,12 @@
         const subs = [];
         if (auto) subs.push('Auto-added by POS');
         else if (folder) subs.push('Option folder');
-        if (halvesNote(g, pid)) subs.push(halvesNote(g, pid));
         if (name !== nameOf('product', p)) subs.push(`Product: ${nameOf('product', p)}`);
         if (preselectOverridden(op)) subs.push(`Preselects ${placement(productScopePath(op)).preselected} here`);
         const ps = priceStats(op);
         const noPrice = !folder && ps.missingStores.length && !isMissingOnPos(p) ? `No POS price at ${ps.missingStores.length === ps.total ? 'any store' : plural(ps.missingStores.length, 'store', 'stores')}` : '';
-        const sub = [esc(subs.join(' · ')), noPrice && `<span class="tone-warning">${noPrice}</span>`].filter(Boolean).join(' · ');
+        const halves = halvesNote(g, pid);
+        const sub = [esc(subs.join(' · ')), halves && `<span class="half-meta">${icon('halves', 11)}${esc(halves)}</span>`, noPrice && `<span class="tone-warning">${noPrice}</span>`].filter(Boolean).join(' · ');
         const row = `<div class="opt-row${opl.hidden ? ' is-muted' : ''}">
             <button type="button" class="opt-name" data-action="goto" data-path="${esc(op)}">${thumb('product', p, 'thumb-sm')}<span class="opt-name-text"><span class="opt-name-label" title="${esc(name)}">${esc(name)}</span>${sub ? `<span class="opt-name-sub">${sub}</span>` : ''}</span></button>
             ${preCell}

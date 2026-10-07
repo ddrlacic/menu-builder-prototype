@@ -3370,6 +3370,10 @@ input[type='number']::-webkit-inner-spin-button {
   color: var(--warn);
 }
 
+.opt-name-sub .half-meta {
+  color: var(--ink-3);
+}
+
 .stock-head {
   display: flex;
   justify-content: space-between;
