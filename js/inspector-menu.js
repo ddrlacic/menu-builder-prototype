@@ -276,8 +276,8 @@
 
   function msGroupStores(gid) {
     const all = groupStores(gid);
-    if (!T.ms.catId) return all;
-    const on = new Set(categoryStores(entity('category', T.ms.catId)).map((s) => s.id));
+    if (!T.ms.vis) return all;
+    const on = new Set(visStores(T.ms.vis).map((s) => s.id));
     return all.filter((s) => on.has(s.id));
   }
 
@@ -287,7 +287,7 @@
     return C.menuStoreGroups
       .map((g) => {
         let list = msGroupStores(g.id);
-        if (o.onlySelected) list = list.filter((s) => (o.catId ? !o.sel[g.id].has(s.id) : o.sel[g.id].has(s.id)));
+        if (o.onlySelected) list = list.filter((s) => (o.vis ? !o.sel[g.id].has(s.id) : o.sel[g.id].has(s.id)));
         if (q && !g.name.toLowerCase().includes(q)) list = list.filter((s) => s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q));
         return { g, list };
       })
@@ -336,17 +336,18 @@
         </div>`
       : q
         ? '<div class="empty-small"><strong>No stores match</strong><span>Check the spelling or search by city.</span></div>'
-        : `<div class="empty-small"><strong>${o.catId ? 'No stores hidden' : 'No stores selected'}</strong></div>`;
-    if (o.catId) {
-      const live = categoryStoresChange(o).hide.filter((id) => categoryPublishedIds(o.catId).has(id));
-      $('#ms-warn').innerHTML = live.length ? callout('warning', `Customers at ${plural(live.length, 'store', 'stores')} you unticked stop seeing the category right away.`) : '';
+        : `<div class="empty-small"><strong>${o.vis ? 'No stores hidden' : 'No stores selected'}</strong></div>`;
+    if (o.vis) {
+      const published = visPublishedIds(o.vis);
+      const live = visibilityChange(o).hide.filter((id) => published.has(id));
+      $('#ms-warn').innerHTML = live.length ? callout('warning', `Customers at ${plural(live.length, 'store', 'stores')} you unticked stop seeing the ${o.vis.kind} right away.`) : '';
     } else {
       const removed = manageStoresRemoved(o);
       $('#ms-warn').innerHTML = removed.length
         ? callout('warning', `The menu is published at ${plural(removed.length, 'store', 'stores')} you unticked. Saving removes it from them right away.`)
         : '';
     }
-    $('#ms-foot').innerHTML = `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="ms-only">${box(o.onlySelected ? 'on' : 'off')}${o.catId ? 'Show only hidden' : 'Show only selected'}</button>
+    $('#ms-foot').innerHTML = `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="ms-only">${box(o.onlySelected ? 'on' : 'off')}${o.vis ? 'Show only hidden' : 'Show only selected'}</button>
       <button type="button" class="btn secondary" data-modal-close>Cancel</button>
       <button type="button" class="btn primary" data-action="ms-save">Save</button>`;
   }
@@ -359,7 +360,7 @@
 
   function saveManageStores() {
     const o = T.ms;
-    if (o.catId) return saveCategoryStores(o);
+    if (o.vis) return saveVisibilityStores(o);
     const m = S.data.menus.find((x) => x.id === o.menuId);
     const removed = manageStoresRemoved(o);
     const pick = (gid, newStores) => {
@@ -417,58 +418,71 @@
     );
   }
 
-  function openCategoryStores(cat) {
-    const all = categoryStores(cat);
+  const visStores = (vis) => (vis.kind === 'category' ? categoryStores : productStores)(entity(vis.kind, vis.id));
+  const visHiddenAt = (vis, sid) => (vis.kind === 'category' ? isHiddenAt : productHiddenAt)(entity(vis.kind, vis.id), sid);
+  const visPublishedIds = (vis) => (vis.kind === 'category' ? categoryPublishedIds(vis.id) : productPublishedIds(entity('product', vis.id)));
+
+  function openVisibilityStores(kind, ent) {
+    const vis = { kind, id: ent.id };
+    const all = visStores(vis);
     const sel = {};
     C.menuStoreGroups.forEach((g) => (sel[g.id] = new Set()));
     all.forEach((s) => {
-      if (isHiddenAt(cat, s.id)) return;
+      if (visHiddenAt(vis, s.id)) return;
       const g = C.menuStoreGroups.find((x) => groupStores(x.id).includes(s));
       if (g) sel[g.id].add(s.id);
     });
     const shown = C.menuStoreGroups.filter((g) => groupStores(g.id).some((s) => all.includes(s)));
     openModal({
       title: 'Manage stores',
-      body: `<p>Customers see ${esc(nameOf('category', cat))} at the stores you tick.</p>
+      body: `<p>Customers see ${esc(nameOf(kind, ent))} at the stores you tick.</p>
         <label class="search-field">${icon('search', 15)}<span class="sr-only">Search by store or city</span>
           <input id="ms-search" type="search" placeholder="Search by store or city" autocomplete="off"></label>
         <div id="ms-list"></div>`,
       foot: '<div id="ms-warn"></div><div class="modal-foot" id="ms-foot"></div>',
     });
-    T.ms = { catId: cat.id, sel, open: new Set(shown.length === 1 ? [shown[0].id] : []), query: '', onlySelected: false };
+    T.ms = { vis, sel, open: new Set(shown.length === 1 ? [shown[0].id] : []), query: '', onlySelected: false };
     renderManageStores();
     $('#ms-search').focus();
   }
 
-  function categoryStoresChange(o) {
-    const cat = entity('category', o.catId);
+  function visibilityChange(o) {
     const on = new Set(Object.values(o.sel).flatMap((set) => [...set]));
-    const all = categoryStores(cat);
+    const all = visStores(o.vis);
     return {
-      hide: all.filter((s) => !on.has(s.id) && !isHiddenAt(cat, s.id)).map((s) => s.id),
-      show: all.filter((s) => on.has(s.id) && isHiddenAt(cat, s.id)).map((s) => s.id),
+      hide: all.filter((s) => !on.has(s.id) && !visHiddenAt(o.vis, s.id)).map((s) => s.id),
+      show: all.filter((s) => on.has(s.id) && visHiddenAt(o.vis, s.id)).map((s) => s.id),
     };
   }
 
   const storesWho = (ids) => (ids.length === 1 ? storeById.get(ids[0]).name : plural(ids.length, 'store', 'stores'));
 
-  function setCategoryStores(cat, { hide = [], show = [] }) {
+  function setStoreVisibility(kind, ent, { hide = [], show = [] }) {
     if (!hide.length && !show.length) return;
     const ok = commit(() => {
-      if (!cat.stores) cat.stores = {};
-      hide.forEach((id) => (cat.stores[id] = 'disabled'));
-      show.forEach((id) => delete cat.stores[id]);
+      if (!ent.stores) ent.stores = {};
+      if (kind === 'category') {
+        hide.forEach((id) => (ent.stores[id] = 'disabled'));
+        show.forEach((id) => delete ent.stores[id]);
+        return;
+      }
+      hide.forEach((id) => (ent.stores[id] = { ...(ent.stores[id] || {}), hidden: true }));
+      show.forEach((id) => {
+        const { hidden, ...rest } = ent.stores[id] || {};
+        if (rest.stock) ent.stores[id] = rest;
+        else delete ent.stores[id];
+      });
     });
     if (!ok) return;
-    const msg = hide.length && show.length ? 'Stores successfully updated' : hide.length ? `Category hidden at ${storesWho(hide)}` : `Category shown at ${storesWho(show)}`;
+    const label = kind === 'category' ? 'Category' : 'Product';
+    const msg = hide.length && show.length ? 'Stores successfully updated' : hide.length ? `${label} hidden at ${storesWho(hide)}` : `${label} shown at ${storesWho(show)}`;
     toast(msg, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
-  function saveCategoryStores(o) {
-    const cat = entity('category', o.catId);
-    const change = categoryStoresChange(o);
+  function saveVisibilityStores(o) {
+    const change = visibilityChange(o);
     closeModal();
-    setCategoryStores(cat, change);
+    setStoreVisibility(o.vis.kind, entity(o.vis.kind, o.vis.id), change);
   }
 
   function categoryProductsSection(cat, path, menu) {

@@ -351,7 +351,7 @@
           venues: Object.fromEntries(
             Object.entries(e.stores).map(([sid, st]) => [
               sid,
-              { show_in_menu: st !== 'hidden', in_stock: !isOutOfStock(st), out_of_stock_duration: { oos_1h: '1h', oos_4h: '4h', oos_eod: 'end_of_day' }[st] || null },
+              { show_in_menu: !st.hidden, in_stock: !st.stock, out_of_stock_duration: { oos_1h: '1h', oos_4h: '4h', oos_eod: 'end_of_day' }[st.stock] || null },
             ]),
           ),
           product_groups: choices ? [] : kids('group'),

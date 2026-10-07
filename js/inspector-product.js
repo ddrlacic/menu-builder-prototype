@@ -580,15 +580,7 @@
       );
     }
 
-    if (tab === 'availability') {
-      return (
-        productAvailabilitySection(p) +
-        section('Stores', storesList('product', p, STORE_STATES_PRODUCT, { activeLabel: 'Available', wide: true }), {
-          desc: 'Status at each store, in every menu. Hidden products still work as upsells and options. Out of stock indefinitely also hides the product.',
-        }) +
-        appearsInSection(p, path)
-      );
-    }
+    if (tab === 'availability') return productAvailabilitySection(p) + productStoresSection(p) + appearsInSection(p, path);
 
     return (
       sourceSection('product', p, path) +
@@ -603,7 +595,22 @@
       segmentsSection(pb('segments'), p.segments, 'product') +
       metadataSection(p) +
       prepSection(p) +
-      removeSection(path, 'product', p)
+      removeSection(path, 'product', p) +
+      productDeleteSection(p)
+    );
+  }
+
+  function productDeleteSection(p) {
+    const block = productDeleteBlock(p);
+    const places = productParents(p);
+    const kids = p.ptype === 'size' ? ' Its choices are not deleted' : p.children.length ? ' Its groups are not deleted' : '';
+    const pos = p.source === 'pos' ? ' Nothing changes on POS.' : '';
+    const where = places.length === 1 ? `Removes it from ${nameOf(places[0].kind, places[0].ent)}.` : places.length ? `Removes it from all ${places.length} places it appears in.` : 'Deletes it from this brand.';
+    const help = block || `${where}${kids ? `${kids}.` : ''}${pos}`;
+    return section(
+      '',
+      `<button type="button" class="btn secondary tone-danger" data-action="prod-delete" data-id="${p.id}" ${block ? 'disabled' : ''}>${icon('trash', 15)}Delete product</button>
+      <p class="field-help">${esc(help)}</p>`,
     );
   }
 
@@ -631,6 +638,13 @@
           ['lto', 'Limited-time offer'],
           ['preorder', 'Preorder'],
         ]),
+        {
+          help: {
+            serving: 'Customers can order it only during these times. Web App shows it as unavailable outside them. Delivery partners get the same times.',
+            lto: 'Customers see it in Web App only between the start and end. Delivery partners get the same dates.',
+            preorder: 'Customers see it in Web App while preorders are open, and pick it up in the pickup window. Delivery partners get only the pickup window. Not shown for Dine-in (FS) orders.',
+          }[a.mode],
+        },
       );
       if (a.mode === 'serving') {
         const problems = a.slots.length ? scheduleProblems(a.slots).filter((t) => !t.startsWith('Choose')) : [e.slots];
@@ -655,6 +669,45 @@
       }
     }
     return section('Schedule', body);
+  }
+
+  const PRODUCT_STORE_ROWS = 10;
+
+  function productStoresSection(p) {
+    const all = productStores(p);
+    if (!all.length) return section('Stores', '<p class="store-summary">No stores yet</p><p class="field-help">Add stores to its menus on each menu’s Stores tab.</p>');
+    const changed = all.filter((s) => productStockAt(p, s.id) || productHiddenAt(p, s.id));
+    const out = changed.filter((s) => productStockAt(p, s.id)).length;
+    const hidden = changed.filter((s) => productHiddenAt(p, s.id)).length;
+    const summary = [
+      `Available at ${all.length - changed.length} of ${plural(all.length, 'store', 'stores')}`,
+      out ? `Out of stock at ${plural(out, 'store', 'stores')}` : '',
+      hidden ? `Hidden at ${plural(hidden, 'store', 'stores')}` : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    const row = (s) => {
+      const off = productHiddenAt(p, s.id);
+      return `<div class="store-row list-row"><span class="store-name list-name"><span>${esc(s.name)}</span><span class="muted">${esc(s.city)}</span></span>
+        ${selectInput(`e|product|${p.id}|stores.${s.id}.stock`, productStockAt(p, s.id), STOCK_OPTIONS, { label: `Stock at ${s.name}` })}
+        <button type="button" class="switch" role="switch" aria-checked="${!off}" aria-label="Show at ${esc(s.name)}" data-action="prod-store-toggle" data-id="${s.id}" data-on="${off ? 1 : 0}"><span class="switch-thumb"></span></button></div>`;
+    };
+    const head = '<div class="store-row list-row store-head"><span class="store-name">Store</span><span class="store-head-stock">Stock</span><span>Shown</span></div>';
+    return section(
+      'Stores',
+      `<p class="store-summary tnum">${esc(summary)}</p>
+      ${
+        changed.length
+          ? `<div class="store-list stock-list">${head}${changed.slice(0, PRODUCT_STORE_ROWS).map(row).join('')}</div>
+            ${changed.length > PRODUCT_STORE_ROWS ? `<p class="field-help">Showing ${PRODUCT_STORE_ROWS} of ${changed.length} stores. Search for a store to see the rest.</p>` : ''}`
+          : ''
+      }
+      ${field('Find a store', storeSearch('prod-store-q', 'Search by store or city'))}
+      ${storeResults(matchStores(all), row, 'store-list stock-list')}
+      <p class="field-help">Out of stock for a set time: Web App shows it as out of stock. Out of stock indefinitely: Web App hides it. Hidden: customers do not see it in categories, but it still works as an upsell and option.</p>
+      ${field('', `<button type="button" class="btn secondary sm" data-action="prod-manage-stores">${icon('store', 14)}Manage stores</button>`)}`,
+      { desc: 'Applies in every menu. Lists only stores of menus that have the product.' },
+    );
   }
 
   function menuCategoryPlaces() {
@@ -706,7 +759,7 @@
     const row = (x) => {
       const sel = on(x);
       const last = sel && total === 1;
-      return `<button type="button" class="store-row store-check" data-action="place-toggle" data-kind="${x.kind}" data-id="${esc(x.id)}" aria-pressed="${sel}" ${last ? 'disabled title="A product needs at least one place. To take it out everywhere, remove it on the Advanced tab."' : ''}>
+      return `<button type="button" class="store-row store-check" data-action="place-toggle" data-kind="${x.kind}" data-id="${esc(x.id)}" aria-pressed="${sel}" ${last ? 'disabled title="A product needs at least one place. To take it out everywhere, delete it on the Advanced tab."' : ''}>
         <span class="check${sel ? ' is-on' : ''}" aria-hidden="true">${sel ? icon('check', 12) : ''}</span>
         <span class="store-name list-name"><span>${esc(nameOf(x.kind, x.ent))}</span><span class="muted">${{ category: 'Category', group: 'Group', product: 'Choice product' }[x.kind]} in ${esc(listJoin(x.where))}</span></span></button>`;
     };

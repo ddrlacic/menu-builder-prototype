@@ -425,21 +425,27 @@
     const parent = entity(kind, id);
     const name = nameOf(kind, parent);
     if (!parent.children.includes(child.id)) {
-      commit(() => parent.children.push(child.id));
-      toast(`Added to ${name}`, 'success', { action: { label: 'Undo', onClick: undo } });
+      const also = new Set();
+      commit(() => {
+        parent.children.push(child.id);
+        if (childKind !== 'product' || kind !== 'product' || parent.ptype !== 'size') return;
+        for (const cpPath of ctx.usage.get(`product:${parent.id}`) || []) (keepChoiceInMenu(cpPath, child.id) || []).forEach((c) => also.add(c));
+      });
+      toast(also.size ? alsoInText(nameOf(childKind, child), [...also]) : `Added to ${name}`, 'success', { action: { label: 'Undo', onClick: undo } });
       return;
     }
-    const seg = `${SEG[kind]}:${id}>${SEG[childKind]}:${child.id}`;
-    const inSeg = (k) => k.endsWith(`>${seg}`) || k.includes(`>${seg}>`);
+    const choiceProducts = childKind === 'product' && kind === 'category' ? choiceProductsHolding(parent, child.id) : [];
+    const segs = [`${SEG[kind]}:${id}>${SEG[childKind]}:${child.id}`, ...choiceProducts.map((cp) => `p:${cp.id}>p:${child.id}`)];
+    const inSeg = (k) => segs.some((seg) => k.endsWith(`>${seg}`) || k.includes(`>${seg}>`));
     commit(() => {
       parent.children = parent.children.filter((c) => c !== child.id);
+      choiceProducts.forEach((cp) => (cp.children = cp.children.filter((c) => c !== child.id)));
       for (const k of Object.keys(S.data.placements)) if (inSeg(k)) delete S.data.placements[k];
-      if (inSeg(S.ui.selected)) {
-        const at = S.ui.selected.indexOf(`>${seg}`);
-        S.ui.selected = S.ui.selected.slice(0, at + 1 + `${SEG[kind]}:${id}`.length);
-      }
+      const seg = segs.find((s) => S.ui.selected.endsWith(`>${s}`) || S.ui.selected.includes(`>${s}>`));
+      if (seg) S.ui.selected = S.ui.selected.slice(0, S.ui.selected.indexOf(`>${seg}`) + 1 + seg.lastIndexOf('>'));
     });
-    toast(`Removed from ${name}`, 'success', { action: { label: 'Undo', onClick: undo } });
+    const text = choiceProducts.length ? `Removed from ${name} and ${choiceProducts.map((cp) => nameOf('product', cp)).join(' and ')}` : `Removed from ${name}`;
+    toast(text, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
   function dropOptions(g, pids) {
@@ -567,6 +573,74 @@
     if (!parents.length) return;
     $('#modal-root .modal-foot .btn.danger').disabled = true;
     $('#modal-root [data-action="delete-ack"]').focus({ preventScroll: true });
+  }
+
+  const ringsUpAs = (p) => (p.source === 'pos' ? Object.values(S.data.entities.product).filter((x) => x.ptype === 'linked' && x.posParentExt === p.externalId) : []);
+
+  function productDeleteBlock(p) {
+    if (productMenus(p).some((m) => m.status === 'publishing')) return 'You can delete the product once publishing finishes.';
+    const hw = halfWholeUse(p);
+    if (hw.halfIn.length) return `It is a half in ${listJoin(hw.halfIn)}. Remove it from half and whole there first, then delete it.`;
+    if (hw.rootGroups.length) return `It has halves set in ${listJoin(hw.rootGroups)}. Clear those halves first, then delete it.`;
+    return '';
+  }
+
+  function confirmDeleteProduct(p) {
+    if (productDeleteBlock(p)) return;
+    const name = nameOf('product', p);
+    const parents = productParents(p);
+    const linked = ringsUpAs(p);
+    const menus = productMenus(p);
+    const remove = () => {
+      closeModal();
+      commit(() => {
+        parents.forEach(({ ent }) => (ent.children = ent.children.filter((c) => c !== p.id)));
+        for (const x of Object.values(S.data.entities.product)) {
+          x.upsell.products = x.upsell.products.filter((id) => id !== p.id);
+          x.crossSell = x.crossSell.filter((id) => id !== p.id);
+          for (const [k, ids] of Object.entries(x.substitutes)) x.substitutes[k] = ids.filter((id) => id !== p.id);
+        }
+        linked.forEach((x) => (x.posParentExt = null));
+        for (const k of Object.keys(S.data.placements)) if (k.split('>').includes(`p:${p.id}`)) delete S.data.placements[k];
+        delete S.data.entities.product[p.id];
+        const at = S.ui.selected.split('>').indexOf(`p:${p.id}`);
+        if (at > 0) S.ui.selected = S.ui.selected.split('>').slice(0, at).join('>');
+        menus.forEach((m) => m.status === 'published' && (m.status = 'changed'));
+      });
+      toast('Product deleted');
+    };
+    if (!parents.length) {
+      openModal({
+        title: `Delete ${name}?`,
+        body: '<p>This will permanently delete the product</p>',
+        actions: [
+          { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+          { label: 'Delete', kind: 'danger', onClick: remove },
+        ],
+      });
+      return;
+    }
+    const kids = p.ptype === 'size' ? 'Its choices will not be deleted' : p.children.length ? 'Its product groups will not be deleted' : '';
+    const lines = [
+      'This product is linked to categories or product groups',
+      'Deleting it will remove it from those categories and groups',
+      'This may affect items shown in menus and published stores',
+      linked.length ? `${listJoin(linked.map((x) => nameOf('product', x)))} ${linked.length > 1 ? 'ring' : 'rings'} up as this product and will lose that link` : '',
+      kids,
+    ].filter(Boolean);
+    openModal({
+      title: `Delete ${name}?`,
+      size: 'lg',
+      body: `<h3 class="delete-warning-title">This action cannot be undone. Proceed with caution.</h3>
+        <ul class="delete-warning-list">${lines.map((t) => `<li>${icon('alertCircle', 18)}<span>${esc(t)}</span></li>`).join('')}</ul>
+        <button type="button" class="check-toggle delete-confirm-check" role="checkbox" aria-checked="false" data-action="delete-confirm-toggle">
+          <span class="check" aria-hidden="true"></span>Yes, I understand
+        </button>`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        { label: 'Delete forever', kind: 'danger', disabled: true, onClick: remove },
+      ],
+    });
   }
 
   function createVirtualGroup(productPath, mode, posGroupId) {

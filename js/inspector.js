@@ -213,7 +213,7 @@
   function matchStores(stores = STORES) {
     const q = T.storeQuery.trim().toLowerCase();
     if (!q) return [];
-    return stores.filter((s) => s.name.toLowerCase().includes(q) || s.id.includes(q));
+    return stores.filter((s) => s.name.toLowerCase().includes(q) || (s.city || '').toLowerCase().includes(q) || s.id.includes(q));
   }
 
   function storeSearch(id, placeholder) {
@@ -227,27 +227,6 @@
     return `<div class="${listClass}">${results.slice(0, STORE_RESULTS).map(rowFn).join('')}</div>${
       results.length > STORE_RESULTS ? `<p class="field-help">Showing ${STORE_RESULTS} of ${results.length} stores. Keep typing to narrow it down.</p>` : ''
     }`;
-  }
-
-  function storesList(kind, ent, states, { activeLabel = 'Active', wide = false } = {}) {
-    const bind = (sid) => `e|${kind}|${ent.id}|stores.${sid}`;
-    const exceptions = Object.entries(ent.stores || {})
-      .filter(([, v]) => v !== 'active')
-      .map(([id, v]) => ({ store: storeById.get(id), v }))
-      .filter((x) => x.store);
-    const counts = {};
-    exceptions.forEach((x) => (counts[x.v] = (counts[x.v] || 0) + 1));
-    const summary = [
-      `${activeLabel} at ${STORES.length - exceptions.length} of ${STORES.length} stores`,
-      ...Object.entries(counts).map(([v, n]) => `${(states.find((s) => s[0] === v) || [v, v])[1]} at ${plural(n, 'store', 'stores')}`),
-    ].join(' · ');
-    const row = (s) =>
-      `<div class="store-row"><span class="store-name">${icon('store', 15)}${esc(s.name)}</span>${selectInput(bind(s.id), (ent.stores || {})[s.id] || 'active', states, { label: `Status at ${s.name}` })}</div>`;
-    const list = wide ? 'store-list is-wide' : 'store-list';
-    return `<p class="store-summary">${esc(summary)}</p>
-      ${exceptions.length ? `<div class="${list}">${exceptions.map((x) => row(x.store)).join('')}</div>` : ''}
-      ${field('Change status at a store', storeSearch('store-status-q', `Search ${STORES.length} stores`))}
-      ${storeResults(matchStores(), row, list)}`;
   }
 
   function nameBlock(kind, ent, { error = '', help = '' } = {}) {

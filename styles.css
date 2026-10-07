@@ -2527,13 +2527,34 @@ input[type='number']::-webkit-inner-spin-button {
   height: 32px;
 }
 
-.store-list.is-wide .select-wrap {
-  width: 200px;
-}
-
 .list-row {
   justify-content: flex-start;
   min-height: 40px;
+}
+
+.stock-list .select-wrap,
+.store-head-stock {
+  flex: none;
+  width: 176px;
+}
+
+.store-head {
+  min-height: 0;
+  padding-block: 8px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--ink-3);
+  background: var(--sunken);
+}
+
+.store-head .store-name {
+  font-weight: inherit;
+}
+
+.store-head > :last-child {
+  flex: none;
+  min-width: 34px;
+  text-align: center;
 }
 
 .list-row .store-name {

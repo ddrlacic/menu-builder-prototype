@@ -14,9 +14,8 @@
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const SIZE_WORDS = ['kids', 'small', 'regular', 'medium', 'large', 'extra large'];
   const SIZE_ABBR = { sml: 'small', sm: 'small', reg: 'regular', med: 'medium', md: 'medium', lrg: 'large', lg: 'large', xl: 'extra large' };
-  const STORE_STATES_PRODUCT = [
-    ['active', 'Available'],
-    ['hidden', 'Hidden'],
+  const STOCK_OPTIONS = [
+    ['', 'In stock'],
     ['oos_1h', 'Out of stock for 1 hour'],
     ['oos_4h', 'Out of stock for 4 hours'],
     ['oos_eod', 'Out of stock until end of day'],

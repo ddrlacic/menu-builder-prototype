@@ -413,8 +413,8 @@
         badges.push(`<span class="badge tone-${all ? 'error' : 'warning'}" title="No POS price, so customers there cannot order it">No price at ${all ? 'any store' : plural(ps.missingStores.length, 'store', 'stores')}</span>`);
       }
       const states = Object.values(ent.stores || {});
-      const oos = states.filter(isOutOfStock).length;
-      const hiddenAt = states.filter((s) => s === 'hidden').length;
+      const oos = states.filter((s) => s.stock).length;
+      const hiddenAt = states.filter((s) => s.hidden).length;
       if (oos) badges.push(`<span class="badge tone-warning">Out of stock at ${plural(oos, 'store', 'stores')}</span>`);
       if (hiddenAt) badges.push(`<span class="badge" title="Hidden from the menu at these stores">Hidden at ${plural(hiddenAt, 'store', 'stores')}</span>`);
       const badgeTag = (ent.metadata || []).find((t) => t.key === 'Badge' && t.value);

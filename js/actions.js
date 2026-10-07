@@ -294,10 +294,16 @@
         openManageStores(activeMenu());
         break;
       case 'cat-manage-stores':
-        openCategoryStores(entity('category', parsePath(S.ui.selected).id));
+        openVisibilityStores('category', entity('category', parsePath(S.ui.selected).id));
         break;
       case 'cat-store-show':
-        setCategoryStores(entity('category', parsePath(S.ui.selected).id), { show: [el.dataset.id] });
+        setStoreVisibility('category', entity('category', parsePath(S.ui.selected).id), { show: [el.dataset.id] });
+        break;
+      case 'prod-manage-stores':
+        openVisibilityStores('product', entity('product', parsePath(S.ui.selected).id));
+        break;
+      case 'prod-store-toggle':
+        setStoreVisibility('product', entity('product', parsePath(S.ui.selected).id), { [el.dataset.on === '1' ? 'show' : 'hide']: [el.dataset.id] });
         break;
       case 'menu-group-remove':
         removeMenuStoreGroup(activeMenu(), el.dataset.id);
@@ -655,6 +661,9 @@
         });
         break;
       }
+      case 'prod-delete':
+        confirmDeleteProduct(entity('product', el.dataset.id));
+        break;
       case 'delete-ack': {
         const on = el.getAttribute('aria-checked') !== 'true';
         el.setAttribute('aria-checked', String(on));

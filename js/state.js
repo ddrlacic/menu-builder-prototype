@@ -189,7 +189,13 @@
     if (p.ptype === 'container') Object.assign(p, dietaryOf(d));
     if (p.ptype === 'container' || p.ptype === 'size') Object.assign(p, { minQty: null, maxQty: null, qtyScope: null });
     if (!p.stores) p.stores = {};
-    for (const [sid, v] of Object.entries(p.stores)) if (v === 'disabled') p.stores[sid] = 'hidden';
+    for (const [sid, v] of Object.entries(p.stores)) {
+      if (v && typeof v === 'object') {
+        if (!v.stock && !v.hidden) delete p.stores[sid];
+      } else if (v === 'hidden' || v === 'disabled') p.stores[sid] = { hidden: true };
+      else if (isOutOfStock(v)) p.stores[sid] = { stock: v };
+      else delete p.stores[sid];
+    }
   }
 
   function migrateProductSchedules() {
@@ -233,6 +239,12 @@
   };
 
   function normalizeProduct(p) {
+    for (const [sid, v] of Object.entries(p.stores || {})) {
+      if (!v || typeof v !== 'object') continue;
+      if (!v.stock) delete v.stock;
+      if (!v.hidden) delete v.hidden;
+      if (!Object.keys(v).length) delete p.stores[sid];
+    }
     if (!p.modifierCodes || !p.prep) return;
     if (p.foodType === '') p.foodType = null;
     p.modifierCodes = p.modifierCodes.filter((v) => C.modifierCodes.some(([c]) => c === v));
@@ -495,6 +507,16 @@
     if (S.data.menus[0]) seedOwnTimes(S.data.menus[0]);
   }
 
+  function seedStoreStatusDemo(m) {
+    S.data.storeStatusDemo = true;
+    const E = S.data.entities.product;
+    if (!m || Object.values(E).some((p) => Object.keys(p.stores || {}).length)) return;
+    const stores = menuStores(m);
+    const pos = m.children.flatMap((cid) => (S.data.entities.category[cid] || { children: [] }).children).map((id) => E[id]).filter((p) => p && p.source === 'pos');
+    if (pos[1] && stores.length > 3) pos[1].stores = { [stores[0].id]: { stock: 'out_of_stock' }, [stores[1].id]: { stock: 'oos_eod', hidden: true }, [stores[2].id]: { stock: 'oos_4h' } };
+    if (pos[2] && stores.length > 10) pos[2].stores = Object.fromEntries(stores.slice(4, 11).map((s) => [s.id, { hidden: true }]));
+  }
+
   function defaultStoreGroups() {
     return C.menuStoreGroups.map((g) => ({ id: g.id, storeIds: null, newStores: true }));
   }
@@ -644,6 +666,7 @@
       if (!m.image) m.image = posImageOf(m);
     });
     seedOwnTimes(S.data.menus[0]);
+    seedStoreStatusDemo(S.data.menus[0]);
   }
 
   function migratePosImages() {
@@ -828,8 +851,8 @@
     truffle.metadata = [{ key: 'Badge', value: 'Chef’s pick' }];
     prod('pos-m-bacon').modifierCodes = ['no', 'light', 'extra', 'side'];
     const airports = STORES.filter((s) => s.airport);
-    prod('pos-ipa').stores = { [airports[0].id]: 'out_of_stock', [airports[1].id]: 'oos_eod', [airports[2].id]: 'oos_eod' };
-    prod('pos-m-avocado').stores = { [STORES[41].id]: 'hidden' };
+    prod('pos-ipa').stores = { [airports[0].id]: { stock: 'out_of_stock' }, [airports[1].id]: { stock: 'oos_eod', hidden: true }, [airports[2].id]: { stock: 'oos_eod' } };
+    prod('pos-m-avocado').stores = { [STORES[41].id]: { hidden: true } };
     for (const [ext, fields] of Object.entries(DATASETS.example.products || {})) if (prod(ext)) Object.assign(prod(ext), fields);
   }
 
@@ -863,6 +886,7 @@
           migrateOwnTimesDemo();
           Object.values(S.data.entities.category).forEach(migrateCategory);
           Object.values(S.data.entities.product).forEach(migrateProduct);
+          if (!S.data.storeStatusDemo) seedStoreStatusDemo(S.data.menus[0]);
           const fixPath = migrateChoiceProducts();
           for (const [k, pl] of Object.entries(S.data.placements)) {
             if (!/^[^>]+>c:[^>]+$/.test(k)) continue;

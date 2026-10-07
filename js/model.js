@@ -35,6 +35,49 @@
   const choiceProductsHolding = (category, pid) =>
     category.children.map((c) => entity('product', c)).filter((p) => p && p.ptype === 'size' && p.id !== pid && p.children.includes(pid));
 
+  const storeEntry = (p, sid) => (p.stores || {})[sid] || {};
+  const productStockAt = (p, sid) => storeEntry(p, sid).stock || '';
+  const productHiddenAt = (p, sid) => !!storeEntry(p, sid).hidden;
+  const productMenus = (p) => {
+    const ids = new Set((ctx.usage.get(`product:${p.id}`) || []).map((path) => parsePath(path).menuId));
+    return S.data.menus.filter((m) => ids.has(m.id));
+  };
+
+  function productStores(p) {
+    const ids = new Set(productMenus(p).flatMap((m) => menuStores(m).map((s) => s.id)));
+    return STORES.filter((s) => ids.has(s.id));
+  }
+
+  const productPublishedIds = (p) => new Set(productMenus(p).flatMap((m) => m.publishedStoreIds));
+
+  function productParents(p) {
+    const holds = (x) => x.children.includes(p.id);
+    return [
+      ...Object.values(S.data.entities.category).filter(holds).map((ent) => ({ kind: 'category', ent })),
+      ...Object.values(S.data.entities.group).filter(holds).map((ent) => ({ kind: 'group', ent })),
+      ...Object.values(S.data.entities.product).filter((x) => x.ptype === 'size' && holds(x)).map((ent) => ({ kind: 'product', ent })),
+    ];
+  }
+
+  function halfWholeUse(p) {
+    const isHalf = (h) => h && (h.left === p.id || h.right === p.id);
+    const halfIn = [
+      ...Object.values(S.data.entities.group).filter((g) => Object.values(g.halves || {}).some(isHalf)).map((g) => nameOf('group', g)),
+      ...Object.values(S.data.entities.product).filter((x) => Object.values(x.halfWhole || {}).some(isHalf)).map((x) => nameOf('product', x)),
+    ];
+    const rootGroups = [
+      ...new Set(
+        productOptions(p, { modifierOnly: true })
+          .filter((o) => {
+            const h = halvesAt(p, o.gid, o.pid).h;
+            return h.left && h.right;
+          })
+          .map((o) => nameOf('group', entity('group', o.gid))),
+      ),
+    ];
+    return { halfIn: [...new Set(halfIn)], rootGroups };
+  }
+
   function choiceAllergensMissing(p) {
     const inChoices = new Set(p.children.flatMap((cid) => (entity('product', cid) || { allergens: [] }).allergens));
     return C.allergens.filter((a) => inChoices.has(a) && !p.allergens.includes(a));
