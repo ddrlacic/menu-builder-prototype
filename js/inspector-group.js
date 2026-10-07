@@ -5,7 +5,6 @@
     const rules = rulesOf(g);
     const fromPos = g.gtype === 'pos';
     if (tab === 'general') {
-      const t = C.groupTypes[rules.type];
       let posField = '';
       if (fromPos)
         posField = field('POS group', `<div class="input is-readonly">${esc(posLabel(g.externalId))}</div>`, { pos: true, help: 'Choices ring up on POS as options of this group.' });
@@ -32,13 +31,6 @@
               id: 'g-int',
               error: lengthError(g.internalName),
               help: 'Use it to tell apart groups with the same name. Only your team sees it.',
-            }) +
-            field('Type', `<div class="type-display"><span class="type-tag type-${rules.type}">${t.label}</span><span>${esc(t.help)}</span></div>`, {
-              help: fromPos
-                ? `${icon('lock', 12)} Set by the POS group.`
-                : g.gtype === 'linked'
-                  ? `${icon('lock', 12)} Same as the linked POS group.`
-                  : `${icon('lock', 12)} Suggested products always use the Modifier type. Linking a POS group uses its type instead.`,
             }) +
             posField +
             field('External ID', inputText(gb('reportingId'), g.reportingId, { id: 'g-ext', mono: true }), {
