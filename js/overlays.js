@@ -377,8 +377,8 @@
     const pInfo = parsePath(info.parentPath);
     const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));
     if (which === 'add') {
-      const customVersion = {
-        label: 'Custom version',
+      const customProduct = {
+        label: 'Custom product',
         hint: 'Your name, image, and options for a POS product. POS gets the original',
         icon: 'link',
         onClick: () => openLinkedProductPicker(path),
@@ -393,7 +393,7 @@
             onClick: () => openPosProductPicker(path),
           },
           { heading: 'Create' },
-          customVersion,
+          customProduct,
           { label: 'Choice product', hint: 'Customers pick one product, like a size. Only that product goes to POS', icon: 'package', onClick: () => createChoiceProduct(path) },
         ];
         if (detectSizeSets(ent).length) items.push('-', { label: 'Group sizes', hint: 'Turn size variants into one choice product', icon: 'sparkles', onClick: () => openOptimize(path) });
@@ -409,8 +409,8 @@
         items.push(
           { heading: 'Create' },
           {
-            label: 'Custom version',
-            hint: 'Your own list of options from a POS group. POS gets the original group',
+            label: 'Custom group',
+            hint: 'Your own name and rules for a POS group. POS gets the original group',
             icon: 'link',
             submenu: true,
             onClick: () => linkedGroupMenu(anchor, path),
@@ -424,7 +424,7 @@
           { heading: 'Add from POS' },
           { label: 'POS product', hint: 'Keeps its own POS price', icon: 'utensils', onClick: () => openPosProductPicker(path) },
           { heading: 'Create' },
-          customVersion,
+          customProduct,
         ]);
       }
       return openPopover(anchor, [

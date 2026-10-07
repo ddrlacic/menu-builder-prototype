@@ -406,7 +406,7 @@
   function linkedGroupsSection(p, path) {
     const allowed = allowedPosGroupsFor(path);
     const missing = allowed.filter((gid) => !p.children.some((c) => posIdOf('group', entity('group', c)) === gid));
-    if (!p.posParentExt) return section('Groups', '<p class="field-help">Choose what this custom version rings up as first. Its groups come from that POS product.</p>');
+    if (!p.posParentExt) return section('Groups', '<p class="field-help">Choose what this custom product rings up as first. Its groups come from that POS product.</p>');
     return section(
       'Groups',
       missing.length
@@ -481,8 +481,8 @@
                 `<div class="input is-readonly">${esc(p.posParentExt ? `${posLabel(p.posParentExt)} · ${p.posParentExt}` : 'Not chosen yet')}<span class="link-btns"><button type="button" class="link-btn" data-action="change-parent" data-path="${esc(path)}">${p.posParentExt ? 'Change' : 'Choose'}</button>${p.posParentExt ? `<button type="button" class="link-btn" data-action="unlink-parent">Unlink</button>` : ''}</span></div>`,
                 {
                   help: p.posParentExt
-                    ? 'The POS product this custom version rings up as, at its POS price.'
-                    : 'Choose a POS product so customers can order this custom version.',
+                    ? 'The POS product this custom product rings up as, at its POS price.'
+                    : 'Choose a POS product so customers can order this custom product.',
                   error: p.posParentExt ? '' : 'Choose what it rings up as',
                 },
               )

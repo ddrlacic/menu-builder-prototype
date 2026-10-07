@@ -10,7 +10,7 @@
               'POS group',
               `<div class="input is-readonly">${esc(posLabel(g.posGroupExt))}</div>
           <div class="link-btns field-actions"><button type="button" class="link-btn" data-action="group-change-link">Change</button></div>`,
-              { help: 'Choices ring up on POS as options of this group, at its POS prices.' },
+              { help: `Choices go to POS as options of ${esc(posLabel(g.posGroupExt))}, at its prices. This name and these rules stay on this group.` },
             )
           : '';
       return (

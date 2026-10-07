@@ -326,7 +326,10 @@
       if (ent.ptype === 'size') return 'Customers pick one product inside. Only that product goes to POS.';
       return '';
     }
-    if (ent.gtype === 'linked') return `Your own list of options from ${posLabel(ent.posGroupExt)}. POS gets them in that group.`;
+    if (ent.gtype === 'linked') {
+      const pos = posLabel(ent.posGroupExt);
+      return `Your name and rules for ${pos}. Changing them leaves ${pos} unchanged on other products. POS gets the options in ${pos}.`;
+    }
     return 'Products customers can add. Each one goes on the order as its own item.';
   }
 
@@ -334,8 +337,8 @@
     if (kind === 'menu') return 'Menu';
     if (kind === 'category') return isVirtual(ent) ? 'Menu-only category' : 'Category';
     if (kind === 'product')
-      return { pos: 'Product', linked: 'Custom version', container: 'Option folder', size: 'Choice product' }[ent.ptype];
-    if (ent.gtype === 'linked') return 'Custom version';
+      return { pos: 'Product', linked: 'Custom product', container: 'Option folder', size: 'Choice product' }[ent.ptype];
+    if (ent.gtype === 'linked') return 'Custom group';
     if (ent.gtype === 'standalone') return 'Suggested products';
     return `${C.groupTypes[rulesOf(ent).type].label} group`;
   }

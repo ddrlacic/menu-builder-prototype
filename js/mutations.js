@@ -207,8 +207,8 @@
 
   function openLinkedProductPicker(categoryPath) {
     openPicker({
-      title: 'Create custom version',
-      intro: 'Choose the POS product it rings up as. The custom version gets its own name, image, and preselected options, and always uses that product’s POS price. It starts with that product’s description and dietary info.',
+      title: 'Create custom product',
+      intro: 'Choose the POS product it rings up as. The custom product gets its own name, image, and preselected options, and always uses that product’s POS price. It starts with that product’s description and dietary info.',
       placeholder: 'Search by product name or POS ID',
       items: posProductChoices(),
       onPick: (posId) => {
@@ -228,7 +228,7 @@
             }),
           );
         });
-        toast('Custom version created. Add its groups next', 'success');
+        toast('Custom product created. Add its groups next', 'success');
       },
     });
   }
@@ -237,7 +237,7 @@
     const ent = entity('product', parsePath(path).id);
     openPicker({
       title: 'Change what it rings up as',
-      intro: 'The custom version rings up on POS as this product, at its POS price. Groups that this product does not have are flagged.',
+      intro: 'The custom product rings up on POS as this product, at its POS price. Groups that this product does not have are flagged.',
       placeholder: 'Search by product name or POS ID',
       items: posProductChoices(),
       onPick: (posId) => {
@@ -478,7 +478,7 @@
     const uses = (ctx.usage.get(`group:${g.id}`) || []).length;
     openPicker({
       title: 'Change the linked POS group',
-      intro: `Groups of ${name} on POS. Choices ring up as options of the group you pick, at its POS prices. Options that are not in that group are removed.${uses > 1 ? ' A change applies everywhere this custom version is used.' : ''}`,
+      intro: `Groups of ${name} on POS. Choices ring up as options of the group you pick, at its POS prices. Options that are not in that group are removed.${uses > 1 ? ' A change applies everywhere this custom group is used.' : ''}`,
       placeholder: 'Search by group name or POS ID',
       items: posGroupChoices(g, productPath),
       empty: `${name} has no other groups on POS`,

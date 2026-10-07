@@ -270,7 +270,7 @@
       );
     if (kind === 'product' && ent.ptype === 'linked')
       return section(
-        'Custom version',
+        'Custom product',
         `${callout('info', `Customers see your name, image, and options. POS gets <strong>${esc(ent.posParentExt ? posLabel(ent.posParentExt) : 'the POS product you choose')}</strong>, at its POS price.`, 'link')}
         ${ent.posParentExt ? posKv([['Rings up as', esc(posLabel(ent.posParentExt))], ['POS ID', esc(ent.posParentExt), true]]) : ''}`,
       );
@@ -287,8 +287,8 @@
       );
     if (kind === 'group' && ent.gtype === 'linked')
       return section(
-        'Custom version',
-        `${callout('info', `Customers see only the options you pick from <strong>${esc(posLabel(ent.posGroupExt))}</strong>. POS gets them in that group, at its POS prices.`, 'link')}
+        'Custom group',
+        `${callout('info', `Your name and rules for <strong>${esc(posLabel(ent.posGroupExt))}</strong>. Changing them leaves ${esc(posLabel(ent.posGroupExt))} unchanged on other products. POS gets the options in that group, at its prices.`, 'link')}
         ${posKv([['POS group', esc(posLabel(ent.posGroupExt))], ['POS ID', esc(ent.posGroupExt), true]])}`,
       );
     if (kind === 'group')
