@@ -268,7 +268,7 @@
     const [kind, id, mapKey] = key.split('|');
     if (kind === 'place') {
       const [pid, gid] = id.split(':');
-      return { ent: entity('product', pid).optionSections[gid], mapKey };
+      return { ent: ownSections(entity('product', pid), entity('group', gid)), mapKey };
     }
     return { ent: entity(kind, id), mapKey };
   }

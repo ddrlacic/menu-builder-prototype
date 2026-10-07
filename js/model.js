@@ -342,6 +342,16 @@
     return h.left && h.right ? 'Left and right halves' : `${SIDE_LABEL[h.left ? 'left' : 'right']} only`;
   }
 
+  function ownSections(p, g) {
+    if (!p.optionSections[g.id])
+      p.optionSections[g.id] = {
+        sections: g.sections.map((s) => ({ id: s.id, name: s.name })),
+        optionSection: Object.fromEntries(g.children.filter((pid) => sectionOfOption(g, pid)).map((pid) => [pid, sectionOfOption(g, pid)])),
+        children: g.children.slice(),
+      };
+    return p.optionSections[g.id];
+  }
+
   function sectionHost(path) {
     const info = parsePath(path);
     if (info.kind !== 'group' || !info.parentPath) return null;

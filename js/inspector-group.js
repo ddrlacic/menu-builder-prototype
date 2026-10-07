@@ -301,24 +301,17 @@
     const onlyHere = !!host && T.sectionsHere === path;
     const scopeHtml = host ? scopeSwitch(path, host, onlyHere, 'sections-scope') : '';
     const sectionsBox = (body, desc) => (host ? section('Option sections', `${scopeHtml}${desc ? `<p class="section-desc">${desc}</p>` : ''}${body}`) : section('Option sections', body, { desc }));
-    if (onlyHere && !host.own) {
-      const pName = esc(nameOf('product', host.p));
-      return sectionsBox(
-        `<p class="field-help">${g.sections.length ? 'Same sections as other products.' : 'No sections, same as other products.'}</p>
-        <div class="link-btns field-actions"><button type="button" class="link-btn" data-action="own-sections-start">Use own sections in ${pName}</button></div>`,
-      );
-    }
     if (onlyHere) {
-      const own = host.own;
+      const src = host.own || g;
       const pName = esc(nameOf('product', host.p));
       const listed = new Set(listedOptions(g));
-      const items = own.children.filter((pid) => listed.has(pid)).map((pid) => ({ id: pid, name: optionName(g, pid), section: sectionOfOption(own, pid) }));
+      const items = src.children.filter((pid) => listed.has(pid)).map((pid) => ({ id: pid, name: optionName(g, pid), section: sectionOfOption(src, pid) }));
       const ob = (f) => `e|product|${host.p.id}|optionSections.${g.id}.${f}`;
       return sectionsBox(
-        nestedSections(`place|${host.p.id}:${g.id}|optionSection`, own.sections, ob, items, 'option', 'options') +
+        nestedSections(`place|${host.p.id}:${g.id}|optionSection`, src.sections, ob, items, 'option', 'options') +
           addButton('own-section-add', 'Add section') +
-          `<div class="link-btns field-actions"><button type="button" class="link-btn" data-action="own-sections-reset">Use the same as other products</button></div>`,
-        `Customers see these headings in ${pName} only. Drag options and headings to arrange them.`,
+          (host.own ? `<div class="link-btns field-actions"><button type="button" class="link-btn" data-action="own-sections-reset">Use the same as other products</button></div>` : ''),
+        !src.sections.length ? `Split the options in ${pName} under headings, like Cheese and Veggies.` : host.own ? `Customers see these headings in ${pName} only. Drag options and headings to arrange them.` : 'Drag options and headings to arrange them.',
       );
     }
     const items = listedOptions(g).map((pid) => ({ id: pid, name: optionName(g, pid), section: sectionOfOption(g, pid) }));

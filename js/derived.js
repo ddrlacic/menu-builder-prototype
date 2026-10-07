@@ -339,6 +339,8 @@
   };
   const setBind = (bind, value) => {
     const [scope, path, field] = bind.split('|');
+    const own = bind.match(/^e\|product\|([^|]+)\|optionSections\.([^.]+)\./);
+    if (own) ownSections(entity('product', own[1]), entity('group', own[2]));
     if (scope === 'pl' && field === 'hidden' && parsePath(path).kind === 'group') {
       const g = entity('group', parsePath(path).id);
       (g ? g.children : []).forEach((pid) => {
