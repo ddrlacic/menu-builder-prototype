@@ -3,25 +3,16 @@
   function groupTab(tab, g, path) {
     const gb = (f) => `e|group|${g.id}|${f}`;
     const rules = rulesOf(g);
-    const fromPos = g.gtype === 'pos';
     if (tab === 'general') {
-      let posField = '';
-      if (fromPos)
-        posField = field('POS group', `<div class="input is-readonly">${esc(posLabel(g.externalId))}</div>`, { pos: true, help: 'Choices ring up on POS as options of this group.' });
-      else if (g.gtype === 'linked')
-        posField = field(
-          'POS group',
-          `<div class="input is-readonly">${esc(posLabel(g.posGroupExt))}</div>
+      const posField =
+        g.gtype === 'linked'
+          ? field(
+              'POS group',
+              `<div class="input is-readonly">${esc(posLabel(g.posGroupExt))}</div>
           <div class="link-btns field-actions"><button type="button" class="link-btn" data-action="group-change-link">Change</button><button type="button" class="link-btn" data-action="group-unlink">Unlink</button></div>`,
-          { help: 'Choices ring up on POS as options of this group, at its POS prices.' },
-        );
-      else
-        posField = field(
-          'POS group',
-          `<div class="input is-readonly muted">Not linked</div>
-          <div class="link-btns field-actions"><button type="button" class="link-btn" data-action="group-link">Link to a POS group</button></div>`,
-          { help: 'Each choice is added to the order as its own item. Link a POS group to ring up choices as its options instead.' },
-        );
+              { help: 'Choices ring up on POS as options of this group, at its POS prices.' },
+            )
+          : '';
       return (
         placementSection(path) +
         section(
