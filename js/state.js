@@ -943,6 +943,7 @@
           migratePreselections(oldGroups);
           migrateProductScopedPlacements();
           migrateGroupHidden();
+          migrateCodesHere();
           migrateChoicesInMenus();
           S.data.menus.forEach((m) => (m.pricedKeys = !m.publishedAt ? [] : m.pricedKeys || menuPriceKeys(m)));
           normalizeAll();
@@ -1002,12 +1003,24 @@
     }
   }
 
+  function migrateCodesHere() {
+    for (const [k, pl] of Object.entries(S.data.placements)) {
+      if (!pl || !Array.isArray(pl.hiddenCodes)) continue;
+      const segs = k.split('>');
+      const g = entity('group', (segs[segs.length - 2] || '').slice(2));
+      const pid = (segs[segs.length - 1] || '').slice(2);
+      if (pl.hiddenCodes.length) pl.codesHere = [...new Set([...groupHiddenCodes(g, pid), ...pl.hiddenCodes])];
+      delete pl.hiddenCodes;
+      if (!Object.keys(pl).length) delete S.data.placements[k];
+    }
+  }
+
   function migrateProductScopedPlacements() {
     for (const [k, pl] of Object.entries(S.data.placements)) {
       if (k.startsWith('@>')) continue;
       const sk = productScopePath(k);
       if (sk === k) continue;
-      for (const f of ['preselected', 'hiddenCodes']) {
+      for (const f of ['preselected', 'hiddenCodes', 'codesHere']) {
         if (pl[f] == null) continue;
         const target = (S.data.placements[sk] = S.data.placements[sk] || {});
         if (target[f] == null) target[f] = pl[f];

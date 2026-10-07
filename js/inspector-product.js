@@ -436,9 +436,8 @@
     const scope = productScopeText(path);
     const rootName = nameOf('product', entity('product', productScopePath(path).split('>')[1].slice(2)));
     const onlyRoot = `A change here applies only in ${esc(rootName)}, in every menu.`;
-    const pre = placement(productScopePath(path));
     const groupHidden = groupHiddenCodes(parentEnt, p.id);
-    const shown = productCodes(p).filter(([v]) => !groupHidden.includes(v));
+    const codes = productCodes(p);
     const pr = rulesOf(parentEnt);
     const groupPre = parentEnt.preselected[p.id] || 0;
     if (isAutoAdded(path))
@@ -458,13 +457,14 @@
       error: lengthError((parentEnt.optionSettings[p.id] || {}).name),
       help: `Customers see this name in ${esc(parentName)}, everywhere it’s used. Leave it empty to use the product name.`,
     });
-    if (shown.length)
-      html += field('Modifier codes shown', chips(`pl|${productScopePath(path)}|hiddenCodes`, pre.hiddenCodes || [], shown, { invert: true }), {
+    if (codes.length)
+      html += field('Modifier codes shown', chips(`pl|${productScopePath(path)}|codesHere`, hiddenCodesAt(path), codes, { invert: true, start: groupHidden }), {
         scope,
-        help: `${groupHidden.length ? `Hidden in ${esc(parentName)} everywhere: ${esc(listJoin(groupHidden.map((c) => (C.modifierCodes.find((x) => x[0] === c) || [c, c])[1])))}. ` : ''}${onlyRoot}`,
-        error: p.isModifierCodeRequired && p.modifierCodes.every((c) => hiddenCodesAt(path).includes(c)) ? 'A code is required, so keep at least one visible' : '',
+        help: codesOverridden(path)
+          ? `Other products use the codes set in ${esc(parentName)}. <button type="button" class="link-btn" data-action="codes-reset" data-path="${esc(productScopePath(path))}">Use the same here</button>`
+          : `Same as the ${esc(parentName)} group. ${onlyRoot}`,
+        error: p.isModifierCodeRequired && codes.every(([v]) => hiddenCodesAt(path).includes(v)) ? 'A code is required, so keep at least one visible' : '',
       });
-    else if (groupHidden.length && p.modifierCodes.length) html += field('Modifier codes shown', `<p class="field-help">None. All codes are hidden in ${esc(parentName)}.</p>`);
     return html;
   }
 

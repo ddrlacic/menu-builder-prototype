@@ -191,7 +191,10 @@
         if (auto) subs.push('Auto-added by POS');
         else if (folder) subs.push('Option folder');
         if (name !== nameOf('product', p)) subs.push(`Product: ${nameOf('product', p)}`);
-        if (preselectOverridden(op)) subs.push(onlyHere ? `Changed here · ${pre} in other products` : `Preselects ${placement(productScopePath(op)).preselected} here`);
+        if (onlyHere) {
+          if (preselectOverridden(op)) subs.push(`Preselected changed here · ${pre} in other products`);
+          if (codesOverridden(op)) subs.push('Codes changed here');
+        } else if (preselectOverridden(op)) subs.push(`Preselects ${placement(productScopePath(op)).preselected} here`);
         const ps = priceStats(op);
         const noPrice = !folder && ps.missingStores.length && !isMissingOnPos(p) ? `No POS price at ${ps.missingStores.length === ps.total ? 'any store' : plural(ps.missingStores.length, 'store', 'stores')}` : '';
         const halves = halvesNote(g, pid);
@@ -202,7 +205,7 @@
             <button type="button" class="switch" role="switch" aria-checked="${!opl.hidden}" aria-label="Show ${esc(name)}" data-toggle="pl|${esc(op)}|hidden" data-focus-key="pl|${esc(op)}|hidden"><span class="switch-thumb"></span></button>
             <button type="button" class="icon-btn sm opt-expand" data-action="card-open" data-id="opt:${esc(pid)}" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings">${icon('chevDown', 14)}</button>
           </div>`;
-        return `<div class="opt-item${open ? ' is-open' : ''}">${row}${open ? optionDetail(g, pid, p, op, i, listed.length, gb, rules, max) : ''}</div>`;
+        return `<div class="opt-item${open ? ' is-open' : ''}">${row}${open ? optionDetail(g, pid, p, op, i, listed.length, gb, rules, max, onlyHere) : ''}</div>`;
       })
       .join('');
     const preHelp =
@@ -212,7 +215,7 @@
           ? ' Preselect one option at most. Preselection applies everywhere this group is used.'
           : ` ${pick ? 'Preselect one option at most. Preselection applies' : 'Preselected quantities apply'} everywhere this group is used. To change one place only, open the option there.`;
     const bulk = onlyHere ? null : bulkPreselect(g, path);
-    const changedHere = onlyHere && listed.some((pid) => preselectOverridden(childPath(path, 'product', pid)));
+    const changedHere = onlyHere && listed.some((pid) => preselectOverridden(childPath(path, 'product', pid)) || codesOverridden(childPath(path, 'product', pid)));
     const bulkHtml = changedHere
       ? '<div class="link-btns field-actions"><button type="button" class="link-btn" data-action="pre-reset-here">Use the same as other products</button></div>'
       : bulk && (bulk.canAll || bulk.canClear)
@@ -220,8 +223,8 @@
         : '';
     const pName = host ? esc(nameOf('product', host.p)) : '';
     const scopeHtml = host
-      ? `<div class="field"><div class="field-head"><span class="field-label">Preselected in</span>${onlyHere ? scopePill(productScopeText(path)) : ''}</div>
-        <div class="segmented" role="radiogroup" aria-label="Preselected in">${[
+      ? `<div class="field"><div class="field-head"><span class="field-label">Edit for</span>${onlyHere ? scopePill(productScopeText(path)) : ''}</div>
+        <div class="segmented" role="radiogroup" aria-label="Edit for">${[
           ['all', 'Every product'],
           ['here', pName],
         ]
@@ -229,7 +232,7 @@
           .join('')}</div></div>`
       : '';
     const help = onlyHere
-      ? `Preselected quantities here apply only to ${pName}, in every menu. Shown applies only in ${esc(here)}.`
+      ? `Preselected and modifier codes shown apply only to ${pName}, in every menu. Shown applies only in ${esc(here)}.`
       : `${g.gtype === 'standalone' ? 'Each one customers pick goes on the order as its own item.' : 'Prices come from POS. Select an option’s name to see its price.'}${preHelp} Shown applies only in ${esc(here)}.`;
     return section(
       'Options',
@@ -241,7 +244,7 @@
     );
   }
 
-  function optionDetail(g, pid, p, op, i, count, gb, rules, max) {
+  function optionDetail(g, pid, p, op, i, count, gb, rules, max, onlyHere) {
     const name = optionName(g, pid);
     const s = g.optionSettings[pid] || {};
     const folder = p.ptype === 'container';
@@ -258,11 +261,20 @@
         error: optionMaxError(s.maxQty, max),
         help: `Times customers can pick this option. Leave it empty to use the group setting (${rules.maxSingle}).`,
       });
-    if (rules.type === 1 && codes.length)
-      body += field('Modifier codes shown', chips(gb(`optionSettings.${pid}.hiddenCodes`), hidden, codes, { invert: true }), {
-        error: p.isModifierCodeRequired && codes.every(([v]) => hidden.includes(v)) ? 'A code is required, so keep at least one visible' : '',
-        help: 'Applies everywhere this group is used.',
-      });
+    if (rules.type === 1 && codes.length) {
+      const shownHere = onlyHere ? hiddenCodesAt(op) : hidden;
+      body += field(
+        'Modifier codes shown',
+        onlyHere
+          ? chips(`pl|${productScopePath(op)}|codesHere`, shownHere, codes, { invert: true, start: hidden })
+          : chips(gb(`optionSettings.${pid}.hiddenCodes`), hidden, codes, { invert: true }),
+        {
+          scope: onlyHere ? productScopeText(op) : '',
+          error: p.isModifierCodeRequired && codes.every(([v]) => shownHere.includes(v)) ? 'A code is required, so keep at least one visible' : '',
+          help: onlyHere ? (codesOverridden(op) ? 'Other products use the codes set in this group.' : 'Same as in other products.') : 'Applies everywhere this group is used.',
+        },
+      );
+    }
     body += `<div class="opt-detail-foot">
         <div class="position-control"><span class="tnum">${i + 1} of ${count}</span>${[
           [-1, 'chevUp', 'up', i === 0],

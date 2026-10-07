@@ -215,8 +215,15 @@
   }
 
   function hiddenCodesAt(path) {
-    const g = groupOfOption(path);
-    return [...new Set([...groupHiddenCodes(g, parsePath(path).id), ...(placement(productScopePath(path)).hiddenCodes || [])])];
+    const own = placement(productScopePath(path)).codesHere;
+    return Array.isArray(own) ? own : groupHiddenCodes(groupOfOption(path), parsePath(path).id);
+  }
+
+  function codesOverridden(path) {
+    const own = placement(productScopePath(path)).codesHere;
+    if (!Array.isArray(own)) return false;
+    const base = groupHiddenCodes(groupOfOption(path), parsePath(path).id);
+    return own.length !== base.length || own.some((c) => !base.includes(c));
   }
 
   const preselectOverridden = (path) => {

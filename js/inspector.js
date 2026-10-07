@@ -111,12 +111,13 @@
       .join('')}</div>`;
   }
 
-  function chips(bind, values, options, { invert = false, vtype = 'text' } = {}) {
+  function chips(bind, values, options, { invert = false, vtype = 'text', start = null } = {}) {
     const arr = values || [];
+    const startAttr = start ? ` data-start="${esc(JSON.stringify(start))}"` : '';
     return `<div class="chips">${options
       .map(([v, l]) => {
         const on = invert ? !arr.includes(v) : arr.includes(v);
-        return `<button type="button" class="chip${on ? ' is-on' : ''}" aria-pressed="${on}" data-chip="${esc(bind)}" data-value="${esc(v)}" data-vtype="${vtype}" data-focus-key="${esc(bind)}~${esc(v)}">${on ? icon('check', 12) : ''}${esc(l)}</button>`;
+        return `<button type="button" class="chip${on ? ' is-on' : ''}" aria-pressed="${on}" data-chip="${esc(bind)}"${startAttr} data-value="${esc(v)}" data-vtype="${vtype}" data-focus-key="${esc(bind)}~${esc(v)}">${on ? icon('check', 12) : ''}${esc(l)}</button>`;
       })
       .join('')}</div>`;
   }

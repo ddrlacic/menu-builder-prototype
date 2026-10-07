@@ -545,8 +545,14 @@
         break;
       case 'pre-reset-here': {
         const g = entity('group', parsePath(S.ui.selected).id);
-        commit(() => listedOptions(g).forEach((pid) => setBind(`pl|${productScopePath(childPath(S.ui.selected, 'product', pid))}|preselected`, null)));
-        toast('Preselection same as other products', 'success', { action: { label: 'Undo', onClick: undo } });
+        commit(() =>
+          listedOptions(g).forEach((pid) => {
+            const k = productScopePath(childPath(S.ui.selected, 'product', pid));
+            setBind(`pl|${k}|preselected`, null);
+            setBind(`pl|${k}|codesHere`, null);
+          }),
+        );
+        toast('Same as other products', 'success', { action: { label: 'Undo', onClick: undo } });
         break;
       }
       case 'opt-move': {
@@ -589,6 +595,9 @@
         commit(() => (p.preselectedCode = p.preselectedCode === v ? null : v));
         break;
       }
+      case 'codes-reset':
+        commit(() => setBind(`pl|${el.dataset.path}|codesHere`, null));
+        break;
       case 'pre-reset':
         commit(() => setBind(`pl|${el.dataset.path}|preselected`, null));
         break;
@@ -908,7 +917,8 @@
       const bind = chip.dataset.chip;
       const v = chip.dataset.vtype === 'int' ? Number(chip.dataset.value) : chip.dataset.value;
       commit(() => {
-        const arr = (getBind(bind) || []).slice();
+        const cur = getBind(bind);
+        const arr = (Array.isArray(cur) ? cur : chip.dataset.start ? JSON.parse(chip.dataset.start) : []).slice();
         const i = arr.indexOf(v);
         if (i >= 0) arr.splice(i, 1);
         else arr.push(v);
