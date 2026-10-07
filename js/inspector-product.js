@@ -113,14 +113,15 @@
     );
   }
 
-  function productOptions(p, { modifierOnly = false } = {}) {
+  function productOptions(p, { modifierOnly = false, noHalves = false } = {}) {
     const out = [];
+    const halves = new Set(noHalves ? p.children.flatMap((gid) => (entity('group', gid) ? [...groupedHalves(entity('group', gid))] : [])) : []);
     p.children.forEach((gid) => {
       const g = entity('group', gid);
       if (!g || (modifierOnly && rulesOf(g).type !== 1)) return;
       g.children.forEach((pid) => {
         const x = entity('product', pid);
-        if (x && x.ptype !== 'container') out.push({ gid, pid, g, x, key: `${gid}:${pid}` });
+        if (x && x.ptype !== 'container' && !halves.has(pid)) out.push({ gid, pid, g, x, key: `${gid}:${pid}` });
       });
     });
     return out;
@@ -231,11 +232,12 @@
         const head = label(it);
         if (!head) return '';
         const name = nameOf('product', x);
-        return `<div class="store-row list-row">${head}
+        const sortable = p.included.length > 1;
+        return `<div class="store-row list-row" data-sort-index="${i}"${sortable ? ` tabindex="0" aria-label="${esc(name)}. Drag or use the arrow keys to move it"` : ''}>${head}
           <span class="row-tools">
             <button type="button" class="icon-btn sm${it.locked ? ' is-on' : ''}" data-toggle="${esc(pb(`included.${i}.locked`))}" aria-pressed="${!!it.locked}" aria-label="Lock ${esc(name)}" title="${it.locked ? 'Locked. Customers cannot remove it.' : 'Customers can remove it. Select to lock.'}">${icon(it.locked ? 'lock' : 'unlock', 14)}</button>
-            ${moveButtons(pb('included'), i, p.included.length, name)}${removeButton(pb('included'), i, name)}
-          </span>
+            ${removeButton(pb('included'), i, name)}
+          </span>${sortable ? `<span class="sort-grip" aria-hidden="true">${icon('grip', 14)}</span>` : ''}
         </div>`;
       })
       .join('');
@@ -247,11 +249,11 @@
             id: 'p-inc-name',
             error: lengthError(p.includedName),
             help: 'Customers see this name above the ingredients. Leave it empty to show “Included ingredients”.',
-          }) + `<div class="store-list">${posRows}${rows}</div>`
+          }) + `<div class="store-list"${p.included.length > 1 ? ` data-sortable="${esc(pb('included'))}"` : ''}>${posRows}${rows}</div>`
         : '') + addButton('add-included', 'Add ingredient'),
       {
         desc: any
-          ? 'When Group included ingredients is on in your brand’s configurations, Web App shows these together at the top of the product. Otherwise they stay in their groups. Locked ones cannot be removed.'
+          ? `When Group included ingredients is on in your brand’s configurations, Web App shows these together at the top of the product. Otherwise they stay in their groups. Locked ones cannot be removed.${p.included.length > 1 ? ' Drag ingredients to change their order.' : ''}`
           : 'Ingredients that come with the product, like the patty and bun. Options that POS adds automatically show here too.',
       },
     );

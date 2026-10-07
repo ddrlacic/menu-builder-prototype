@@ -318,7 +318,7 @@
 
   function groupHalvesSection(g) {
     const matched = halfMatches(g).halfIds;
-    const mapped = new Set(Object.entries(g.halves).flatMap(([w, h]) => [h.left, h.right].filter((x) => x && x !== w)));
+    const mapped = groupedHalves(g);
     const isHalf = (pid) => (mapped.has(pid) || matched.has(pid)) && !g.halves[pid];
     const opts = g.children.filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container' && !isHalf(pid));
     const halfCount = g.children.filter(isHalf).length;

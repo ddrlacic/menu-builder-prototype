@@ -145,7 +145,7 @@
       lifted = true;
       rows = [...list.querySelectorAll('[data-sort-index]')];
       from = to = rows.indexOf(row);
-      box = list.getBoundingClientRect();
+      box = { top: rows[0].getBoundingClientRect().top, bottom: rows[rows.length - 1].getBoundingClientRect().bottom };
       r = row.getBoundingClientRect();
       step = rows[1].getBoundingClientRect().top - rows[0].getBoundingClientRect().top;
       mids = rows.map((x) => {

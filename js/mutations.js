@@ -334,7 +334,7 @@
     openListPicker({
       title: 'Add included ingredients',
       intro: `Options from the groups of ${nameOf('product', p)}.`,
-      items: productOptions(p)
+      items: productOptions(p, { noHalves: true })
         .filter((o) => !taken.has(o.key))
         .map((o) => ({ id: o.key, name: nameOf('product', o.x), alt: o.x.internalName || '', meta: nameOf('group', o.g), price: '' })),
       empty: 'Every option is already included',
