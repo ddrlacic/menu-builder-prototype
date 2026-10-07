@@ -107,6 +107,9 @@
     preorder: { from: '', to: '', pickupFrom: '', pickupTo: '' },
   });
 
+  const UPSELL_TITLE = 'Make it a combo?';
+  const INCLUDED_NAME = 'Included ingredients';
+
   const productDefaults = () => ({
     reportingId: '',
     foodType: null,
@@ -128,10 +131,10 @@
     availability: newAvailability(),
     segments: [],
     metadata: [],
-    upsell: { title: '', products: [] },
+    upsell: { title: UPSELL_TITLE, products: [] },
     crossSell: [],
     included: [],
-    includedName: '',
+    includedName: INCLUDED_NAME,
     substitutes: {},
     halfWhole: {},
     sections: [],
@@ -180,6 +183,8 @@
     delete p.isSelfServing;
     const d = productDefaults();
     for (const k of Object.keys(d)) if (p[k] === undefined) p[k] = d[k];
+    if (!p.upsell.products.length && !p.upsell.title) p.upsell.title = UPSELL_TITLE;
+    if (!p.included.length && !p.includedName) p.includedName = INCLUDED_NAME;
     if (p.ptype === 'container') Object.assign(p, dietaryOf(d));
     if (p.ptype === 'container' || p.ptype === 'size') Object.assign(p, { minQty: null, maxQty: null, qtyScope: null });
     if (!p.stores) p.stores = {};

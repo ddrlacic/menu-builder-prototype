@@ -246,10 +246,10 @@
     return section(
       'Included ingredients',
       (any
-        ? field('Group name', inputText(pb('includedName'), p.includedName, { id: 'p-inc-name', placeholder: 'Included ingredients' }), {
+        ? field('Group name', inputText(pb('includedName'), p.includedName, { id: 'p-inc-name' }), {
             id: 'p-inc-name',
             error: lengthError(p.includedName),
-            help: 'Customers see this name above the ingredients. Leave it empty to show “Included ingredients”.',
+            help: 'Customers see this name above the ingredients.',
           }) + `<div class="store-list"${p.included.length > 1 ? ` data-sortable="${esc(pb('included'))}"` : ''}>${posRows}${rows}</div>`
         : '') + addButton('add-included', 'Add ingredient'),
       {
@@ -380,7 +380,7 @@
     const titleErr = p.upsell.products.length && !p.upsell.title.trim() ? 'Add a title' : lengthError(p.upsell.title);
     return section(
       'Upsell',
-      field('Title', inputText(pb('upsell.title'), p.upsell.title, { id: 'p-upsell-title', placeholder: 'Make it a combo?' }), {
+      field('Title', inputText(pb('upsell.title'), p.upsell.title, { id: 'p-upsell-title' }), {
         id: 'p-upsell-title',
         error: titleErr,
         help: 'Customers see it above the products.',
