@@ -231,6 +231,8 @@
     return !!g && rulesOf(g).type === 1 && isNum(placement(productScopePath(path)).preselected);
   };
 
+  const preselectDiffers = (path) => preselectOverridden(path) && placement(productScopePath(path)).preselected !== (groupOfOption(path).preselected[parsePath(path).id] || 0);
+
   function preselectedAt(path) {
     const pl = placement(productScopePath(path));
     const g = groupOfOption(path);

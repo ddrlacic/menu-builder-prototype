@@ -183,17 +183,17 @@
         const open = T.openCard === `opt:${pid}`;
         const pre = g.preselected[pid] || 0;
         let preCell = '';
-        if (preHere) {
+        if (preHere && !(pick && !folder)) {
           preCell = stepper(`pl|${productScopePath(op)}|preselected`, preselectedAt(op), { max: optionMaxOf(g, pid, rules), label: `preselected ${name}`, disabled: auto || folder, keepZero: true, start: pre });
         } else if (pick && !folder) {
-          const on = pre > 0;
-          preCell = `<button type="button" class="check-toggle opt-pick" role="radio" aria-checked="${on}" aria-label="Preselect ${esc(name)}" data-action="pre-pick" data-id="${esc(pid)}" ${auto || lockPre ? 'disabled' : ''}><span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span></button>`;
+          const on = (preHere ? preselectedAt(op) : pre) > 0;
+          preCell = `<button type="button" class="check-toggle opt-pick" role="radio" aria-checked="${on}" aria-label="Preselect ${esc(name)}" data-action="${preHere ? 'pre-pick-here' : 'pre-pick'}" data-id="${esc(pid)}" ${auto || lockPre ? 'disabled' : ''}><span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span></button>`;
         } else preCell = stepper(gb(`preselected.${pid}`), auto ? 1 : pre, { max: optionMaxOf(g, pid, rules), label: `preselected ${name}`, disabled: auto || folder || lockPre });
         const subs = [];
         if (auto) subs.push('Auto-added by POS');
         else if (folder) subs.push('Option folder');
         if (name !== nameOf('product', p)) subs.push(`Product: ${nameOf('product', p)}`);
-        const changed = host && (preselectOverridden(op) || codesOverridden(op) || hiddenInProduct(op));
+        const changed = host && (preselectDiffers(op) || codesOverridden(op) || hiddenInProduct(op));
         const ps = priceStats(op);
         const noPrice = !folder && ps.missingStores.length && !isMissingOnPos(p) ? `No POS price at ${ps.missingStores.length === ps.total ? 'any store' : plural(ps.missingStores.length, 'store', 'stores')}` : '';
         const halves = halvesNote(g, pid);
@@ -219,7 +219,7 @@
     const bulk = onlyHere ? null : bulkPreselect(g, path);
     const changedHere = onlyHere && listed.some((pid) => {
         const op = childPath(path, 'product', pid);
-        return preselectOverridden(op) || codesOverridden(op) || hiddenInProduct(op);
+        return preselectDiffers(op) || codesOverridden(op) || hiddenInProduct(op);
       });
     const bulkHtml = changedHere
       ? '<div class="link-btns field-actions"><button type="button" class="link-btn" data-action="pre-reset-here">Use the same as other products</button></div>'

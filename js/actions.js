@@ -539,6 +539,19 @@
         commit(() => (g.preselected = on ? {} : { [pid]: 1 }));
         break;
       }
+      case 'pre-pick-here': {
+        const g = entity('group', parsePath(S.ui.selected).id);
+        const pick = el.dataset.id;
+        const at = (pid) => productScopePath(childPath(S.ui.selected, 'product', pid));
+        const on = preselectedAt(childPath(S.ui.selected, 'product', pick)) > 0;
+        commit(() =>
+          listedOptions(g).forEach((pid) => {
+            const v = pid === pick && !on ? 1 : 0;
+            setBind(`pl|${at(pid)}|preselected`, v === (g.preselected[pid] || 0) ? null : v);
+          }),
+        );
+        break;
+      }
       case 'pre-scope':
         T.preHere = el.dataset.value === 'here' ? S.ui.selected : null;
         render();
