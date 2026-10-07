@@ -539,6 +539,16 @@
         commit(() => (g.preselected = on ? {} : { [pid]: 1 }));
         break;
       }
+      case 'pre-scope':
+        T.preHere = el.dataset.value === 'here' ? S.ui.selected : null;
+        render();
+        break;
+      case 'pre-reset-here': {
+        const g = entity('group', parsePath(S.ui.selected).id);
+        commit(() => listedOptions(g).forEach((pid) => setBind(`pl|${productScopePath(childPath(S.ui.selected, 'product', pid))}|preselected`, null)));
+        toast('Preselection same as other products', 'success', { action: { label: 'Undo', onClick: undo } });
+        break;
+      }
       case 'opt-move': {
         const g = entity('group', parsePath(S.ui.selected).id);
         const pid = el.dataset.id;

@@ -167,6 +167,8 @@
     const here = crumbText(path);
     const max = limitOf(rules.max);
     const pick = rules.fixed || max === 1;
+    const host = rules.type === 1 ? sectionHost(path) : null;
+    const onlyHere = !!host && T.preHere === path;
     const listed = listedOptions(g);
     const rows = listed
       .map((pid, i) => {
@@ -179,7 +181,9 @@
         const open = T.openCard === `opt:${pid}`;
         const pre = g.preselected[pid] || 0;
         let preCell = '';
-        if (pick && !folder) {
+        if (onlyHere) {
+          preCell = stepper(`pl|${productScopePath(op)}|preselected`, preselectedAt(op), { max: optionMaxOf(g, pid, rules), label: `preselected ${name}`, disabled: auto || folder, keepZero: true, start: pre });
+        } else if (pick && !folder) {
           const on = pre > 0;
           preCell = `<button type="button" class="check-toggle opt-pick" role="radio" aria-checked="${on}" aria-label="Preselect ${esc(name)}" data-action="pre-pick" data-id="${esc(pid)}" ${auto ? 'disabled' : ''}><span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span></button>`;
         } else preCell = stepper(gb(`preselected.${pid}`), auto ? 1 : pre, { max: optionMaxOf(g, pid, rules), label: `preselected ${name}`, disabled: auto || folder });
@@ -187,7 +191,7 @@
         if (auto) subs.push('Auto-added by POS');
         else if (folder) subs.push('Option folder');
         if (name !== nameOf('product', p)) subs.push(`Product: ${nameOf('product', p)}`);
-        if (preselectOverridden(op)) subs.push(`Preselects ${placement(productScopePath(op)).preselected} here`);
+        if (preselectOverridden(op)) subs.push(onlyHere ? `Changed here · ${pre} in other products` : `Preselects ${placement(productScopePath(op)).preselected} here`);
         const ps = priceStats(op);
         const noPrice = !folder && ps.missingStores.length && !isMissingOnPos(p) ? `No POS price at ${ps.missingStores.length === ps.total ? 'any store' : plural(ps.missingStores.length, 'store', 'stores')}` : '';
         const halves = halvesNote(g, pid);
@@ -207,18 +211,33 @@
         : rules.type === 3
           ? ' Preselect one option at most. Preselection applies everywhere this group is used.'
           : ` ${pick ? 'Preselect one option at most. Preselection applies' : 'Preselected quantities apply'} everywhere this group is used. To change one place only, open the option there.`;
-    const bulk = bulkPreselect(g, path);
-    const bulkHtml =
-      bulk && (bulk.canAll || bulk.canClear)
+    const bulk = onlyHere ? null : bulkPreselect(g, path);
+    const changedHere = onlyHere && listed.some((pid) => preselectOverridden(childPath(path, 'product', pid)));
+    const bulkHtml = changedHere
+      ? '<div class="link-btns field-actions"><button type="button" class="link-btn" data-action="pre-reset-here">Use the same as other products</button></div>'
+      : bulk && (bulk.canAll || bulk.canClear)
         ? `<div class="link-btns field-actions">${bulk.canAll ? '<button type="button" class="link-btn" data-action="pre-all">Preselect all</button>' : ''}${bulk.canClear ? '<button type="button" class="link-btn" data-action="pre-clear">Clear preselection</button>' : ''}</div>`
         : '';
+    const pName = host ? esc(nameOf('product', host.p)) : '';
+    const scopeHtml = host
+      ? `<div class="field"><div class="field-head"><span class="field-label">Preselected in</span>${onlyHere ? scopePill(productScopeText(path)) : ''}</div>
+        <div class="segmented" role="radiogroup" aria-label="Preselected in">${[
+          ['all', 'Every product'],
+          ['here', pName],
+        ]
+          .map(([v, l]) => `<button type="button" role="radio" aria-checked="${(v === 'here') === onlyHere}" class="seg" data-action="pre-scope" data-value="${v}">${l}</button>`)
+          .join('')}</div></div>`
+      : '';
+    const help = onlyHere
+      ? `Preselected quantities here apply only to ${pName}, in every menu. Shown applies only in ${esc(here)}.`
+      : `${g.gtype === 'standalone' ? 'Each one customers pick goes on the order as its own item.' : 'Prices come from POS. Select an option’s name to see its price.'}${preHelp} Shown applies only in ${esc(here)}.`;
     return section(
       'Options',
-      `<div class="opt-table has-expand no-price">
+      `${scopeHtml}<div class="opt-table has-expand no-price">
         <div class="opt-head"><span>Option</span><span>Preselected</span><span>Shown</span><span class="sr-only">Settings</span></div>
         ${rows}
       </div>${bulkHtml}
-      <p class="field-help">${g.gtype === 'standalone' ? 'Each one customers pick goes on the order as its own item.' : 'Prices come from POS. Select an option’s name to see its price.'}${preHelp} Shown applies only in ${esc(here)}.</p>`,
+      <p class="field-help">${help}</p>`,
     );
   }
 

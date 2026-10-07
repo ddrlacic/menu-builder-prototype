@@ -36,6 +36,7 @@
     placeQuery: '',
     showSelectedPlaces: false,
     openCard: null,
+    preHere: null,
     catProductQuery: '',
     catOnlyHidden: false,
     menuQuery: '',
