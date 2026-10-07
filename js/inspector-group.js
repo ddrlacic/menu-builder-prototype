@@ -193,15 +193,11 @@
         if (auto) subs.push('Auto-added by POS');
         else if (folder) subs.push('Option folder');
         if (name !== nameOf('product', p)) subs.push(`Product: ${nameOf('product', p)}`);
-        if (onlyHere) {
-          if (hiddenInProduct(op)) subs.push(`Hidden in ${nameOf('product', host.p)}`);
-          if (preselectOverridden(op)) subs.push(`Preselected changed here · ${pre} in other products`);
-          if (codesOverridden(op)) subs.push('Codes changed here');
-        } else if (preselectOverridden(op)) subs.push(`Preselects ${placement(productScopePath(op)).preselected} here`);
+        const changed = host && (preselectOverridden(op) || codesOverridden(op) || hiddenInProduct(op));
         const ps = priceStats(op);
         const noPrice = !folder && ps.missingStores.length && !isMissingOnPos(p) ? `No POS price at ${ps.missingStores.length === ps.total ? 'any store' : plural(ps.missingStores.length, 'store', 'stores')}` : '';
         const halves = halvesNote(g, pid);
-        const sub = [esc(subs.join(' · ')), halves && `<span class="half-meta">${icon('halves', 11)}${esc(halves)}</span>`, noPrice && `<span class="tone-warning">${noPrice}</span>`].filter(Boolean).join(' · ');
+        const sub = [esc(subs.join(' · ')), changed && `<span class="half-meta">${onlyHere ? 'Changed here' : `Changed in ${pName}`}</span>`, halves && `<span class="half-meta">${icon('halves', 11)}${esc(halves)}</span>`, noPrice && `<span class="tone-warning">${noPrice}</span>`].filter(Boolean).join(' · ');
         const shownCell = onlyHere
           ? `<button type="button" class="switch" role="switch" aria-checked="${!hiddenInProduct(op)}" aria-label="Show ${esc(name)} in ${pName}" data-toggle="pl|${esc(productScopePath(op))}|hidden" data-focus-key="pl|${esc(productScopePath(op))}|hidden"><span class="switch-thumb"></span></button>`
           : '';
@@ -285,7 +281,7 @@
         },
       );
     }
-    body += `<div class="opt-detail-foot">
+    if (!onlyHere) body += `<div class="opt-detail-foot">
         <div class="position-control"><span class="tnum">${i + 1} of ${count}</span>${[
           [-1, 'chevUp', 'up', i === 0],
           [1, 'chevDown', 'down', i === count - 1],
