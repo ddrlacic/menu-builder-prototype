@@ -298,7 +298,7 @@
     if (r.type !== 1 || max === 1) return null;
     const ids = [];
     let total = 0;
-    for (const pid of g.children) {
+    for (const pid of listedOptions(g)) {
       const p = entity('product', pid);
       if (!p || p.ptype === 'container') continue;
       if (isAutoAdded(childPath(path, 'product', pid))) total += 1;
@@ -323,6 +323,17 @@
   const groupHiddenCodes = (g, pid) => (g && g.optionSettings && g.optionSettings[pid] && g.optionSettings[pid].hiddenCodes) || [];
 
   const groupedHalves = (g) => new Set(Object.entries(g.halves || {}).flatMap(([w, h]) => [h.left, h.right].filter((x) => x && x !== w)));
+
+  const listedOptions = (g) => {
+    const halves = groupedHalves(g);
+    return g.children.filter((pid) => entity('product', pid) && !halves.has(pid));
+  };
+
+  function halvesNote(g, pid) {
+    const h = g.halves && g.halves[pid];
+    if (!h || (!h.left && !h.right)) return '';
+    return h.left && h.right ? 'Left and right halves' : `${SIDE_LABEL[h.left ? 'left' : 'right']} only`;
+  }
 
   const siblingGroupedHalves = (g) =>
     new Set([g, ...groupParents(g.id).flatMap((p) => p.children.map((gid) => entity('group', gid)))].filter(Boolean).flatMap((x) => [...groupedHalves(x)]));

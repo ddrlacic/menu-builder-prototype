@@ -539,6 +539,25 @@
         commit(() => (g.preselected = on ? {} : { [pid]: 1 }));
         break;
       }
+      case 'opt-move': {
+        const g = entity('group', parsePath(S.ui.selected).id);
+        const pid = el.dataset.id;
+        const delta = Number(el.dataset.delta);
+        const listed = listedOptions(g);
+        const other = listed[listed.indexOf(pid) + delta];
+        if (!other) break;
+        commit(() => {
+          const kids = g.children.filter((id) => id !== pid);
+          kids.splice(kids.indexOf(other) + (delta > 0 ? 1 : 0), 0, pid);
+          g.children = kids;
+        });
+        requestAnimationFrame(() => {
+          const at = `[data-action="opt-move"][data-id="${CSS.escape(pid)}"]`;
+          const btn = document.querySelector(`${at}[data-delta="${delta}"]:not(:disabled)`) || document.querySelector(`${at}:not(:disabled)`);
+          if (btn) btn.focus({ preventScroll: true });
+        });
+        break;
+      }
       case 'pre-all':
       case 'pre-clear': {
         const g = entity('group', parsePath(S.ui.selected).id);

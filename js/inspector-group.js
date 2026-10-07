@@ -167,10 +167,10 @@
     const here = crumbText(path);
     const max = limitOf(rules.max);
     const pick = rules.fixed || max === 1;
-    const rows = g.children
+    const listed = listedOptions(g);
+    const rows = listed
       .map((pid, i) => {
         const p = entity('product', pid);
-        if (!p) return '';
         const op = childPath(path, 'product', pid);
         const opl = placement(op);
         const auto = isAutoAdded(op);
@@ -186,6 +186,7 @@
         const subs = [];
         if (auto) subs.push('Auto-added by POS');
         else if (folder) subs.push('Option folder');
+        if (halvesNote(g, pid)) subs.push(halvesNote(g, pid));
         if (name !== nameOf('product', p)) subs.push(`Product: ${nameOf('product', p)}`);
         if (preselectOverridden(op)) subs.push(`Preselects ${placement(productScopePath(op)).preselected} here`);
         const ps = priceStats(op);
@@ -197,7 +198,7 @@
             <button type="button" class="switch" role="switch" aria-checked="${!opl.hidden}" aria-label="Show ${esc(name)}" data-toggle="pl|${esc(op)}|hidden" data-focus-key="pl|${esc(op)}|hidden"><span class="switch-thumb"></span></button>
             <button type="button" class="icon-btn sm opt-expand" data-action="card-open" data-id="opt:${esc(pid)}" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings">${icon('chevDown', 14)}</button>
           </div>`;
-        return `<div class="opt-item${open ? ' is-open' : ''}">${row}${open ? optionDetail(g, pid, p, op, i, gb, rules, max) : ''}</div>`;
+        return `<div class="opt-item${open ? ' is-open' : ''}">${row}${open ? optionDetail(g, pid, p, op, i, listed.length, gb, rules, max) : ''}</div>`;
       })
       .join('');
     const preHelp =
@@ -221,7 +222,7 @@
     );
   }
 
-  function optionDetail(g, pid, p, op, i, gb, rules, max) {
+  function optionDetail(g, pid, p, op, i, count, gb, rules, max) {
     const name = optionName(g, pid);
     const s = g.optionSettings[pid] || {};
     const folder = p.ptype === 'container';
@@ -244,14 +245,19 @@
         help: 'Applies everywhere this group is used.',
       });
     body += `<div class="opt-detail-foot">
-        <div class="position-control"><span class="tnum">${i + 1} of ${g.children.length}</span>${moveButtons(gb('children'), i, g.children.length, name)}</div>
+        <div class="position-control"><span class="tnum">${i + 1} of ${count}</span>${[
+          [-1, 'chevUp', 'up', i === 0],
+          [1, 'chevDown', 'down', i === count - 1],
+        ]
+          .map(([d, ic, w, off]) => `<button type="button" class="icon-btn sm" data-action="opt-move" data-id="${esc(pid)}" data-delta="${d}" aria-label="Move ${esc(name)} ${w}" title="Move ${w}" ${off ? 'disabled' : ''}>${icon(ic, 14)}</button>`)
+          .join('')}</div>
         <button type="button" class="btn ghost sm tone-danger" data-action="remove" data-path="${esc(op)}">${icon('trash', 14)}Remove from group</button>
       </div>`;
     return `<div class="opt-detail">${body}</div>`;
   }
 
   function groupSectionsSection(g, gb) {
-    const items = g.children.filter((pid) => entity('product', pid)).map((pid) => ({ id: pid, name: optionName(g, pid), section: sectionOfOption(g, pid) }));
+    const items = listedOptions(g).map((pid) => ({ id: pid, name: optionName(g, pid), section: sectionOfOption(g, pid) }));
     return section('Option sections', nestedSections(`group|${g.id}|optionSection`, g.sections, gb, items, 'option', 'options') + addButton('opt-section-add', 'Add section'), {
       desc: g.sections.length
         ? 'Customers see the options under these headings, in this order. Drag options and headings to arrange them.'
