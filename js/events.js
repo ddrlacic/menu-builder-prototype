@@ -119,6 +119,77 @@
   document.addEventListener('pointerdown', (e) => {
     if (T.popover && !T.popover.el.contains(e.target) && !T.popover.anchor.contains(e.target)) closePopover();
   });
+
+  function moveInList(bind, from, to) {
+    const list = (getBind(bind) || []).slice();
+    if (to === from || to < 0 || to >= list.length) return false;
+    list.splice(to, 0, list.splice(from, 1)[0]);
+    commit(() => setBind(bind, list));
+    requestAnimationFrame(() => {
+      const row = document.querySelector(`[data-sortable="${CSS.escape(bind)}"] [data-sort-index="${to}"]`);
+      if (!row) return;
+      row.classList.add('is-flash');
+      const handle = row.querySelector('.sort-handle');
+      if (handle && T.sortFocus) handle.focus({ preventScroll: true });
+      T.sortFocus = false;
+    });
+    return true;
+  }
+
+  document.addEventListener('pointerdown', (e) => {
+    const handle = e.button === 0 && e.target.closest('.sort-handle');
+    const list = handle && handle.closest('[data-sortable]');
+    if (!list) return;
+    e.preventDefault();
+    const rows = [...list.querySelectorAll('[data-sort-index]')];
+    const row = handle.closest('[data-sort-index]');
+    const from = rows.indexOf(row);
+    const box = list.getBoundingClientRect();
+    const r = row.getBoundingClientRect();
+    const step = rows.length > 1 ? rows[1].getBoundingClientRect().top - rows[0].getBoundingClientRect().top : r.height;
+    const mids = rows.map((x) => {
+      const b = x.getBoundingClientRect();
+      return b.top + b.height / 2;
+    });
+    const startY = e.clientY;
+    let to = from;
+    handle.setPointerCapture(e.pointerId);
+    list.classList.add('is-sorting');
+    row.classList.add('is-lifted');
+    const move = (ev) => {
+      const dy = clamp(ev.clientY - startY, box.top - r.top, box.bottom - r.bottom);
+      const mid = mids[from] + dy;
+      to = mids.filter((m, i) => i !== from && m < mid).length;
+      row.style.transform = `translateY(${dy}px)`;
+      rows.forEach((x, i) => {
+        if (x === row) return;
+        const shift = from < to && i > from && i <= to ? -step : to < from && i >= to && i < from ? step : 0;
+        x.style.transform = shift ? `translateY(${shift}px)` : '';
+      });
+    };
+    const end = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', end);
+      handle.removeEventListener('pointercancel', end);
+      if (moveInList(list.dataset.sortable, from, to)) return;
+      list.classList.remove('is-sorting');
+      row.classList.remove('is-lifted');
+      rows.forEach((x) => (x.style.transform = ''));
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const handle = (e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.target.closest && e.target.closest('.sort-handle');
+    if (!handle) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const from = Number(handle.dataset.index);
+    T.sortFocus = true;
+    if (!moveInList(handle.dataset.bind, from, from + (e.key === 'ArrowUp' ? -1 : 1))) T.sortFocus = false;
+  }, true);
   window.addEventListener('resize', closePopover);
   $('#canvas-scroll').addEventListener('scroll', closePopover, { passive: true });
 

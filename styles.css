@@ -1361,6 +1361,44 @@ mark {
   animation: flash 0.8s var(--ease-out);
 }
 
+.code-row {
+  gap: 8px;
+  padding-left: 6px;
+}
+
+.code-hint {
+  flex: none;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.sort-handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.is-sorting {
+  overflow: visible;
+  user-select: none;
+}
+
+.is-sorting [data-sort-index] {
+  position: relative;
+  background: var(--panel);
+  transition: transform 160ms var(--ease-out);
+}
+
+.is-sorting .is-lifted {
+  z-index: 1;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  transition: box-shadow 160ms var(--ease-out);
+}
+
+.is-sorting .is-lifted .sort-handle {
+  cursor: grabbing;
+}
+
 .segment-row.is-flash {
   border-radius: var(--radius-sm);
   animation: flash-ring 0.8s var(--ease-out);
