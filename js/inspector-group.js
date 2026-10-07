@@ -243,8 +243,6 @@
         error: p.isModifierCodeRequired && codes.every(([v]) => hidden.includes(v)) ? 'A code is required, so keep at least one visible' : '',
         help: 'Applies everywhere this group is used.',
       });
-    if (g.sections.length)
-      body += field('Section', selectInput(gb(`optionSection.${pid}`), sectionOfOption(g, pid), g.sections.map((x) => [x.id, x.name || 'Untitled section']), { id: `g-os-${pid}` }), { id: `g-os-${pid}` });
     body += `<div class="opt-detail-foot">
         <div class="position-control"><span class="tnum">${i + 1} of ${g.children.length}</span>${moveButtons(gb('children'), i, g.children.length, name)}</div>
         <button type="button" class="btn ghost sm tone-danger" data-action="remove" data-path="${esc(op)}">${icon('trash', 14)}Remove from group</button>
@@ -253,24 +251,11 @@
   }
 
   function groupSectionsSection(g, gb) {
-    const rows = g.sections
-      .map((x, i) => {
-        const n = g.children.filter((pid) => sectionOfOption(g, pid) === x.id).length;
-        const err = !x.name.trim() ? 'Add a section name' : lengthError(x.name);
-        return `<div class="segment-row${err ? ' has-error' : ''}">
-          <div class="segment-inputs is-section">
-            ${inputText(gb(`sections.${i}.name`), x.name, { label: 'Section name' })}
-            <span class="muted tnum">${plural(n, 'option', 'options')}</span>
-            <span class="row-tools">${moveButtons(gb('sections'), i, g.sections.length, x.name || 'section')}${removeButton(gb('sections'), i, x.name || 'section')}</span>
-          </div>
-          ${err ? slotError(err) : ''}
-        </div>`;
-      })
-      .join('');
-    return section('Option sections', `${rows ? `<div class="segment-list">${rows}</div>` : ''}${addButton('opt-section-add', 'Add section')}`, {
+    const items = g.children.filter((pid) => entity('product', pid)).map((pid) => ({ id: pid, name: optionName(g, pid), section: sectionOfOption(g, pid) }));
+    return section('Option sections', nestedSections(`group|${g.id}|optionSection`, g.sections, gb, items, 'option', 'options') + addButton('opt-section-add', 'Add section'), {
       desc: g.sections.length
-        ? 'Customers see options under these headings. Options without a section go in the first one. Choose the section in each option’s settings.'
-        : 'Split a long list under headings, like Cheese and Veggies.',
+        ? 'Customers see the options under these headings, in this order. Drag options and headings to arrange them.'
+        : 'Split the options under headings, like Cheese and Veggies.',
     });
   }
 
