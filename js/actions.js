@@ -550,6 +550,7 @@
             const k = productScopePath(childPath(S.ui.selected, 'product', pid));
             setBind(`pl|${k}|preselected`, null);
             setBind(`pl|${k}|codesHere`, null);
+            setBind(`pl|${k}|hidden`, false);
           }),
         );
         toast('Same as other products', 'success', { action: { label: 'Undo', onClick: undo } });

@@ -3361,6 +3361,11 @@ input[type='number']::-webkit-inner-spin-button {
   grid-template-columns: minmax(0, 1fr) 76px 36px 24px;
 }
 
+.opt-table.has-expand.no-price.no-shown .opt-head,
+.opt-table.has-expand.no-price.no-shown .opt-row {
+  grid-template-columns: minmax(0, 1fr) 76px 24px;
+}
+
 .opt-table.has-expand.no-pre.no-price .opt-head,
 .opt-table.has-expand.no-pre.no-price .opt-row {
   grid-template-columns: minmax(0, 1fr) 36px 24px;

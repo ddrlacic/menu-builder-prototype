@@ -424,12 +424,16 @@
     const inChoice = parent.kind === 'product' && parentEnt.ptype === 'size';
     const menuName = nameOf('menu', menuById(info.menuId));
     const pl = placement(path);
-    let html = toggle(`pl|${path}|hidden`, !pl.hidden, {
+    const inProduct = hiddenInProduct(path) && nameOf('product', entity('product', productScopePath(path).split('>')[1].slice(2)));
+    let html = toggle(`pl|${path}|hidden`, !pl.hidden && !inProduct, {
       label: `Show in ${parentName}`,
       scope: inChoice ? `${parentName} in ${menuName}` : crumbText(path),
-      help: inChoice
-        ? `Hide it here without removing it. Applies everywhere ${esc(parentName)} is in ${esc(menuName)}.`
-        : 'Hide it here without removing it. Other places stay as they are.',
+      disabled: !!inProduct,
+      help: inProduct
+        ? `Hidden in ${esc(inProduct)}, in every menu. Show it on the Options tab of ${esc(parentName)}, with ${esc(inProduct)} chosen.`
+        : inChoice
+          ? `Hide it here without removing it. Applies everywhere ${esc(parentName)} is in ${esc(menuName)}.`
+          : 'Hide it here without removing it. Other places stay as they are.',
     });
     if (parent.kind !== 'group' || p.ptype === 'container') return html;
 

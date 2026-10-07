@@ -93,7 +93,7 @@
     const hidden = groupHiddenAt(path);
     const noOptions = !g.children.length;
     const lockHide = noOptions || (rules.min > 0 && !hidden);
-    const hiddenCount = g.children.filter((pid) => placement(childPath(path, 'product', pid)).hidden).length;
+    const hiddenCount = g.children.filter((pid) => groupHiddenAt(childPath(path, 'product', pid))).length;
     let help = 'Hides every option here. Showing one option shows the group again. Other places stay as they are.';
     if (noOptions) help = 'Add an option before hiding this group.';
     else if (lockHide)
@@ -171,12 +171,12 @@
     const onlyHere = !!host && T.preHere === path;
     const preHere = onlyHere && rules.type === 1;
     const lockPre = onlyHere && !preHere;
+    const pName = host ? esc(nameOf('product', host.p)) : '';
     const listed = listedOptions(g);
     const rows = listed
       .map((pid, i) => {
         const p = entity('product', pid);
         const op = childPath(path, 'product', pid);
-        const opl = placement(op);
         const auto = isAutoAdded(op);
         const folder = p.ptype === 'container';
         const name = optionName(g, pid);
@@ -194,6 +194,7 @@
         else if (folder) subs.push('Option folder');
         if (name !== nameOf('product', p)) subs.push(`Product: ${nameOf('product', p)}`);
         if (onlyHere) {
+          if (hiddenInProduct(op)) subs.push(`Hidden in ${nameOf('product', host.p)}`);
           if (preselectOverridden(op)) subs.push(`Preselected changed here · ${pre} in other products`);
           if (codesOverridden(op)) subs.push('Codes changed here');
         } else if (preselectOverridden(op)) subs.push(`Preselects ${placement(productScopePath(op)).preselected} here`);
@@ -201,10 +202,13 @@
         const noPrice = !folder && ps.missingStores.length && !isMissingOnPos(p) ? `No POS price at ${ps.missingStores.length === ps.total ? 'any store' : plural(ps.missingStores.length, 'store', 'stores')}` : '';
         const halves = halvesNote(g, pid);
         const sub = [esc(subs.join(' · ')), halves && `<span class="half-meta">${icon('halves', 11)}${esc(halves)}</span>`, noPrice && `<span class="tone-warning">${noPrice}</span>`].filter(Boolean).join(' · ');
-        const row = `<div class="opt-row${opl.hidden ? ' is-muted' : ''}">
+        const shownCell = onlyHere
+          ? `<button type="button" class="switch" role="switch" aria-checked="${!hiddenInProduct(op)}" aria-label="Show ${esc(name)} in ${pName}" data-toggle="pl|${esc(productScopePath(op))}|hidden" data-focus-key="pl|${esc(productScopePath(op))}|hidden"><span class="switch-thumb"></span></button>`
+          : '';
+        const row = `<div class="opt-row${groupHiddenAt(op) ? ' is-muted' : ''}">
             <button type="button" class="opt-name" data-action="goto" data-path="${esc(op)}">${thumb('product', p, 'thumb-sm')}<span class="opt-name-text"><span class="opt-name-label" title="${esc(name)}">${esc(name)}</span>${sub ? `<span class="opt-name-sub">${sub}</span>` : ''}</span></button>
             ${preCell}
-            <button type="button" class="switch" role="switch" aria-checked="${!opl.hidden}" aria-label="Show ${esc(name)}" data-toggle="pl|${esc(op)}|hidden" data-focus-key="pl|${esc(op)}|hidden"><span class="switch-thumb"></span></button>
+            ${shownCell}
             <button type="button" class="icon-btn sm opt-expand" data-action="card-open" data-id="opt:${esc(pid)}" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings">${icon('chevDown', 14)}</button>
           </div>`;
         return `<div class="opt-item${open ? ' is-open' : ''}">${row}${open ? optionDetail(g, pid, p, op, i, listed.length, gb, rules, max, onlyHere) : ''}</div>`;
@@ -217,13 +221,15 @@
           ? ' Preselect one option at most. Preselection applies everywhere this group is used.'
           : ` ${pick ? 'Preselect one option at most. Preselection applies' : 'Preselected quantities apply'} everywhere this group is used. To change one place only, open the option there.`;
     const bulk = onlyHere ? null : bulkPreselect(g, path);
-    const changedHere = onlyHere && listed.some((pid) => preselectOverridden(childPath(path, 'product', pid)) || codesOverridden(childPath(path, 'product', pid)));
+    const changedHere = onlyHere && listed.some((pid) => {
+        const op = childPath(path, 'product', pid);
+        return preselectOverridden(op) || codesOverridden(op) || hiddenInProduct(op);
+      });
     const bulkHtml = changedHere
       ? '<div class="link-btns field-actions"><button type="button" class="link-btn" data-action="pre-reset-here">Use the same as other products</button></div>'
       : bulk && (bulk.canAll || bulk.canClear)
         ? `<div class="link-btns field-actions">${bulk.canAll ? '<button type="button" class="link-btn" data-action="pre-all">Preselect all</button>' : ''}${bulk.canClear ? '<button type="button" class="link-btn" data-action="pre-clear">Clear preselection</button>' : ''}</div>`
         : '';
-    const pName = host ? esc(nameOf('product', host.p)) : '';
     const scopeHtml = host
       ? `<div class="field"><div class="field-head"><span class="field-label">Edit for</span>${onlyHere ? scopePill(productScopeText(path)) : ''}</div>
         <div class="segmented" role="radiogroup" aria-label="Edit for">${[
@@ -234,14 +240,14 @@
           .join('')}</div></div>`
       : '';
     const help = preHere
-      ? `Changes here apply only to ${pName}, in every menu. Shown applies only in ${esc(here)}.`
+      ? `Changes here apply only to ${pName}, in every menu. To hide an option in one menu only, open the option there.`
       : onlyHere
-        ? `${C.groupTypes[rules.type].label} groups preselect the same option in every product. Shown applies only in ${esc(here)}.`
-      : `${g.gtype === 'standalone' ? 'Each one customers pick goes on the order as its own item.' : 'Prices come from POS. Select an option’s name to see its price.'}${preHelp} Shown applies only in ${esc(here)}.`;
+        ? `${C.groupTypes[rules.type].label} groups preselect the same option in every product. Shown applies only to ${pName}, in every menu.`
+        : `${g.gtype === 'standalone' ? 'Each one customers pick goes on the order as its own item.' : 'Prices come from POS. Select an option’s name to see its price.'}${preHelp}${host ? ` To hide options in ${pName}, choose ${pName} above.` : ''}`;
     return section(
       'Options',
-      `${scopeHtml}<div class="opt-table has-expand no-price">
-        <div class="opt-head"><span>Option</span><span>Preselected</span><span>Shown</span><span class="sr-only">Settings</span></div>
+      `${scopeHtml}<div class="opt-table has-expand no-price${onlyHere ? '' : ' no-shown'}">
+        <div class="opt-head"><span>Option</span><span>Preselected</span>${onlyHere ? '<span>Shown</span>' : ''}<span class="sr-only">Settings</span></div>
         ${rows}
       </div>${bulkHtml}
       <p class="field-help">${help}</p>`,
@@ -254,12 +260,12 @@
     const folder = p.ptype === 'container';
     const hidden = groupHiddenCodes(g, pid);
     const codes = productCodes(p);
-    let body = field('Name in this group', inputText(gb(`optionSettings.${pid}.name`), s.name, { id: `g-on-${pid}`, placeholder: nameOf('product', p) }), {
+    let body = onlyHere ? '' : field('Name in this group', inputText(gb(`optionSettings.${pid}.name`), s.name, { id: `g-on-${pid}`, placeholder: nameOf('product', p) }), {
       id: `g-on-${pid}`,
       error: lengthError(s.name),
       help: 'Customers see this name in this group. Leave it empty to use the product name.',
     });
-    if (rules.type === 1 && !folder && max !== 1)
+    if (!onlyHere && rules.type === 1 && !folder && max !== 1)
       body += field('Maximum per option', inputNum(gb(`optionSettings.${pid}.maxQty`), s.maxQty, { int: true, id: `g-om-${pid}`, placeholder: String(rules.maxSingle) }), {
         id: `g-om-${pid}`,
         error: optionMaxError(s.maxQty, max),
