@@ -620,13 +620,13 @@
       });
       return;
     }
-    const kids = p.ptype === 'size' ? 'Its choices will not be deleted' : p.children.length ? 'Its product groups will not be deleted' : '';
     const lines = [
-      'This product is linked to categories or product groups',
-      'Deleting it will remove it from those categories and groups',
-      'This may affect items shown in menus and published stores',
+      'This product will be removed from all stores, online ordering channels, external channels, and associated order types',
+      'This product will be removed from all product groups, categories and menus',
+      'This product will be removed from all discounts',
+      p.ptype === 'size' ? 'Choices within this product will not be deleted' : 'Product groups within this product will not be deleted',
       linked.length ? `${listJoin(linked.map((x) => nameOf('product', x)))} ${linked.length > 1 ? 'ring' : 'rings'} up as this product and will lose that link` : '',
-      kids,
+      'If you have active advanced orders that contain this product, you will not be able to delete it. Please cancel all outstanding orders before proceeding.',
     ].filter(Boolean);
     openModal({
       title: `Delete ${name}?`,

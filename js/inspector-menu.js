@@ -142,7 +142,9 @@
         </div>`
       : `<button type="button" class="btn ghost sm" data-action="segment-add" data-bind="${esc(base)}">${icon('plus', 14)}Add segment</button>`;
     return section('Customer segments', `${tagList}${segmentRows ? `<div class="segment-list">${segmentRows}</div>` : ''}${draftForm}`, {
-      desc: segments.length ? `Only customers in these segments see this ${subject}.` : `Everyone sees this ${subject}. Add a segment to limit it to specific customers.`,
+      desc: segments.length
+        ? `Only signed-in customers in these segments see this ${subject}.${subject === 'product' ? ' Web App shows them the tag on the product.' : ''}`
+        : `Everyone sees this ${subject}. Add a segment to limit it to specific customers.`,
     });
   }
 

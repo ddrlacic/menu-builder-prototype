@@ -3174,6 +3174,33 @@ input[type='number']::-webkit-inner-spin-button {
   margin-top: 4px;
 }
 
+.tag-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 8px 10px 12px;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.tag-row.has-error {
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+.tag-row-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tag-key {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
 .store-check .store-name {
   flex: 1;
 }

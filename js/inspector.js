@@ -278,7 +278,7 @@
       return section(
         'Option folder',
         callout('info', 'An option that opens more options, like Sauces inside Toppings. POS gets only what customers pick inside, as part of the product above it.', 'dashed') +
-          `<p class="field-help">Not available on option folders: price, POS ID, dietary info, modifier codes, included ingredients, substitutes, half and whole, upsell, and cross-sell. Option folders go only in product groups, not in categories.</p>`,
+          `<p class="field-help">Not available on option folders: price, POS ID, dietary info, quantity limits, modifier codes, included ingredients, substitutes, half and whole, upsell, and cross-sell. Option folders go only in product groups, not in categories.</p>`,
       );
     if (kind === 'product' && ent.ptype === 'size')
       return section(

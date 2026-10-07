@@ -291,8 +291,9 @@ window.MENU_CONSTANTS = {
     ['side', 'On the side'],
   ],
   tags: [
-    { key: 'Badge', values: ['New', 'Popular', 'Chef’s pick'] },
-    { key: 'Spice level', values: ['Mild', 'Medium', 'Hot'] },
+    { key: 'foodlabelingtags', values: ['award', 'gluten_free', 'halal', 'healthy', 'kosher', 'popular', 'spicy', 'star', 'vegan', 'vegetarian'] },
+    { key: 'itemtypetags', values: ['dessert', 'drinks', 'ice', 'individually_packaged_relish_side', 'utensils'] },
+    { key: 'selections', values: [] },
   ],
   prepStations: [
     ['ps-grill', 'Grill'],

@@ -375,22 +375,44 @@
         break;
       }
       case 'tag-add': {
-        T.tagDraft = { base: el.dataset.bind, key: '', value: '' };
+        T.tagDraft = { base: el.dataset.bind, key: '', values: '', index: null };
         render();
         const input = document.querySelector('[data-tag-draft="key"]');
         if (input) input.focus();
         break;
       }
+      case 'tag-edit': {
+        const index = Number(el.dataset.index);
+        const t = (getBind(el.dataset.bind) || [])[index];
+        if (!t) break;
+        T.tagDraft = { base: el.dataset.bind, key: t.key, values: t.values.join(', '), index };
+        render();
+        const input = document.querySelector('[data-tag-draft="values"]');
+        if (input) input.focus();
+        break;
+      }
+      case 'tag-suggest':
+        if (!T.tagDraft) break;
+        T.tagDraft.values = [...tagValuesOf(T.tagDraft.values), el.dataset.value].join(', ');
+        render();
+        break;
       case 'tag-cancel':
         T.tagDraft = null;
         render();
         break;
       case 'tag-save': {
         const draft = T.tagDraft;
-        if (!draft || !draft.key.trim() || !draft.value.trim()) break;
+        const key = draft && tagName(draft.key);
+        const values = draft ? tagValuesOf(draft.values) : [];
+        if (!key || !values.length) break;
+        const list = (getBind(draft.base) || []).slice();
+        const editing = draft.index != null;
+        if (!editing && list.some((t) => t.key === key)) break;
         T.tagDraft = null;
-        commit(() => setBind(draft.base, [...(getBind(draft.base) || []), { key: draft.key.trim(), value: draft.value.trim() }]));
-        toast('Tag added');
+        if (editing) list[draft.index] = { key: list[draft.index].key, values };
+        else list.push({ key, values });
+        commit(() => setBind(draft.base, list));
+        toast(editing ? 'Tag updated' : 'Tag added');
         break;
       }
       case 'arr-move': {

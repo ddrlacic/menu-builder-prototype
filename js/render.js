@@ -417,8 +417,6 @@
       const hiddenAt = sids.filter((sid) => !productShownAt(ent, sid)).length;
       if (oos) badges.push(`<span class="badge tone-warning">Out of stock at ${plural(oos, 'store', 'stores')}</span>`);
       if (hiddenAt) badges.push(`<span class="badge" title="Hidden from the menu at these stores">Hidden at ${plural(hiddenAt, 'store', 'stores')}</span>`);
-      const badgeTag = (ent.metadata || []).find((t) => t.key === 'Badge' && t.value);
-      if (badgeTag) badges.push(`<span class="badge">${icon('tag', 12)}${esc(badgeTag.value)}</span>`);
     }
     if (kind === 'category') {
       if (ent.isBundle) badges.push(`<span class="badge" title="Quantities scale with the number of guests">${icon('package', 12)}Catering bundles</span>`);

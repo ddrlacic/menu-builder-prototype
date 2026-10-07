@@ -179,6 +179,9 @@
     });
   }
 
+  const tagName = (s) => String(s || '').trim().toLowerCase().replace(/ /g, '-');
+  const tagValuesOf = (text) => [...new Set(String(text || '').split(',').map(tagName).filter(Boolean))];
+
   const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
   const IMAGE_MAX_BYTES = 1024 * 1024;
   const STORE_HOURS = 'During store hours';

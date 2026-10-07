@@ -121,12 +121,11 @@
         if (ent.sections.some((s) => !s.name.trim())) pAdd('error', `${name}: add a name to each group section`, 'ordering');
         if ([ent.upsell.title, ent.includedName, ...ent.sections.map((s) => s.name)].some((v) => lengthError(v)))
           pAdd('error', `${name}: a title on the Ordering tab is longer than ${TEXT_LIMIT} characters`, 'ordering');
-        if (ent.metadata.some((t) => lengthError(t.key) || lengthError(t.value))) pAdd('error', `${name}: a metadata tag is longer than ${TEXT_LIMIT} characters`, 'advanced');
+        if (ent.metadata.some(tagTooLong)) pAdd('error', `${name}: a metadata tag is longer than ${TEXT_LIMIT} characters`, 'advanced');
         if (Object.values(ent.halfWhole).some((h) => !h.left !== !h.right)) pAdd('warning', `${name}: some toppings have only one half set`, 'ordering');
         const availErr = Object.values(availabilityErrors(ent.availability))[0];
         if (availErr) pAdd('error', `${name} custom availability: ${lcFirst(availErr)}`, 'availability');
-        if (segmentErrors(ent.segments).some(Boolean)) pAdd('error', `${name}: fix the customer segments`, 'advanced');
-        if (ent.metadata.some((t) => !t.key.trim() || !t.value.trim())) pAdd('error', `${name}: each metadata tag needs a key and a value`, 'advanced');
+        if (segmentErrors(ent.segments).some(Boolean)) pAdd('error', `${name}: fix the customer segments`, 'availability');
         const prepErr = Object.values(prepErrors(ent.prep)).find(Boolean);
         if (prepErr) pAdd('error', `${name} prep info: ${lcFirst(prepErr)}`, 'advanced');
         const posId = posIdOf('product', ent);
@@ -173,8 +172,7 @@
           .flatMap((s) => [s.left, s.right])
           .filter((pid) => ent.children.includes(pid)).length;
         if (ungrouped) gAdd('warning', `${label}: ${plural(ungrouped, 'option looks', 'options look')} like ${ungrouped === 1 ? 'a half' : 'halves'}. Customers see each one as its own option until you group halves`, 'halves');
-        if (ent.metadata.some((t) => !t.key.trim() || !t.value.trim())) gAdd('error', `${label}: each metadata tag needs a key and a value`, 'advanced');
-        else if (ent.metadata.some((t) => lengthError(t.key) || lengthError(t.value))) gAdd('error', `${label}: a metadata tag is longer than ${TEXT_LIMIT} characters`, 'advanced');
+        if (ent.metadata.some(tagTooLong)) gAdd('error', `${label}: a metadata tag is longer than ${TEXT_LIMIT} characters`, 'advanced');
       }
     });
 

@@ -170,6 +170,20 @@
 
   const migrateAllergens = (list) => [...new Set((list || []).map((a) => ALLERGEN_MIGRATION[a] || a).filter((a) => C.allergens.includes(a)))];
 
+  function migrateMetadata(list) {
+    const out = [];
+    for (const t of list || []) {
+      if (!Array.isArray(t.values) && t.key === 'Badge') continue;
+      const key = tagName(t.key);
+      const values = Array.isArray(t.values) ? t.values.map(tagName).filter(Boolean) : tagValuesOf(t.value);
+      if (!key || !values.length) continue;
+      const cur = out.find((x) => x.key === key);
+      if (cur) values.forEach((v) => !cur.values.includes(v) && cur.values.push(v));
+      else out.push({ key, values: [...new Set(values)] });
+    }
+    return out;
+  }
+
   function migrateProduct(p) {
     migrateSyncName(p);
     if (p.allergens) p.allergens = migrateAllergens(p.allergens);
@@ -179,6 +193,7 @@
         const i = t.indexOf(':');
         return i < 0 ? { key: t, value: '' } : { key: t.slice(0, i), value: t.slice(i + 1) };
       });
+    p.metadata = migrateMetadata(p.metadata);
     delete p.foodTypes;
     delete p.tags;
     delete p.isSelfServing;
@@ -188,6 +203,7 @@
     if (!p.included.length && !p.includedName) p.includedName = INCLUDED_NAME;
     if (p.ptype === 'container') Object.assign(p, dietaryOf(d));
     if (p.ptype === 'container' || p.ptype === 'size') Object.assign(p, { minQty: null, maxQty: null, qtyScope: null });
+    if (p.ptype === 'size') p.prep = d.prep;
     if (!p.stores) p.stores = {};
     for (const [sid, v] of Object.entries(p.stores)) {
       if (v && typeof v === 'object') {
@@ -297,6 +313,7 @@
   function migrateGroup(g) {
     const d = groupDefaults();
     for (const k of Object.keys(d)) if (g[k] === undefined) g[k] = d[k];
+    g.metadata = migrateMetadata(g.metadata);
     delete g.stores;
     migrateSyncName(g);
   }
@@ -861,7 +878,7 @@
     S.data.placements[productScopePath(`${popularPath}>p:${brunch.id}>g:${addons.id}>p:${prod('pos-m-egg').id}`)] = { preselected: 1 };
     sauces.optionSettings = { [prod('pos-m-aioli').id]: { name: 'House truffle aioli' } };
     brunch.availability = { ...newAvailability(), active: true, slots: [{ days: [0, 6], from: '11:00', to: '14:00' }] };
-    truffle.metadata = [{ key: 'Badge', value: 'Chef’s pick' }];
+    truffle.metadata = [{ key: 'foodlabelingtags', values: ['popular', 'star'] }];
     prod('pos-m-bacon').modifierCodes = ['no', 'light', 'extra', 'side'];
     const airports = STORES.filter((s) => s.airport);
     prod('pos-ipa').stores = { [airports[0].id]: { stock: 'out_of_stock' }, [airports[1].id]: { stock: 'oos_eod', hidden: true }, [airports[2].id]: { stock: 'oos_eod' } };

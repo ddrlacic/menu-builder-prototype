@@ -580,7 +580,7 @@
       );
     }
 
-    if (tab === 'availability') return productAvailabilitySection(p) + productStoresSection(p) + appearsInSection(p, path);
+    if (tab === 'availability') return productAvailabilitySection(p) + segmentsSection(pb('segments'), p.segments, 'product') + productStoresSection(p) + appearsInSection(p, path);
 
     return (
       sourceSection('product', p, path) +
@@ -592,9 +592,8 @@
           help: 'Use it to match this product in reports outside this platform.',
         }),
       ) +
-      segmentsSection(pb('segments'), p.segments, 'product') +
       metadataSection(p) +
-      prepSection(p) +
+      (p.ptype === 'size' ? '' : prepSection(p)) +
       removeSection(path, 'product', p) +
       productDeleteSection(p)
     );
@@ -801,57 +800,64 @@
     });
   }
 
+  const tagError = (t) => lengthError(t.key) || t.values.map((v) => lengthError(v)).find(Boolean) || '';
+  const tagTooLong = (t) => !!tagError(t);
+
   function metadataSection(p, kind = 'product') {
     const base = `e|${kind}|${p.id}|metadata`;
     const all = [...Object.values(S.data.entities.product), ...Object.values(S.data.entities.group)].flatMap((x) => x.metadata || []);
-    const keys = [...new Set([...C.tags.map((t) => t.key), ...all.map((t) => t.key).filter(Boolean)])];
+    const keys = [...new Set([...C.tags.map((t) => t.key), ...all.map((t) => t.key)])].sort((a, b) => a.localeCompare(b));
     const draft = T.tagDraft && T.tagDraft.base === base ? T.tagDraft : null;
-    const draftKey = draft ? draft.key.trim() : '';
-    const values = [
-      ...new Set([
-        ...C.tags.filter((t) => t.key.toLowerCase() === draftKey.toLowerCase()).flatMap((t) => t.values),
-        ...all.filter((t) => t.key.toLowerCase() === draftKey.toLowerCase() && t.value).map((t) => t.value),
-      ]),
-    ];
+    const editing = !!draft && draft.index != null;
+    const draftKey = draft ? tagName(draft.key) : '';
+    const draftValues = draft ? tagValuesOf(draft.values) : [];
+    const known = draftKey
+      ? [...new Set([...C.tags.filter((t) => t.key === draftKey).flatMap((t) => t.values), ...all.filter((t) => t.key === draftKey).flatMap((t) => t.values)])].filter((v) => !draftValues.includes(v))
+      : [];
+    const taken = !!draft && !editing && !!draftKey && p.metadata.some((t) => t.key === draftKey);
+    const form = draft
+      ? `<div class="segment-draft${taken ? ' has-error' : ''}">
+          <label class="field-label" for="tag-draft-key">Key</label>
+          <input id="tag-draft-key" type="text" class="input mono" list="tag-keys" data-tag-draft="key" data-focus-key="tag-draft-key" value="${esc(draft.key)}" autocomplete="off" spellcheck="false" ${editing ? 'disabled' : ''}>
+          ${taken ? slotError('This key is already added. Edit it to add values') : ''}
+          <label class="field-label" for="tag-draft-values">Values</label>
+          <input id="tag-draft-values" type="text" class="input" data-tag-draft="values" data-focus-key="tag-draft-values" value="${esc(draft.values)}" autocomplete="off" spellcheck="false">
+          <p class="field-help">Separate values with commas. Keys and values are saved in lowercase, with hyphens for spaces.</p>
+          ${known.length ? `<div class="chips">${known.slice(0, 12).map((v) => `<button type="button" class="chip" data-action="tag-suggest" data-value="${esc(v)}">${icon('plus', 12)}${esc(v)}</button>`).join('')}</div>` : ''}
+          <div class="segment-draft-actions">
+            <button type="button" class="btn ghost sm" data-action="tag-cancel">Cancel</button>
+            <button type="button" class="btn primary sm" data-action="tag-save" ${draftKey && draftValues.length && !taken ? '' : 'disabled'}>${editing ? 'Save tag' : 'Add tag'}</button>
+          </div>
+        </div>`
+      : '';
     const rows = p.metadata
       .map((t, i) => {
-        const err = !t.key.trim() || !t.value.trim() ? 'Add a key and a value' : lengthError(t.key) || lengthError(t.value);
-        return `<div class="segment-row${err ? ' has-error' : ''}">
-          <div class="segment-inputs">
-            ${inputText(`${base}.${i}.key`, t.key, { label: 'Key', list: 'tag-keys' })}
-            ${inputText(`${base}.${i}.value`, t.value, { label: 'Value' })}
-            ${removeButton(base, i, `${t.key || 'tag'}`)}
+        if (editing && draft.index === i) return form;
+        const err = tagError(t);
+        const chipsHtml = t.values
+          .map((v, j) =>
+            t.values.length > 1
+              ? `<button type="button" class="chip is-on has-remove" data-action="arr-remove" data-bind="${esc(`${base}.${i}.values`)}" data-index="${j}" aria-label="Remove ${esc(v)}" title="Remove">${esc(v)}${icon('x', 12)}</button>`
+              : `<span class="chip is-on">${esc(v)}</span>`,
+          )
+          .join('');
+        return `<div class="tag-row${err ? ' has-error' : ''}">
+          <div class="tag-row-head">
+            <span class="tag-key mono">${esc(t.key)}</span>
+            <button type="button" class="btn ghost sm" data-action="tag-edit" data-bind="${esc(base)}" data-index="${i}" ${draft ? 'disabled' : ''}>Edit</button>
+            ${removeButton(base, i, t.key)}
           </div>
+          <div class="chips">${chipsHtml}</div>
           ${err ? slotError(err) : ''}
         </div>`;
       })
       .join('');
-    const dup = draft && draftKey && draft.value.trim() && p.metadata.some((t) => t.key.trim().toLowerCase() === draftKey.toLowerCase() && t.value.trim().toLowerCase() === draft.value.trim().toLowerCase());
-    const form = draft
-      ? `<div class="segment-draft${dup ? ' has-error' : ''}">
-          <div class="segment-labels"><span class="field-label">Key</span><span class="field-label">Value</span></div>
-          <div class="segment-inputs">
-            <input type="text" class="input" aria-label="Key" list="tag-keys" data-tag-draft="key" data-focus-key="tag-draft-key" value="${esc(draft.key)}" autocomplete="off">
-            <input type="text" class="input" aria-label="Value" list="tag-values" data-tag-draft="value" data-focus-key="tag-draft-value" value="${esc(draft.value)}" autocomplete="off">
-            <span aria-hidden="true"></span>
-          </div>
-          ${dup ? slotError('This tag is already added') : ''}
-          <div class="segment-draft-actions">
-            <button type="button" class="btn ghost sm" data-action="tag-cancel">Cancel</button>
-            <button type="button" class="btn primary sm" data-action="tag-save" ${draftKey && draft.value.trim() && !dup ? '' : 'disabled'}>Add tag</button>
-          </div>
-        </div>`
-      : addButton('tag-add', 'Add tag', `data-bind="${esc(base)}"`);
+    const example = kind === 'product' ? 'foodlabelingtags' : 'selections';
     return section(
       'Metadata tags',
       `<datalist id="tag-keys">${keys.map((k) => `<option value="${esc(k)}"></option>`).join('')}</datalist>
-       <datalist id="tag-values">${values.map((v) => `<option value="${esc(v)}"></option>`).join('')}</datalist>
-       ${rows ? `<div class="segment-list">${rows}</div>` : ''}${form}`,
-      {
-        desc: p.metadata.length
-          ? `Integrations read these tags.${kind === 'product' ? ' A Badge tag also shows on the canvas.' : ''}`
-          : `Pass extra details to integrations, like ${kind === 'product' ? 'a badge or a spice level' : 'a display style'}.`,
-      },
+       ${rows ? `<div class="segment-list">${rows}</div>` : ''}${editing ? '' : form || addButton('tag-add', 'Add tag', `data-bind="${esc(base)}"`)}`,
+      { desc: `Extra details sent to delivery partners with the menu. Today only ezCater reads them, for keys like ${example}. Customers do not see them.` },
     );
   }
 
@@ -860,10 +866,16 @@
     const pr = p.prep;
     const e = prepErrors(pr);
     const units = [['', 'Unit'], ...C.prepUnits.map((u) => [u, u])];
-    let body = toggle(pb('prep.active'), pr.active, { label: 'Prep info', help: 'Show where and how much to prepare on kitchen prep sheets.' });
+    let body = toggle(pb('prep.active'), pr.active, {
+      label: 'Prep info',
+      help: 'For catering orders. Prep sheets and the prep list show this station and quantity, scaled to the number ordered.',
+    });
     if (pr.active)
       body +=
-        field('Prep station', selectInput(pb('prep.station'), pr.station, [['', 'No station'], ...C.prepStations], { id: 'p-prep-st' }), { id: 'p-prep-st' }) +
+        field('Prep station', selectInput(pb('prep.station'), pr.station, [['', 'No station'], ...C.prepStations], { id: 'p-prep-st' }), {
+          id: 'p-prep-st',
+          help: 'The prep list groups products by station. Add stations on the Prep stations page.',
+        }) +
         field(
           'Quantity',
           `<div class="qty-unit">${inputNum(pb('prep.qty'), pr.qty, { id: 'p-prep-q', placeholder: 'None' })}${selectInput(pb('prep.unit'), pr.unit, units, { label: 'Unit' })}</div>`,
