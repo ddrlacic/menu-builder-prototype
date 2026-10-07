@@ -206,12 +206,17 @@
         : rules.type === 3
           ? ' Preselect one option at most. Preselection applies everywhere this group is used.'
           : ` ${pick ? 'Preselect one option at most. Preselection applies' : 'Preselected quantities apply'} everywhere this group is used. To change one place only, open the option there.`;
+    const bulk = bulkPreselect(g, path);
+    const bulkHtml =
+      bulk && (bulk.canAll || bulk.canClear)
+        ? `<div class="link-btns field-actions">${bulk.canAll ? '<button type="button" class="link-btn" data-action="pre-all">Preselect all</button>' : ''}${bulk.canClear ? '<button type="button" class="link-btn" data-action="pre-clear">Clear preselection</button>' : ''}</div>`
+        : '';
     return section(
       'Options',
       `<div class="opt-table has-expand no-price">
         <div class="opt-head"><span>Option</span><span>Preselected</span><span>Shown</span><span class="sr-only">Settings</span></div>
         ${rows}
-      </div>
+      </div>${bulkHtml}
       <p class="field-help">${g.gtype === 'standalone' ? 'Each one customers pick goes on the order as its own item.' : 'Prices come from POS. Select an option’s name to see its price.'}${preHelp} Shown applies only in ${esc(here)}.</p>`,
     );
   }
@@ -228,7 +233,7 @@
       help: 'Customers see this name in this group. Leave it empty to use the product name.',
     });
     if (rules.type === 1 && !folder && max !== 1)
-      body += field('Max per option', inputNum(gb(`optionSettings.${pid}.maxQty`), s.maxQty, { int: true, id: `g-om-${pid}`, placeholder: String(rules.maxSingle) }), {
+      body += field('Maximum per option', inputNum(gb(`optionSettings.${pid}.maxQty`), s.maxQty, { int: true, id: `g-om-${pid}`, placeholder: String(rules.maxSingle) }), {
         id: `g-om-${pid}`,
         error: optionMaxError(s.maxQty, max),
         help: `Times customers can pick this option. Leave it empty to use the group setting (${rules.maxSingle}).`,

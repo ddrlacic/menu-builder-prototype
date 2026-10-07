@@ -539,6 +539,20 @@
         commit(() => (g.preselected = on ? {} : { [pid]: 1 }));
         break;
       }
+      case 'pre-all':
+      case 'pre-clear': {
+        const g = entity('group', parsePath(S.ui.selected).id);
+        const bulk = bulkPreselect(g, S.ui.selected);
+        if (!bulk) break;
+        commit(() =>
+          bulk.ids.forEach((pid) => {
+            if (a === 'pre-all') g.preselected[pid] = Math.max(g.preselected[pid] || 0, 1);
+            else delete g.preselected[pid];
+          }),
+        );
+        toast(a === 'pre-all' ? 'Options preselected' : 'Preselection cleared', 'success', { action: { label: 'Undo', onClick: undo } });
+        break;
+      }
       case 'code-pre': {
         const p = entity('product', parsePath(S.ui.selected).id);
         const v = el.dataset.id;

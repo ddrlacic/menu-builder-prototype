@@ -292,6 +292,29 @@
     return r.type === 1 && s && isNum(s.maxQty) ? s.maxQty : r.maxSingle;
   }
 
+  function bulkPreselect(g, path) {
+    const r = rulesOf(g);
+    const max = limitOf(r.max);
+    if (r.type !== 1 || max === 1) return null;
+    const ids = [];
+    let total = 0;
+    for (const pid of g.children) {
+      const p = entity('product', pid);
+      if (!p || p.ptype === 'container') continue;
+      if (isAutoAdded(childPath(path, 'product', pid))) total += 1;
+      else {
+        ids.push(pid);
+        total += Math.max(g.preselected[pid] || 0, 1);
+      }
+    }
+    if (ids.length < 2) return null;
+    return {
+      ids,
+      canAll: ids.some((pid) => !(g.preselected[pid] > 0)) && (max == null || total <= max),
+      canClear: ids.some((pid) => g.preselected[pid] > 0),
+    };
+  }
+
   function optionName(g, pid) {
     const s = g && g.optionSettings && g.optionSettings[pid];
     return (s && s.name && s.name.trim()) || nameOf('product', entity('product', pid));

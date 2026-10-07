@@ -151,7 +151,7 @@
         if (ent.gtype === 'linked' && !posItemById(ent.posGroupExt)) gAdd('error', `${label}: its POS group was deleted on POS. Choose another POS group, or delete this custom group`, 'general');
         const ruleErr = !r.fixed && !ent.isSubstitutionContainer && Object.values(ruleErrors(ent)).find(Boolean);
         if (ruleErr) gAdd('error', `${label}: ${lcFirst(ruleErr)}`, 'options');
-        else if (!count) gAdd(r.min > 0 || r.type === 3 ? 'error' : 'warning', `${label} has no products. Add at least one`, 'options');
+        else if (!count) gAdd(r.min > 0 || r.type === 3 ? 'error' : 'warning', `${label} has no options. Add at least one`, 'options');
         else if (r.min > ent.children.reduce((s, pid) => s + optionMaxOf(ent, pid, r), 0))
           gAdd('error', `${label} needs at least ${r.min} choices, but has only ${plural(count, 'option', 'options')}`, 'options');
         if (!ruleErr && max != null && r.freeCount > max) gAdd('warning', `${label}: more free choices than the maximum`, 'options');
