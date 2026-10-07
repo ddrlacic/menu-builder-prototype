@@ -688,7 +688,7 @@
         : '';
     return `<div class="stock-row${shown ? '' : ' is-muted'}">
         <div class="stock-row-head">
-          <span class="list-name"><span class="stock-row-name">${esc(s.name)}</span><span class="muted">${esc(s.city)}${brink ? ' · PAR Brink' : ''}</span></span>
+          <span class="store-name list-name"><span class="stock-row-name">${esc(s.name)}</span><span class="muted">${esc(s.city)}${brink ? ' · PAR Brink' : ''}</span></span>
           <button type="button" class="switch" role="switch" aria-checked="${shown}" aria-label="Show at ${esc(s.name)}" data-action="prod-store-toggle" data-id="${s.id}" data-on="${productHiddenAt(p, s.id) ? 1 : 0}" ${locked ? 'disabled' : ''}><span class="switch-thumb"></span></button>
         </div>
         ${pick('stock', 'Stock for online ordering', productStockAt(p, s.id), STOCK_OPTIONS, posOut)}

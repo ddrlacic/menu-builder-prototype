@@ -3385,6 +3385,10 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 12px;
 }
 
+.stock-row-head .store-name {
+  min-width: 0;
+}
+
 .stock-row-name {
   font-weight: 500;
 }
@@ -3395,9 +3399,7 @@ input[type='number']::-webkit-inner-spin-button {
 
 .stock-field {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 176px;
-  align-items: center;
-  gap: 8px;
+  gap: 4px;
   font-size: var(--text-sm);
   color: var(--ink-2);
 }
