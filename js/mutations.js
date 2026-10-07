@@ -478,7 +478,7 @@
     const uses = (ctx.usage.get(`group:${g.id}`) || []).length;
     openPicker({
       title: 'Change the linked POS group',
-      intro: `Groups of ${name} on POS. Choices ring up as options of the group you pick, at its POS prices. Options that are not in that group are removed.${uses > 1 ? ' A change applies everywhere this custom group is used.' : ''}`,
+      intro: `Groups of ${name} on POS. This group gets the options of the group you pick. Choices ring up as options of that group, at its POS prices. Options that are not in it are removed.${uses > 1 ? ' A change applies everywhere this custom group is used.' : ''}`,
       placeholder: 'Search by group name or POS ID',
       items: posGroupChoices(g, productPath),
       empty: `${name} has no other groups on POS`,
@@ -498,17 +498,26 @@
     });
     const apply = () => {
       commit(() => {
+        const folders = g.children.filter((pid) => {
+          const x = entity('product', pid);
+          return x && x.ptype === 'container';
+        });
         g.gtype = 'linked';
         g.posGroupExt = posId;
         delete g.role;
         dropOptions(g, dropped);
+        g.children = allowed
+          .map((c) => importPos(c))
+          .filter(Boolean)
+          .map((r) => r.id)
+          .concat(folders);
       });
       toast(`Linked to ${posLabel(posId)}`, 'success', { action: { label: 'Undo', onClick: undo } });
     };
     if (!dropped.length) return apply();
     openModal({
       title: `Link to ${posLabel(posId)}?`,
-      body: `<p>${plural(dropped.length, 'option is', 'options are')} not in ${esc(posLabel(posId))} on POS, so ${dropped.length === 1 ? 'it is' : 'they are'} removed from this group: ${esc(listJoin(dropped.map((pid) => nameOf('product', entity('product', pid)))))}.</p>`,
+      body: `<p>${plural(dropped.length, 'option is', 'options are')} not in ${esc(posLabel(posId))} on POS, so ${dropped.length === 1 ? 'it is' : 'they are'} removed from this group: ${esc(listJoin(dropped.map((pid) => nameOf('product', entity('product', pid)))))}.</p><p>This group then has the options of ${esc(posLabel(posId))}.</p>`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },
         { label: 'Link group', kind: 'primary', onClick: () => { closeModal(); apply(); } },
