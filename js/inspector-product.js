@@ -381,11 +381,13 @@
     const titleErr = p.upsell.products.length && !p.upsell.title.trim() ? 'Add a title' : lengthError(p.upsell.title);
     return section(
       'Upsell',
-      field('Title', inputText(pb('upsell.title'), p.upsell.title, { id: 'p-upsell-title' }), {
-        id: 'p-upsell-title',
-        error: titleErr,
-        help: 'Customers see it above the products.',
-      }) +
+      (p.upsell.products.length
+        ? field('Title', inputText(pb('upsell.title'), p.upsell.title, { id: 'p-upsell-title' }), {
+            id: 'p-upsell-title',
+            error: titleErr,
+            help: 'Customers see it above the products.',
+          })
+        : '') +
         productList(pb('upsell.products'), p.upsell.products, 'No products yet.') +
         addButton('pick-products', 'Add products', `data-bind="${esc(pb('upsell.products'))}" data-title="Add upsell products"`),
       { desc: 'When customers open this product, Web App and Kiosk offer these instead, like a combo. Customers can still carry on with this product. Delivery partners do not get upsells.' },

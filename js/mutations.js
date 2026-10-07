@@ -326,7 +326,10 @@
       groups,
       noun: ['product', 'products'],
       empty: menus.length ? 'Every product is already added' : `Add ${name} to a category first`,
-      onAdd: (ids) => setBind(bind, [...(getBind(bind) || []), ...ids]),
+      onAdd: (ids) => {
+        if (bind === productBind(p)('upsell.products') && !p.upsell.title.trim()) p.upsell.title = UPSELL_TITLE;
+        setBind(bind, [...(getBind(bind) || []), ...ids]);
+      },
     });
   }
 
