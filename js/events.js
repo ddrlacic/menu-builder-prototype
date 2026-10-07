@@ -120,7 +120,7 @@
     if (T.popover && !T.popover.el.contains(e.target) && !T.popover.anchor.contains(e.target)) closePopover();
   });
 
-  function moveInList(bind, from, to) {
+  function moveInList(bind, from, to, refocus = false) {
     const list = (getBind(bind) || []).slice();
     if (to === from || to < 0 || to >= list.length) return false;
     list.splice(to, 0, list.splice(from, 1)[0]);
@@ -129,34 +129,38 @@
       const row = document.querySelector(`[data-sortable="${CSS.escape(bind)}"] [data-sort-index="${to}"]`);
       if (!row) return;
       row.classList.add('is-flash');
-      const handle = row.querySelector('.sort-handle');
-      if (handle && T.sortFocus) handle.focus({ preventScroll: true });
-      T.sortFocus = false;
+      if (refocus) row.focus({ preventScroll: true });
     });
     return true;
   }
 
   document.addEventListener('pointerdown', (e) => {
-    const handle = e.button === 0 && e.target.closest('.sort-handle');
-    const list = handle && handle.closest('[data-sortable]');
-    if (!list) return;
-    e.preventDefault();
-    const rows = [...list.querySelectorAll('[data-sort-index]')];
-    const row = handle.closest('[data-sort-index]');
-    const from = rows.indexOf(row);
-    const box = list.getBoundingClientRect();
-    const r = row.getBoundingClientRect();
-    const step = rows.length > 1 ? rows[1].getBoundingClientRect().top - rows[0].getBoundingClientRect().top : r.height;
-    const mids = rows.map((x) => {
-      const b = x.getBoundingClientRect();
-      return b.top + b.height / 2;
-    });
+    const row = e.button === 0 && e.target.closest('[data-sortable] [data-sort-index]');
+    if (!row || e.target.closest('button, input, a')) return;
+    const list = row.closest('[data-sortable]');
     const startY = e.clientY;
-    let to = from;
-    handle.setPointerCapture(e.pointerId);
-    list.classList.add('is-sorting');
-    row.classList.add('is-lifted');
+    let rows, from, to, box, r, step, mids;
+    let lifted = false;
+    const lift = () => {
+      lifted = true;
+      rows = [...list.querySelectorAll('[data-sort-index]')];
+      from = to = rows.indexOf(row);
+      box = list.getBoundingClientRect();
+      r = row.getBoundingClientRect();
+      step = rows[1].getBoundingClientRect().top - rows[0].getBoundingClientRect().top;
+      mids = rows.map((x) => {
+        const b = x.getBoundingClientRect();
+        return b.top + b.height / 2;
+      });
+      row.setPointerCapture(e.pointerId);
+      list.classList.add('is-sorting');
+      row.classList.add('is-lifted');
+    };
     const move = (ev) => {
+      if (!lifted) {
+        if (Math.abs(ev.clientY - startY) < 4) return;
+        lift();
+      }
       const dy = clamp(ev.clientY - startY, box.top - r.top, box.bottom - r.bottom);
       const mid = mids[from] + dy;
       to = mids.filter((m, i) => i !== from && m < mid).length;
@@ -168,27 +172,26 @@
       });
     };
     const end = () => {
-      handle.removeEventListener('pointermove', move);
-      handle.removeEventListener('pointerup', end);
-      handle.removeEventListener('pointercancel', end);
-      if (moveInList(list.dataset.sortable, from, to)) return;
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', end);
+      document.removeEventListener('pointercancel', end);
+      if (!lifted || moveInList(list.dataset.sortable, from, to)) return;
       list.classList.remove('is-sorting');
       row.classList.remove('is-lifted');
       rows.forEach((x) => (x.style.transform = ''));
     };
-    handle.addEventListener('pointermove', move);
-    handle.addEventListener('pointerup', end);
-    handle.addEventListener('pointercancel', end);
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', end);
+    document.addEventListener('pointercancel', end);
   });
 
   document.addEventListener('keydown', (e) => {
-    const handle = (e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.target.closest && e.target.closest('.sort-handle');
-    if (!handle) return;
+    const row = (e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.target.matches && e.target.matches('[data-sortable] [data-sort-index]');
+    if (!row) return;
     e.preventDefault();
     e.stopPropagation();
-    const from = Number(handle.dataset.index);
-    T.sortFocus = true;
-    if (!moveInList(handle.dataset.bind, from, from + (e.key === 'ArrowUp' ? -1 : 1))) T.sortFocus = false;
+    const from = Number(e.target.dataset.sortIndex);
+    moveInList(e.target.closest('[data-sortable]').dataset.sortable, from, from + (e.key === 'ArrowUp' ? -1 : 1), true);
   }, true);
   window.addEventListener('resize', closePopover);
   $('#canvas-scroll').addEventListener('scroll', closePopover, { passive: true });

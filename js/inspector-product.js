@@ -174,11 +174,12 @@
     const rows = enabled
       .map(([v, l], i) => {
         const on = p.preselectedCode === v;
-        return `<div class="store-row list-row code-row" data-sort-index="${i}">
+        const sortable = enabled.length > 1;
+        return `<div class="store-row list-row code-row" data-sort-index="${i}"${sortable ? ` tabindex="0" aria-label="${esc(l)}. Drag or use the arrow keys to move it"` : ''}>
           <button type="button" class="check-toggle opt-pick" role="radio" aria-checked="${on}" aria-label="Preselect ${esc(l)}" data-action="code-pre" data-id="${esc(v)}"><span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span></button>
           <span class="store-name">${esc(l)}</span>
           ${on ? '<span class="code-hint">Preselected</span>' : ''}
-          ${enabled.length > 1 ? `<span class="row-tools"><button type="button" class="icon-btn sm sort-handle" data-bind="${esc(bind)}" data-index="${i}" aria-label="Move ${esc(l)}. Use the arrow keys" title="Drag to reorder">${icon('grip', 14)}</button></span>` : ''}
+          ${sortable ? `<span class="sort-grip" aria-hidden="true">${icon('grip', 14)}</span>` : ''}
         </div>`;
       })
       .join('');
@@ -191,7 +192,7 @@
           disabled: !enabled.length,
         }) +
         (enabled.length
-          ? field('Preselection and order', `<div class="store-list" data-sortable="${esc(bind)}" role="radiogroup" aria-label="Preselected code">${rows}</div>`, {
+          ? field('Preselection and order', `<div class="store-list"${enabled.length > 1 ? ` data-sortable="${esc(bind)}"` : ''} role="radiogroup" aria-label="Preselected code">${rows}</div>`, {
               help: `${p.isModifierCodeRequired ? 'One code is always preselected.' : 'Preselect one code at most.'} Customers can change it.${enabled.length > 1 ? ' Drag codes to change the order customers see.' : ''}`,
             })
           : ''),
