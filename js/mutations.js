@@ -581,7 +581,6 @@
     if (productMenus(p).some((m) => m.status === 'publishing')) return 'You can delete the product once publishing finishes.';
     const hw = halfWholeUse(p);
     if (hw.halfIn.length) return `It is a half in ${listJoin(hw.halfIn)}. Remove it from half and whole there first, then delete it.`;
-    if (hw.rootGroups.length) return `It has halves set in ${listJoin(hw.rootGroups)}. Clear those halves first, then delete it.`;
     return '';
   }
 

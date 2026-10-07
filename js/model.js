@@ -68,17 +68,7 @@
       ...Object.values(S.data.entities.group).filter((g) => Object.values(g.halves || {}).some(isHalf)).map((g) => nameOf('group', g)),
       ...Object.values(S.data.entities.product).filter((x) => Object.values(x.halfWhole || {}).some(isHalf)).map((x) => nameOf('product', x)),
     ];
-    const rootGroups = [
-      ...new Set(
-        productOptions(p, { modifierOnly: true })
-          .filter((o) => {
-            const h = halvesAt(p, o.gid, o.pid).h;
-            return h.left && h.right;
-          })
-          .map((o) => nameOf('group', entity('group', o.gid))),
-      ),
-    ];
-    return { halfIn: [...new Set(halfIn)], rootGroups };
+    return { halfIn: [...new Set(halfIn)] };
   }
 
   function choiceAllergensMissing(p) {
