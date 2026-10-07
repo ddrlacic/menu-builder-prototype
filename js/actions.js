@@ -520,9 +520,6 @@
       case 'group-change-link':
         openGroupLinkPicker(entity('group', parsePath(S.ui.selected).id));
         break;
-      case 'group-unlink':
-        unlinkGroup(entity('group', parsePath(S.ui.selected).id));
-        break;
       case 'group-delete':
         confirmDeleteGroup(entity('group', parsePath(el.dataset.path).id), el.dataset.path);
         break;

@@ -148,7 +148,7 @@
         if ((ent.name || '').length > TEXT_LIMIT) gAdd('error', `${label}: name is longer than ${TEXT_LIMIT} characters`, 'general');
         if ((ent.internalName || '').length > TEXT_LIMIT) gAdd('error', `${label}: internal name is longer than ${TEXT_LIMIT} characters`, 'general');
         if ((ent.reportingId || '').length > TEXT_LIMIT) gAdd('error', `${label}: external ID is longer than ${TEXT_LIMIT} characters`, 'general');
-        if (ent.gtype === 'linked' && !posItemById(ent.posGroupExt)) gAdd('error', `${label}: its POS group was deleted on POS. Link it to another group, or unlink it`, 'general');
+        if (ent.gtype === 'linked' && !posItemById(ent.posGroupExt)) gAdd('error', `${label}: its POS group was deleted on POS. Choose another POS group, or delete this custom version`, 'general');
         const ruleErr = !r.fixed && !ent.isSubstitutionContainer && Object.values(ruleErrors(ent)).find(Boolean);
         if (ruleErr) gAdd('error', `${label}: ${lcFirst(ruleErr)}`, 'options');
         else if (!count) gAdd(r.min > 0 || r.type === 3 ? 'error' : 'warning', `${label} has no products. Add at least one`, 'options');

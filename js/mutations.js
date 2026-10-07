@@ -512,36 +512,6 @@
     });
   }
 
-  function unlinkGroup(g) {
-    const was = posLabel(g.posGroupExt);
-    const dropped = g.children.filter((pid) => {
-      const x = entity('product', pid);
-      return x && x.source === 'pos' && !posCategoriesOf(x.externalId).length;
-    });
-    openModal({
-      title: `Unlink from ${was}?`,
-      body: `<p>Its options become suggested products. Each pick then goes on the order as its own item, at its own POS price.</p>
-        ${dropped.length ? `<p>${plural(dropped.length, 'option is', 'options are')} sold only as options on POS, so ${dropped.length === 1 ? 'it is' : 'they are'} removed: ${esc(listJoin(dropped.map((pid) => nameOf('product', entity('product', pid)))))}.</p>` : ''}`,
-      actions: [
-        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
-        {
-          label: 'Unlink group',
-          kind: 'primary',
-          onClick: () => {
-            closeModal();
-            commit(() => {
-              g.gtype = 'standalone';
-              g.posGroupExt = null;
-              g.type = 1;
-              dropOptions(g, dropped);
-            });
-            toast(`Unlinked from ${was}`, 'success', { action: { label: 'Undo', onClick: undo } });
-          },
-        },
-      ],
-    });
-  }
-
   function confirmDeleteGroup(g, path) {
     const parents = groupParents(g.id);
     openModal({

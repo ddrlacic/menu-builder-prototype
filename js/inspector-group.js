@@ -9,7 +9,7 @@
           ? field(
               'POS group',
               `<div class="input is-readonly">${esc(posLabel(g.posGroupExt))}</div>
-          <div class="link-btns field-actions"><button type="button" class="link-btn" data-action="group-change-link">Change</button><button type="button" class="link-btn" data-action="group-unlink">Unlink</button></div>`,
+          <div class="link-btns field-actions"><button type="button" class="link-btn" data-action="group-change-link">Change</button></div>`,
               { help: 'Choices ring up on POS as options of this group, at its POS prices.' },
             )
           : '';
