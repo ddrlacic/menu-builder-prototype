@@ -316,6 +316,24 @@
   $('#canvas-scroll').addEventListener('scroll', closePopover, { passive: true });
 
   document.addEventListener('pointerover', (e) => {
+    if (e.pointerType === 'touch' || document.body.dataset.dragKind || document.querySelector('.is-sorting, .is-nesting')) return;
+    const a = tipTarget(e.target);
+    if (a) showTip(a);
+    else if (T.tip && !T.tip.anchor.contains(e.target)) hideTip();
+  });
+  document.addEventListener('pointerout', (e) => {
+    if (T.tip && T.tip.anchor.contains(e.target) && !T.tip.anchor.contains(e.relatedTarget)) hideTip();
+  });
+  document.addEventListener('pointerdown', hideTip, true);
+  document.addEventListener('focusin', (e) => {
+    const a = e.target.matches && e.target.matches(':focus-visible') && tipTarget(e.target);
+    if (a === e.target) showTip(a);
+  });
+  document.addEventListener('focusout', (e) => T.tip && T.tip.anchor === e.target && hideTip());
+  document.addEventListener('scroll', hideTip, { capture: true, passive: true });
+  window.addEventListener('resize', hideTip);
+
+  document.addEventListener('pointerover', (e) => {
     if (e.pointerType === 'touch' || document.body.dataset.dragKind) return;
     const a = e.target.closest('[data-id-card]');
     if (!a) return;
@@ -584,6 +602,7 @@
       if (save && !save.disabled) save.click();
       return;
     }
+    if (e.key === 'Escape' && T.tip) return hideTip();
     if (e.key === 'Escape') {
       if (T.idCard) return hideIdCard();
       if (T.popover) {

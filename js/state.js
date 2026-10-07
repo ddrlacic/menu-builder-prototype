@@ -7,6 +7,7 @@
   const hist = { past: [], future: [], key: null, at: 0 };
   const T = {
     idCard: null,
+    tip: null,
     idCardTimer: null,
     drag: null,
     dropTarget: null,

@@ -82,6 +82,45 @@
     requestAnimationFrame(() => (el.dataset.open = 'true'));
   }
 
+  function tipTarget(node) {
+    const el = node && node.closest && node.closest('[title], [data-tip]');
+    if (!el || el.matches('.row, .pos-row') || el.closest('#popover-root')) return null;
+    if (el.hasAttribute('title')) {
+      const text = el.getAttribute('title');
+      el.removeAttribute('title');
+      if (!text) return null;
+      el.dataset.tip = text;
+      if (!el.hasAttribute('aria-label') && !el.textContent.trim()) el.setAttribute('aria-label', text);
+    }
+    if (el.dataset.tip === el.textContent.trim() && el.scrollWidth <= el.clientWidth) return null;
+    return el;
+  }
+
+  function showTip(anchor) {
+    if (T.tip && T.tip.anchor === anchor) return;
+    hideTip();
+    const el = document.createElement('div');
+    el.className = 'tip';
+    el.setAttribute('role', 'tooltip');
+    el.textContent = anchor.dataset.tip;
+    $('#popover-root').appendChild(el);
+    const r = anchor.getBoundingClientRect();
+    const left = clamp(r.left + r.width / 2 - el.offsetWidth / 2, 8, window.innerWidth - el.offsetWidth - 8);
+    const below = r.top - el.offsetHeight - 8 < 8;
+    el.style.left = `${left}px`;
+    el.style.top = `${below ? r.bottom + 8 : r.top - el.offsetHeight - 8}px`;
+    el.style.setProperty('--arrow-x', `${clamp(r.left + r.width / 2 - left, 10, el.offsetWidth - 10)}px`);
+    el.dataset.side = below ? 'bottom' : 'top';
+    T.tip = { el, anchor };
+    requestAnimationFrame(() => (el.dataset.open = 'true'));
+  }
+
+  function hideTip() {
+    if (!T.tip) return;
+    T.tip.el.remove();
+    T.tip = null;
+  }
+
   function scheduleHideIdCard() {
     clearTimeout(T.idCardTimer);
     T.idCardTimer = setTimeout(() => hideIdCard(), 200);

@@ -34,6 +34,7 @@
   }
 
   function render() {
+    hideTip();
     const focus = captureFocus();
     const menu = activeMenu();
     if (!menu) {
