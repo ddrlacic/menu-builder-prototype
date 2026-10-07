@@ -160,6 +160,8 @@
         if (Object.values(ent.optionSettings).some((s) => lengthError(s.name))) gAdd('error', `${label}: an option name is longer than ${TEXT_LIMIT} characters`, 'options');
         if (ent.sections.some((s) => !s.name.trim())) gAdd('error', `${label}: add a name to each option section`, 'options');
         else if (ent.sections.some((s) => lengthError(s.name))) gAdd('error', `${label}: a section name is longer than ${TEXT_LIMIT} characters`, 'options');
+        const ownSections = (sectionHost(path) || {}).own;
+        if (ownSections && ownSections.sections.some((s) => !s.name.trim() || lengthError(s.name))) gAdd('error', `${label}: fix the section names set for this product`, 'options', null);
         const preList = ent.children.map((pid) => preselectedAt(childPath(path, 'product', pid)));
         const pre = preList.reduce((s, n) => s + n, 0);
         if (ent.children.some((pid, i) => preList[i] > optionMaxOf(ent, pid, r))) gAdd('error', `${label}: an option is preselected more times than it can be picked`, 'options', null);

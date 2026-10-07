@@ -140,6 +140,7 @@
     halfWhole: {},
     sections: [],
     groupSection: {},
+    optionSections: {},
     namePropagated: false,
   });
 
@@ -255,6 +256,17 @@
   };
 
   function normalizeProduct(p) {
+    for (const [gid, o] of Object.entries(p.optionSections || {})) {
+      const g = p.children.includes(gid) && entity('group', gid);
+      if (!g) {
+        delete p.optionSections[gid];
+        continue;
+      }
+      const kids = new Set(g.children);
+      o.children = [...o.children.filter((id) => kids.has(id)), ...g.children.filter((id) => !o.children.includes(id))];
+      const sids = new Set(o.sections.map((s) => s.id));
+      for (const [pid, sid] of Object.entries(o.optionSection)) if (!kids.has(pid) || !sids.has(sid)) delete o.optionSection[pid];
+    }
     for (const [sid, v] of Object.entries(p.stores || {})) {
       if (!v || typeof v !== 'object') continue;
       if (!v.stock) delete v.stock;

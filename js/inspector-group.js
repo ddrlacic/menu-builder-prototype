@@ -68,7 +68,7 @@
             : `Add options from ${esc(posLabel(gpos))}.`;
         return rulesHtml + section('Options', `<div class="empty-small"><strong>No options yet</strong><span>${hint}</span></div>`) + missingHtml;
       }
-      return rulesHtml + groupOptionsSection(g, path, gb, rules) + missingHtml + groupSectionsSection(g, gb);
+      return rulesHtml + groupOptionsSection(g, path, gb, rules) + missingHtml + groupSectionsSection(g, gb, path);
     }
     if (tab === 'substitutes') return groupSwapsSection(g, gb);
     if (tab === 'halves') return groupHalvesSection(g);
@@ -256,13 +256,40 @@
     return `<div class="opt-detail">${body}</div>`;
   }
 
-  function groupSectionsSection(g, gb) {
+  function groupSectionsSection(g, gb, path) {
+    const host = sectionHost(path);
+    const gName = esc(nameOf('group', g));
+    if (host && host.own) {
+      const own = host.own;
+      const pName = esc(nameOf('product', host.p));
+      const listed = new Set(listedOptions(g));
+      const items = own.children.filter((pid) => listed.has(pid)).map((pid) => ({ id: pid, name: optionName(g, pid), section: sectionOfOption(own, pid) }));
+      const ob = (f) => `e|product|${host.p.id}|optionSections.${g.id}.${f}`;
+      return section(
+        'Option sections',
+        nestedSections(`place|${host.p.id}:${g.id}|optionSection`, own.sections, ob, items, 'option', 'options') +
+          addButton('own-section-add', 'Add section') +
+          `<p class="field-help">Other products use the sections of ${gName}. <button type="button" class="link-btn" data-action="own-sections-reset">Use ${gName}’s sections</button></p>`,
+        { desc: `${scopePill(productScopeText(path))} Customers see these headings in ${pName} only. Drag options and headings to arrange them.` },
+      );
+    }
     const items = listedOptions(g).map((pid) => ({ id: pid, name: optionName(g, pid), section: sectionOfOption(g, pid) }));
-    return section('Option sections', nestedSections(`group|${g.id}|optionSection`, g.sections, gb, items, 'option', 'options') + addButton('opt-section-add', 'Add section'), {
-      desc: g.sections.length
-        ? 'Customers see the options under these headings, in this order. Drag options and headings to arrange them.'
-        : 'Split the options under headings, like Cheese and Veggies.',
-    });
+    const others = groupParents(g.id).filter((p) => p.optionSections && p.optionSections[g.id]).length;
+    const note = [
+      others ? `${plural(others, 'product uses', 'products use')} its own sections.` : '',
+      host ? `<button type="button" class="link-btn" data-action="own-sections-start">Use own sections in ${esc(nameOf('product', host.p))}</button>` : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    return section(
+      'Option sections',
+      nestedSections(`group|${g.id}|optionSection`, g.sections, gb, items, 'option', 'options') + addButton('opt-section-add', 'Add section') + (note ? `<p class="field-help">${note}</p>` : ''),
+      {
+        desc: g.sections.length
+          ? `Customers see the options under these headings, in this order, in every product that uses ${gName}. Drag options and headings to arrange them.`
+          : 'Split the options under headings, like Cheese and Veggies.',
+      },
+    );
   }
 
   function groupSwapsSection(g, gb) {

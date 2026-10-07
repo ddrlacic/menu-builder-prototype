@@ -335,6 +335,15 @@
     return h.left && h.right ? 'Left and right halves' : `${SIDE_LABEL[h.left ? 'left' : 'right']} only`;
   }
 
+  function sectionHost(path) {
+    const info = parsePath(path);
+    if (info.kind !== 'group' || !info.parentPath) return null;
+    const pi = parsePath(info.parentPath);
+    if (pi.kind !== 'product' || (pi.parentPath && parsePath(pi.parentPath).kind === 'group')) return null;
+    const p = entity('product', pi.id);
+    return { p, own: (p.optionSections && p.optionSections[info.id]) || null };
+  }
+
   const siblingGroupedHalves = (g) =>
     new Set([g, ...groupParents(g.id).flatMap((p) => p.children.map((gid) => entity('group', gid)))].filter(Boolean).flatMap((x) => [...groupedHalves(x)]));
 

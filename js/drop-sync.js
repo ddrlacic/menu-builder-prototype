@@ -348,6 +348,11 @@
             .filter((x) => x.h.left && x.h.right)
             .map(({ h, ...x }) => ({ ...x, left: productRef(h.left), right: productRef(h.right) })),
           sections: e.sections.map((s) => ({ id: s.id, name: s.name, product_group_ids: e.children.filter((gid) => sectionOf(e, gid) === s.id) })),
+          product_group_sections: Object.entries(e.optionSections).map(([gid, o]) => ({
+            product_group_id: gid,
+            is_sections_overridden: true,
+            sections: o.sections.map((s) => ({ id: s.id, name: s.name, product_ids: o.children.filter((pid) => sectionOfOption(o, pid) === s.id) })),
+          })),
           venues: Object.fromEntries(
             Object.entries(e.stores).map(([sid, st]) => [
               sid,

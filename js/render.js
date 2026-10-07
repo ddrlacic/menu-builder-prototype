@@ -403,6 +403,7 @@
     const hiddenHere = groupHiddenAt(path);
     if (hiddenHere) badges.push(`<span class="badge" title="Hidden in this placement">${icon('eyeOff', 12)}Hidden</span>`);
     if (ownerGroup && name !== nameOf('product', ent)) badges.push(`<span class="badge" title="Product name: ${esc(nameOf('product', ent))}">Renamed</span>`);
+    if (kind === 'group' && (sectionHost(path) || {}).own) badges.push(`<span class="badge" title="Option sections set for this product">Own sections</span>`);
     if (kind === 'group' && ruleOverridden(ent)) badges.push(`<span class="badge" title="Rules differ from POS">${icon('diff', 12)}Custom rules</span>`);
     if (kind === 'product') {
       const av = ent.availability;

@@ -607,6 +607,38 @@
         if (gone) toast(`${gone.name.trim() || 'Section'} removed`, 'success', { action: { label: 'Undo', onClick: undo } });
         break;
       }
+      case 'own-sections-start': {
+        const g = entity('group', parsePath(S.ui.selected).id);
+        const { p } = sectionHost(S.ui.selected);
+        const ids = new Map(g.sections.map((s) => [s.id, uid('osec')]));
+        commit(() => {
+          p.optionSections[g.id] = {
+            sections: g.sections.map((s) => ({ id: ids.get(s.id), name: s.name })),
+            optionSection: Object.fromEntries(g.children.filter((pid) => sectionOfOption(g, pid)).map((pid) => [pid, ids.get(sectionOfOption(g, pid))])),
+            children: g.children.slice(),
+          };
+        });
+        break;
+      }
+      case 'own-sections-reset': {
+        const g = entity('group', parsePath(S.ui.selected).id);
+        const { p } = sectionHost(S.ui.selected);
+        commit(() => delete p.optionSections[g.id]);
+        toast(`${nameOf('product', p)} uses the sections of ${nameOf('group', g)}`, 'success', { action: { label: 'Undo', onClick: undo } });
+        break;
+      }
+      case 'own-section-add': {
+        const g = entity('group', parsePath(S.ui.selected).id);
+        const { p } = sectionHost(S.ui.selected);
+        const own = p.optionSections[g.id];
+        commit(() => own.sections.push({ id: uid('osec'), name: `Section ${own.sections.length + 1}` }));
+        requestAnimationFrame(() => {
+          const inputs = document.querySelectorAll(`[data-bind^="e|product|${p.id}|optionSections.${g.id}.sections."][data-bind$=".name"]`);
+          const last = inputs[inputs.length - 1];
+          if (last) last.select();
+        });
+        break;
+      }
       case 'opt-section-add': {
         const g = entity('group', parsePath(S.ui.selected).id);
         commit(() => g.sections.push({ id: uid('osec'), name: `Section ${g.sections.length + 1}` }));
