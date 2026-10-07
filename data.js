@@ -248,7 +248,7 @@ window.MENU_CONSTANTS = {
     { id: 'msg-east', name: 'East Coast', cities: ['New York', 'Boston', 'Atlanta', 'Charlotte', 'Tampa', 'Raleigh', 'Miami'] },
     { id: 'msg-central', name: 'Central', cities: ['Chicago', 'Austin', 'Dallas', 'Columbus', 'Nashville', 'Kansas City', 'Indianapolis'] },
     { id: 'msg-west', name: 'West', cities: ['San Francisco', 'Denver', 'Phoenix', 'Portland', 'Salt Lake City', 'Seattle'] },
-    { id: 'msg-airports', name: 'Airport stores', airport: true },
+    { id: 'msg-airports', name: 'Airport stores', airport: true, pos: 'PAR Brink' },
   ],
   stores: (() => {
     const cities = [

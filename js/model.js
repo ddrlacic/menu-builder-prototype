@@ -38,6 +38,11 @@
   const storeEntry = (p, sid) => (p.stores || {})[sid] || {};
   const productStockAt = (p, sid) => storeEntry(p, sid).stock || '';
   const productHiddenAt = (p, sid) => !!storeEntry(p, sid).hidden;
+  const productPosStockAt = (p, sid) => (hasPosStock(sid) && storeEntry(p, sid).posStock) || '';
+  const shownLockedAt = (p, sid) => hasPosStock(sid) && productStockAt(p, sid) === 'out_of_stock';
+  const productShownAt = (p, sid) => !productHiddenAt(p, sid) && !shownLockedAt(p, sid);
+  const productOutAt = (p, sid) => !!(productStockAt(p, sid) || productPosStockAt(p, sid));
+  const productChangedAt = (p, sid) => productOutAt(p, sid) || productHiddenAt(p, sid);
   const productMenus = (p) => {
     const ids = new Set((ctx.usage.get(`product:${p.id}`) || []).map((path) => parsePath(path).menuId));
     return S.data.menus.filter((m) => ids.has(m.id));

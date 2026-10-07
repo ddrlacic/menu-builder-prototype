@@ -299,8 +299,8 @@
       case 'cat-store-show':
         setStoreVisibility('category', entity('category', parsePath(S.ui.selected).id), { show: [el.dataset.id] });
         break;
-      case 'prod-manage-stores':
-        openVisibilityStores('product', entity('product', parsePath(S.ui.selected).id));
+      case 'prod-bulk-stores':
+        openBulkStores(entity('product', parsePath(S.ui.selected).id));
         break;
       case 'prod-store-toggle':
         setStoreVisibility('product', entity('product', parsePath(S.ui.selected).id), { [el.dataset.on === '1' ? 'show' : 'hide']: [el.dataset.id] });

@@ -243,6 +243,7 @@
       if (!v || typeof v !== 'object') continue;
       if (!v.stock) delete v.stock;
       if (!v.hidden) delete v.hidden;
+      if (!v.posStock || !hasPosStock(sid)) delete v.posStock;
       if (!Object.keys(v).length) delete p.stores[sid];
     }
     if (!p.modifierCodes || !p.prep) return;
@@ -464,6 +465,8 @@
     }
     return groupStoreCache.get(id);
   }
+  const BRINK_STORE_IDS = new Set(C.menuStoreGroups.filter((g) => g.pos === 'PAR Brink').flatMap((g) => groupStores(g.id).map((s) => s.id)));
+  const hasPosStock = (sid) => BRINK_STORE_IDS.has(sid);
   function assignedStores(a) {
     const all = groupStores(a.id);
     if (!a.storeIds) return all;
@@ -515,6 +518,15 @@
     const pos = m.children.flatMap((cid) => (S.data.entities.category[cid] || { children: [] }).children).map((id) => E[id]).filter((p) => p && p.source === 'pos');
     if (pos[1] && stores.length > 3) pos[1].stores = { [stores[0].id]: { stock: 'out_of_stock' }, [stores[1].id]: { stock: 'oos_eod', hidden: true }, [stores[2].id]: { stock: 'oos_4h' } };
     if (pos[2] && stores.length > 10) pos[2].stores = Object.fromEntries(stores.slice(4, 11).map((s) => [s.id, { hidden: true }]));
+  }
+
+  function seedPosStockDemo(m) {
+    S.data.posStockDemo = true;
+    const p = m && Object.values(S.data.entities.product).find((x) => x.source === 'pos' && Object.keys(x.stores || {}).length);
+    if (!p || Object.values(p.stores).some((v) => v.posStock)) return;
+    const brink = menuStores(m).filter((s) => hasPosStock(s.id) && !p.stores[s.id]);
+    if (brink[0]) p.stores[brink[0].id] = { posStock: 'oos_eod' };
+    if (brink[1]) p.stores[brink[1].id] = { stock: 'out_of_stock' };
   }
 
   function defaultStoreGroups() {
@@ -667,6 +679,7 @@
     });
     seedOwnTimes(S.data.menus[0]);
     seedStoreStatusDemo(S.data.menus[0]);
+    seedPosStockDemo(S.data.menus[0]);
   }
 
   function migratePosImages() {
@@ -887,6 +900,7 @@
           Object.values(S.data.entities.category).forEach(migrateCategory);
           Object.values(S.data.entities.product).forEach(migrateProduct);
           if (!S.data.storeStatusDemo) seedStoreStatusDemo(S.data.menus[0]);
+          if (!S.data.posStockDemo) seedPosStockDemo(S.data.menus[0]);
           const fixPath = migrateChoiceProducts();
           for (const [k, pl] of Object.entries(S.data.placements)) {
             if (!/^[^>]+>c:[^>]+$/.test(k)) continue;
