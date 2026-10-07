@@ -37,7 +37,7 @@
               help: fromPos
                 ? `${icon('lock', 12)} Set by the POS group.`
                 : g.gtype === 'linked'
-                  ? `${icon('lock', 12)} Follows the linked POS group.`
+                  ? `${icon('lock', 12)} Same as the linked POS group.`
                   : `${icon('lock', 12)} Suggested products always use the Modifier type. Linking a POS group uses its type instead.`,
             }) +
             posField +
@@ -307,7 +307,7 @@
       ? `<div class="store-list">${parents
           .map((p) => {
             const n = own(p);
-            return `<div class="store-row"><span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${n ? `Uses its own substitutes for ${plural(n, 'option', 'options')}` : 'Follows this group'}</span></span></div>`;
+            return `<div class="store-row"><span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${n ? `Uses its own substitutes for ${plural(n, 'option', 'options')}` : 'Same as this group'}</span></span></div>`;
           })
           .join('')}</div>`
       : '';
@@ -374,7 +374,7 @@
       ? `<div class="store-list">${parents
           .map((p) => {
             const n = own(p);
-            return `<div class="store-row"><span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${n ? `Uses its own halves for ${plural(n, 'option', 'options')}` : 'Follows this group'}</span></span></div>`;
+            return `<div class="store-row"><span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${n ? `Uses its own halves for ${plural(n, 'option', 'options')}` : 'Same as this group'}</span></span></div>`;
           })
           .join('')}</div>`
       : '';

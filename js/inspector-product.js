@@ -260,8 +260,8 @@
   }
 
   function followNote(g, own, { customize, reset, key }) {
-    if (own) return `<p class="field-help">Set for this product only. <button type="button" class="link-btn" data-action="${reset}" data-key="${esc(key)}">Use the ${esc(nameOf('group', g))} setting</button></p>`;
-    return `<p class="field-help">Follows ${esc(nameOf('group', g))}. <button type="button" class="link-btn" data-action="${customize}" data-key="${esc(key)}">Change for this product</button></p>`;
+    if (own) return `<p class="field-help">Set for this product only. <button type="button" class="link-btn" data-action="${reset}" data-key="${esc(key)}">Use the ${esc(nameOf('group', g))} group’s setting</button></p>`;
+    return `<p class="field-help">Same as the ${esc(nameOf('group', g))} group. <button type="button" class="link-btn" data-action="${customize}" data-key="${esc(key)}">Change for this product</button></p>`;
   }
 
   function substitutesSection(p) {
@@ -412,7 +412,7 @@
         scope,
         help: preselectOverridden(path)
           ? `${esc(parentName)} preselects ${groupPre} in other products. <button type="button" class="link-btn" data-action="pre-reset" data-path="${esc(productScopePath(path))}">Use the same here</button>`
-          : `Follows ${esc(parentName)}. ${onlyRoot}`,
+          : `Same as the ${esc(parentName)} group. ${onlyRoot}`,
       });
     html += field('Name in this group', inputText(`e|group|${parentEnt.id}|optionSettings.${p.id}.name`, (parentEnt.optionSettings[p.id] || {}).name, { id: 'p-grp-name', placeholder: nameOf('product', p) }), {
       id: 'p-grp-name',
@@ -582,7 +582,7 @@
     let body = toggle(pb('availability.active'), a.active, {
       label: 'Custom availability',
       action: 'avail-toggle',
-      help: a.active ? 'Applies in every menu, within each menu’s serving times.' : `Follows ${esc(menu.name)}: ${esc(menuScheduleSummary(menu).replace(/^During/, 'during'))}`,
+      help: a.active ? 'Applies in every menu, within each menu’s serving times.' : `Same as ${esc(menu.name)}: ${esc(menuScheduleSummary(menu).replace(/^During/, 'during'))}`,
     });
     if (a.active) {
       body += field(
