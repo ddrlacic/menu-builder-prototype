@@ -33,6 +33,33 @@
     );
   }
 
+  function nestedSections(key, sections, bindOf, items, one, many) {
+    if (!sections.length) return '';
+    const grip = `<span class="sort-grip" aria-hidden="true">${icon('grip', 14)}</span>`;
+    const blocks = sections
+      .map((s, i) => {
+        const err = s.name.trim() ? lengthError(s.name) : 'Add a section name';
+        const label = s.name.trim() || 'section';
+        const own = items.filter((it) => it.section === s.id);
+        const rows = own.length
+          ? own
+              .map((it) => `<div class="nest-item" data-nest-row="item" data-id="${esc(it.id)}" tabindex="0" aria-label="${esc(it.name)}, in ${esc(label)}. Drag or use the arrow keys to move it">${grip}<span class="nest-name">${esc(it.name)}</span></div>`)
+              .join('')
+          : `<div class="nest-empty">No ${many} yet. Drag one here.</div>`;
+        return `<div class="nest-block${err ? ' has-error' : ''}" data-sid="${esc(s.id)}">
+          <div class="nest-head" data-nest-row="section" tabindex="0" aria-label="${esc(label)}. Drag or use the arrow keys to move it">
+            ${sections.length > 1 ? grip : ''}${inputText(bindOf(`sections.${i}.name`), s.name, { label: 'Section name' })}
+            <span class="muted tnum">${plural(own.length, one, many)}</span>
+            <button type="button" class="icon-btn sm" data-action="nest-section-remove" data-nest="${esc(key)}" data-index="${i}" aria-label="Remove ${esc(label)}" title="${i === 0 && sections.length > 1 ? `Remove section. Its ${many} move to the next one` : sections.length > 1 ? `Remove section. Its ${many} move to the first one` : 'Remove section'}">${icon('x', 14)}</button>
+          </div>
+          ${err ? slotError(err) : ''}
+          ${rows}
+        </div>`;
+      })
+      .join('');
+    return `<div class="nest-list" data-nest="${esc(key)}">${blocks}</div>`;
+  }
+
   function placementSection(path) {
     const info = parsePath(path);
     if (!info.parentPath) return '';

@@ -497,6 +497,12 @@
         commit(() => delete (a === 'sub-reset' ? p.substitutes : p.halfWhole)[el.dataset.key]);
         break;
       }
+      case 'nest-section-remove': {
+        let gone;
+        commit(() => (gone = removeNestSection(el.dataset.nest, Number(el.dataset.index))));
+        if (gone) toast(`${gone.name.trim() || 'Section'} removed`, 'success', { action: { label: 'Undo', onClick: undo } });
+        break;
+      }
       case 'opt-section-add': {
         const g = entity('group', parsePath(S.ui.selected).id);
         commit(() => g.sections.push({ id: uid('osec'), name: `Section ${g.sections.length + 1}` }));

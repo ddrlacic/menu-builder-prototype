@@ -284,6 +284,34 @@
     });
   }
 
+  function nestTarget(key) {
+    const [kind, id, mapKey] = key.split('|');
+    return { ent: entity(kind, id), mapKey };
+  }
+
+  function arrangeSections(key, order) {
+    const { ent, mapKey } = nestTarget(key);
+    const byId = new Map(ent.sections.map((s) => [s.id, s]));
+    ent.sections = order.map((o) => byId.get(o.sid)).filter(Boolean);
+    order.forEach((o) => o.ids.forEach((id) => (ent[mapKey][id] = o.sid)));
+    const placed = order.flatMap((o) => o.ids);
+    ent.children = [...placed, ...ent.children.filter((id) => !placed.includes(id))];
+  }
+
+  function removeNestSection(key, index) {
+    const { ent, mapKey } = nestTarget(key);
+    const sectionOfItem = mapKey === 'groupSection' ? sectionOf : sectionOfOption;
+    const [gone] = ent.sections.splice(index, 1);
+    ent.children.forEach((id) => {
+      if (ent[mapKey][id] === gone.id) delete ent[mapKey][id];
+    });
+    arrangeSections(
+      key,
+      ent.sections.map((s) => ({ sid: s.id, ids: ent.children.filter((id) => sectionOfItem(ent, id) === s.id) })),
+    );
+    return gone;
+  }
+
   function openProductListPicker(p, bind, title) {
     const chosen = getBind(bind) || [];
     const name = nameOf('product', p);

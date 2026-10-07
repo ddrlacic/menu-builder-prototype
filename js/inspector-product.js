@@ -203,30 +203,11 @@
   function sectionsSection(p) {
     if (!p.children.length) return '';
     const pb = productBind(p);
-    const rows = p.sections
-      .map((s, i) => {
-        const err = s.name.trim() ? lengthError(s.name) : 'Add a section name';
-        const label = s.name.trim() || 'section';
-        return `<div class="segment-row${err ? ' has-error' : ''}">
-          <div class="list-inputs">${inputText(pb(`sections.${i}.name`), s.name, { label: 'Section name' })}${moveButtons(pb('sections'), i, p.sections.length, label)}${removeButton(pb('sections'), i, label)}</div>
-          ${err ? slotError(err) : ''}
-        </div>`;
-      })
-      .join('');
-    const opts = p.sections.map((s) => [s.id, s.name.trim() || 'Untitled section']);
-    const groups = p.sections.length
-      ? field(
-          'Groups',
-          `<div class="store-list is-wide">${p.children
-            .map((gid) => {
-              const g = entity('group', gid);
-              return g ? `<div class="store-row"><span class="store-name">${esc(nameOf('group', g))}</span>${selectInput(pb(`groupSection.${gid}`), sectionOf(p, gid), opts, { label: `Section for ${nameOf('group', g)}` })}</div>` : '';
-            })
-            .join('')}</div>`,
-        )
-      : '';
-    return section('Group sections', `${rows ? `<div class="segment-list">${rows}</div>` : ''}${addButton('section-add', 'Add section')}${groups}`, {
-      desc: p.sections.length ? 'Customers see the groups under these headings, in this order. Only Web App shows headings.' : 'Split the groups under headings, like Base and Toppings. Only Web App shows headings.',
+    const items = p.children.filter((gid) => entity('group', gid)).map((gid) => ({ id: gid, name: nameOf('group', entity('group', gid)), section: sectionOf(p, gid) }));
+    return section('Group sections', nestedSections(`product|${p.id}|groupSection`, p.sections, pb, items, 'group', 'groups') + addButton('section-add', 'Add section'), {
+      desc: p.sections.length
+        ? 'Customers see the groups under these headings, in this order. Drag groups and headings to arrange them. Only Web App shows headings.'
+        : 'Split the groups under headings, like Base and Toppings. Only Web App shows headings.',
     });
   }
 

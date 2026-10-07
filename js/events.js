@@ -193,6 +193,125 @@
     const from = Number(e.target.dataset.sortIndex);
     moveInList(e.target.closest('[data-sortable]').dataset.sortable, from, from + (e.key === 'ArrowUp' ? -1 : 1), true);
   }, true);
+  const nestOrder = (list) =>
+    [...list.querySelectorAll('.nest-block')].map((b) => ({ sid: b.dataset.sid, ids: [...b.querySelectorAll('[data-nest-row="item"]')].map((x) => x.dataset.id) }));
+
+  function applyNest(list, order, focus) {
+    const key = list.dataset.nest;
+    commit(() => arrangeSections(key, order));
+    requestAnimationFrame(() => {
+      const fresh = document.querySelector(`[data-nest="${CSS.escape(key)}"]`);
+      const el = fresh && fresh.querySelector(focus.sid ? `.nest-block[data-sid="${CSS.escape(focus.sid)}"] .nest-head` : `[data-nest-row="item"][data-id="${CSS.escape(focus.id)}"]`);
+      if (!el) return;
+      el.classList.add('is-flash');
+      if (focus.keyboard) el.focus({ preventScroll: true });
+    });
+  }
+
+  document.addEventListener('pointerdown', (e) => {
+    const handle = e.button === 0 && e.target.closest('.nest-list [data-nest-row]');
+    if (!handle || e.target.closest('button, input, a')) return;
+    const list = handle.closest('.nest-list');
+    const isSection = handle.dataset.nestRow === 'section';
+    if (isSection && list.querySelectorAll('.nest-block').length < 2) return;
+    const moving = isSection ? handle.closest('.nest-block') : handle;
+    const startY = e.clientY;
+    let lifted = false;
+    let slots, box, r, line, pick;
+    const lift = () => {
+      lifted = true;
+      box = list.getBoundingClientRect();
+      r = moving.getBoundingClientRect();
+      const blocks = [...list.querySelectorAll('.nest-block')];
+      if (isSection) {
+        const others = blocks.filter((b) => b !== moving);
+        slots = others.map((b, i) => ({ y: b.getBoundingClientRect().top - 4, at: i }));
+        if (others.length) slots.push({ y: others[others.length - 1].getBoundingClientRect().bottom + 4, at: others.length });
+      } else {
+        slots = blocks.flatMap((b) => {
+          const head = b.querySelector('.nest-head');
+          const rows = [...b.querySelectorAll('[data-nest-row="item"]')].filter((x) => x !== moving);
+          const first = { y: (b.querySelector('.field-error') || head).getBoundingClientRect().bottom, sid: b.dataset.sid, at: 0 };
+          return [first, ...rows.map((x, i) => ({ y: x.getBoundingClientRect().bottom, sid: b.dataset.sid, at: i + 1 }))];
+        });
+      }
+      line = document.createElement('div');
+      line.className = 'nest-line';
+      list.appendChild(line);
+      handle.setPointerCapture(e.pointerId);
+      list.classList.add('is-nesting');
+      moving.classList.add('is-lifted');
+    };
+    const move = (ev) => {
+      if (!lifted) {
+        if (Math.abs(ev.clientY - startY) < 4) return;
+        lift();
+      }
+      const dy = clamp(ev.clientY - startY, box.top - r.top - 8, box.bottom - r.bottom + 8);
+      moving.style.transform = `translateY(${dy}px)`;
+      const y = (dy < 0 ? r.top : r.bottom) + dy;
+      pick = slots.reduce((best, s) => (Math.abs(s.y - y) < Math.abs(best.y - y) ? s : best), slots[0]);
+      if (pick) line.style.top = `${pick.y - box.top - 1}px`;
+    };
+    const end = () => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', end);
+      document.removeEventListener('pointercancel', end);
+      if (!lifted) return;
+      line.remove();
+      list.classList.remove('is-nesting');
+      moving.classList.remove('is-lifted');
+      moving.style.transform = '';
+      if (!pick) return;
+      const order = nestOrder(list);
+      if (isSection) {
+        const sid = moving.dataset.sid;
+        const from = order.findIndex((o) => o.sid === sid);
+        const [block] = order.splice(from, 1);
+        order.splice(pick.at, 0, block);
+        if (pick.at !== from) applyNest(list, order, { sid });
+      } else {
+        const id = moving.dataset.id;
+        const src = order.find((o) => o.ids.includes(id));
+        const was = src.ids.indexOf(id);
+        src.ids.splice(was, 1);
+        order.find((o) => o.sid === pick.sid).ids.splice(pick.at, 0, id);
+        if (src.sid !== pick.sid || pick.at !== was) applyNest(list, order, { id });
+      }
+    };
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', end);
+    document.addEventListener('pointercancel', end);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || !e.target.matches || !e.target.matches('.nest-list [data-nest-row]')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const up = e.key === 'ArrowUp';
+    const list = e.target.closest('.nest-list');
+    const order = nestOrder(list);
+    if (e.target.dataset.nestRow === 'section') {
+      const sid = e.target.closest('.nest-block').dataset.sid;
+      const from = order.findIndex((o) => o.sid === sid);
+      const to = from + (up ? -1 : 1);
+      if (to < 0 || to >= order.length) return;
+      order.splice(to, 0, order.splice(from, 1)[0]);
+      return applyNest(list, order, { sid, keyboard: true });
+    }
+    const id = e.target.dataset.id;
+    const si = order.findIndex((o) => o.ids.includes(id));
+    const ids = order[si].ids;
+    const i = ids.indexOf(id);
+    ids.splice(i, 1);
+    if (up && i > 0) ids.splice(i - 1, 0, id);
+    else if (!up && i < ids.length) ids.splice(i + 1, 0, id);
+    else if (up && si > 0) order[si - 1].ids.push(id);
+    else if (!up && si < order.length - 1) order[si + 1].ids.unshift(id);
+    else return;
+    applyNest(list, order, { id, keyboard: true });
+  }, true);
+
   window.addEventListener('resize', closePopover);
   $('#canvas-scroll').addEventListener('scroll', closePopover, { passive: true });
 
