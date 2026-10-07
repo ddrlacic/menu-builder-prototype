@@ -49,14 +49,15 @@
 
   function productList(bind, ids, empty) {
     if (!ids.length) return `<p class="field-help">${esc(empty)}</p>`;
-    return `<div class="store-list">${ids
+    const sortable = ids.length > 1;
+    return `<div class="store-list"${sortable ? ` data-sortable="${esc(bind)}"` : ''}>${ids
       .map((pid, i) => {
         const x = entity('product', pid);
         if (!x) return '';
         const name = nameOf('product', x);
-        return `<div class="store-row list-row">${thumb('product', x, 'thumb-sm')}<span class="store-name">${esc(name)}</span><span class="row-tools">${moveButtons(bind, i, ids.length, name)}${removeButton(bind, i, name)}</span></div>`;
+        return `<div class="store-row list-row" data-sort-index="${i}"${sortable ? ` tabindex="0" aria-label="${esc(name)}. Drag or use the arrow keys to move it"` : ''}>${thumb('product', x, 'thumb-sm')}<span class="store-name">${esc(name)}</span><span class="row-tools">${removeButton(bind, i, name)}</span>${sortable ? `<span class="sort-grip" aria-hidden="true">${icon('grip', 14)}</span>` : ''}</div>`;
       })
-      .join('')}</div>`;
+      .join('')}</div>${sortable ? '<p class="field-help">Drag products to change the order customers see.</p>' : ''}`;
   }
 
   const addButton = (action, label, attrs = '') => `<button type="button" class="btn ghost sm" data-action="${action}" ${attrs}>${icon('plus', 14)}${esc(label)}</button>`;
