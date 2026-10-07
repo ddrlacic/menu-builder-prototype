@@ -543,6 +543,10 @@
         T.preHere = el.dataset.value === 'here' ? S.ui.selected : null;
         render();
         break;
+      case 'sections-scope':
+        T.sectionsHere = el.dataset.value === 'here' ? S.ui.selected : null;
+        render();
+        break;
       case 'pre-reset-here': {
         const g = entity('group', parsePath(S.ui.selected).id);
         commit(() =>

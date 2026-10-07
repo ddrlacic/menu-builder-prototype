@@ -2036,6 +2036,10 @@ body[data-drag-kind='group'] .row[data-kind='product'] {
   text-wrap: pretty;
 }
 
+.field + .section-desc {
+  margin-top: 12px;
+}
+
 .section-body {
   display: flex;
   flex-direction: column;

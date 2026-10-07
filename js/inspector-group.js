@@ -226,15 +226,7 @@
       : bulk && (bulk.canAll || bulk.canClear)
         ? `<div class="link-btns field-actions">${bulk.canAll ? '<button type="button" class="link-btn" data-action="pre-all">Preselect all</button>' : ''}${bulk.canClear ? '<button type="button" class="link-btn" data-action="pre-clear">Clear preselection</button>' : ''}</div>`
         : '';
-    const scopeHtml = host
-      ? `<div class="field"><div class="field-head"><span class="field-label">Edit for</span>${onlyHere ? scopePill(productScopeText(path)) : ''}</div>
-        <div class="segmented" role="radiogroup" aria-label="Edit for">${[
-          ['all', 'Every product'],
-          ['here', pName],
-        ]
-          .map(([v, l]) => `<button type="button" role="radio" aria-checked="${(v === 'here') === onlyHere}" class="seg" data-action="pre-scope" data-value="${v}">${l}</button>`)
-          .join('')}</div></div>`
-      : '';
+    const scopeHtml = host ? scopeSwitch(path, host, onlyHere, 'pre-scope') : '';
     const help = preHere
       ? `Changes here apply only to ${pName}, in every menu. To hide an option in one menu only, open the option there.`
       : onlyHere
@@ -293,14 +285,25 @@
     return `<div class="opt-detail">${body}</div>`;
   }
 
+  function scopeSwitch(path, host, onlyHere, action) {
+    return `<div class="field"><div class="field-head"><span class="field-label">Edit for</span>${onlyHere ? scopePill(productScopeText(path)) : ''}</div>
+        <div class="segmented" role="radiogroup" aria-label="Edit for">${[
+          ['all', 'Every product'],
+          ['here', esc(nameOf('product', host.p))],
+        ]
+          .map(([v, l]) => `<button type="button" role="radio" aria-checked="${(v === 'here') === onlyHere}" class="seg" data-action="${action}" data-value="${v}">${l}</button>`)
+          .join('')}</div></div>`;
+  }
+
   function groupSectionsSection(g, gb, path) {
     const host = sectionHost(path);
     const gName = esc(nameOf('group', g));
-    const onlyHere = !!host && T.preHere === path;
+    const onlyHere = !!host && T.sectionsHere === path;
+    const scopeHtml = host ? scopeSwitch(path, host, onlyHere, 'sections-scope') : '';
+    const sectionsBox = (body, desc) => (host ? section('Option sections', `${scopeHtml}${desc ? `<p class="section-desc">${desc}</p>` : ''}${body}`) : section('Option sections', body, { desc }));
     if (onlyHere && !host.own) {
       const pName = esc(nameOf('product', host.p));
-      return section(
-        'Option sections',
+      return sectionsBox(
         `<p class="field-help">${g.sections.length ? 'Same sections as other products.' : 'No sections, same as other products.'}</p>
         <div class="link-btns field-actions"><button type="button" class="link-btn" data-action="own-sections-start">Use own sections in ${pName}</button></div>`,
       );
@@ -311,25 +314,21 @@
       const listed = new Set(listedOptions(g));
       const items = own.children.filter((pid) => listed.has(pid)).map((pid) => ({ id: pid, name: optionName(g, pid), section: sectionOfOption(own, pid) }));
       const ob = (f) => `e|product|${host.p.id}|optionSections.${g.id}.${f}`;
-      return section(
-        'Option sections',
+      return sectionsBox(
         nestedSections(`place|${host.p.id}:${g.id}|optionSection`, own.sections, ob, items, 'option', 'options') +
           addButton('own-section-add', 'Add section') +
           `<div class="link-btns field-actions"><button type="button" class="link-btn" data-action="own-sections-reset">Use the same as other products</button></div>`,
-        { desc: `${scopePill(productScopeText(path))} Customers see these headings in ${pName} only. Drag options and headings to arrange them.` },
+        `Customers see these headings in ${pName} only. Drag options and headings to arrange them.`,
       );
     }
     const items = listedOptions(g).map((pid) => ({ id: pid, name: optionName(g, pid), section: sectionOfOption(g, pid) }));
     const others = groupParents(g.id).filter((p) => p.optionSections && p.optionSections[g.id]).length;
     const note = others ? `${plural(others, 'product uses', 'products use')} its own sections.` : '';
-    return section(
-      'Option sections',
+    return sectionsBox(
       nestedSections(`group|${g.id}|optionSection`, g.sections, gb, items, 'option', 'options') + addButton('opt-section-add', 'Add section') + (note ? `<p class="field-help">${note}</p>` : ''),
-      {
-        desc: g.sections.length
-          ? `Customers see the options under these headings, in this order, in every product that uses ${gName}. Drag options and headings to arrange them.`
-          : 'Split the options under headings, like Cheese and Veggies.',
-      },
+      g.sections.length
+        ? `Customers see the options under these headings, in this order, in every product that uses ${gName}. Drag options and headings to arrange them.`
+        : 'Split the options under headings, like Cheese and Veggies.',
     );
   }
 

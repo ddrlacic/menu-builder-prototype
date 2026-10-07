@@ -37,6 +37,7 @@
     showSelectedPlaces: false,
     openCard: null,
     preHere: null,
+    sectionsHere: null,
     catProductQuery: '',
     catOnlyHidden: false,
     menuQuery: '',
