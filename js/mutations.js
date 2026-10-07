@@ -264,26 +264,6 @@
     return out;
   }
 
-  function openListPicker({ title, intro, items, empty, onAdd }) {
-    openPicker({
-      title,
-      intro,
-      placeholder: 'Search products',
-      items,
-      empty,
-      noMatch: ['No matching products', 'Try a different name.'],
-      keepOpen: true,
-      onPick: (id) => {
-        const name = (T.picker.items.find((it) => it.id === id) || {}).name;
-        commit(() => onAdd(id));
-        if (!T.picker) return;
-        T.picker.items = T.picker.items.filter((it) => it.id !== id);
-        renderPicker();
-        toast(`${name} added`);
-      },
-    });
-  }
-
   function nestTarget(key) {
     const [kind, id, mapKey] = key.split('|');
     return { ent: entity(kind, id), mapKey };
@@ -312,20 +292,41 @@
     return gone;
   }
 
+  const pickItem = (x, extra = {}) => ({ id: x.id, name: nameOf('product', x), alt: x.internalName || '', meta: posIdOf('product', x) || '', thumb: thumb('product', x, 'thumb-sm'), ...extra });
+
+  function optionGroups(opts, itemOf) {
+    const byGroup = new Map();
+    opts.forEach((o) => {
+      if (!byGroup.has(o.gid)) byGroup.set(o.gid, { id: o.gid, name: nameOf('group', o.g), items: [] });
+      byGroup.get(o.gid).items.push(itemOf(o));
+    });
+    return [...byGroup.values()];
+  }
+
   function openProductListPicker(p, bind, title) {
-    const chosen = getBind(bind) || [];
+    const chosen = new Set(getBind(bind) || []);
     const name = nameOf('product', p);
     const menus = S.data.menus.filter((m) => categorizedProducts([m]).has(p.id));
-    const items = [...categorizedProducts(menus).entries()]
-      .map(([pid, cats]) => ({ pid, cats, x: entity('product', pid) }))
-      .filter(({ pid, x }) => x && pid !== p.id && ['pos', 'linked'].includes(x.ptype) && !chosen.includes(pid))
-      .map(({ pid, cats, x }) => ({ id: pid, name: nameOf('product', x), alt: x.internalName || '', meta: listJoin(cats.map((c) => nameOf('category', c))), price: '' }));
+    const groups = menus.flatMap((m) =>
+      m.children
+        .map((cid) => entity('category', cid))
+        .filter(Boolean)
+        .map((c) => ({
+          id: `${m.id}:${c.id}`,
+          name: menus.length > 1 ? `${nameOf('category', c)} · ${nameOf('menu', m)}` : nameOf('category', c),
+          items: c.children
+            .map((pid) => entity('product', pid))
+            .filter((x) => x && x.id !== p.id && ['pos', 'linked'].includes(x.ptype) && !chosen.has(x.id))
+            .map((x) => pickItem(x)),
+        })),
+    );
     openListPicker({
       title,
       intro: `Products from the menus that have ${name}.`,
-      items,
+      groups,
+      noun: ['product', 'products'],
       empty: menus.length ? 'Every product is already added' : `Add ${name} to a category first`,
-      onAdd: (pid) => setBind(bind, [...(getBind(bind) || []), pid]),
+      onAdd: (ids) => setBind(bind, [...(getBind(bind) || []), ...ids]),
     });
   }
 
@@ -334,14 +335,17 @@
     openListPicker({
       title: 'Add included ingredients',
       intro: `Options from the groups of ${nameOf('product', p)}.`,
-      items: productOptions(p, { noHalves: true })
-        .filter((o) => !taken.has(o.key))
-        .map((o) => ({ id: o.key, name: nameOf('product', o.x), alt: o.x.internalName || '', meta: nameOf('group', o.g), price: '' })),
+      groups: optionGroups(
+        productOptions(p, { noHalves: true }).filter((o) => !taken.has(o.key)),
+        (o) => pickItem(o.x, { id: o.key, name: optionName(o.g, o.pid) }),
+      ),
+      noun: ['ingredient', 'ingredients'],
       empty: 'Every option is already included',
-      onAdd: (key) => {
-        const [gid, pid] = key.split(':');
-        p.included.push({ gid, pid, locked: false });
-      },
+      onAdd: (keys) =>
+        keys.forEach((key) => {
+          const [gid, pid] = key.split(':');
+          p.included.push({ gid, pid, locked: false });
+        }),
     });
   }
 
@@ -349,15 +353,17 @@
     const [gid, originId] = key.split(':');
     const chosen = substitutesAt(p, gid, originId).ids;
     const seen = new Set([originId, p.id, ...chosen]);
-    const items = productOptions(p, { noHalves: true })
-      .filter((o) => !seen.has(o.pid) && seen.add(o.pid))
-      .map((o) => ({ id: o.pid, name: nameOf('product', o.x), alt: o.x.internalName || '', meta: nameOf('group', o.g), price: '' }));
     openListPicker({
       title: `Add substitutes for ${nameOf('product', entity('product', originId))}`,
       intro: `Options from the groups of ${nameOf('product', p)}.`,
-      items,
+      groups: optionGroups(
+        productOptions(p, { noHalves: true }).filter((o) => !seen.has(o.pid) && seen.add(o.pid)),
+        (o) => pickItem(o.x, { name: optionName(o.g, o.pid) }),
+      ),
+      noun: ['substitute', 'substitutes'],
+      placeholder: 'Search options',
       empty: 'Every option is already a substitute',
-      onAdd: (pid) => (p.substitutes[key] = [...substitutesAt(p, gid, originId).ids, pid]),
+      onAdd: (ids) => (p.substitutes[key] = [...substitutesAt(p, gid, originId).ids, ...ids]),
     });
   }
 
@@ -366,11 +372,20 @@
     openListPicker({
       title: `Add substitutes for ${optionName(g, originId)}`,
       intro: `Options in ${nameOf('group', g)}. To offer an option from another group, add the substitute on the product instead.`,
-      items: g.children
-        .filter((pid) => !chosen.has(pid) && entity('product', pid) && entity('product', pid).ptype !== 'container')
-        .map((pid) => ({ id: pid, name: optionName(g, pid), alt: entity('product', pid).internalName || '', meta: '', price: '' })),
+      groups: [
+        {
+          id: g.id,
+          name: nameOf('group', g),
+          items: g.children
+            .map((pid) => entity('product', pid))
+            .filter((x) => x && !chosen.has(x.id) && x.ptype !== 'container')
+            .map((x) => pickItem(x, { name: optionName(g, x.id) })),
+        },
+      ],
+      noun: ['substitute', 'substitutes'],
+      placeholder: 'Search options',
       empty: `Every option in ${nameOf('group', g)} is already a substitute`,
-      onAdd: (pid) => (g.swaps[originId] = [...(g.swaps[originId] || []), pid]),
+      onAdd: (ids) => (g.swaps[originId] = [...(g.swaps[originId] || []), ...ids]),
     });
   }
 

@@ -15,6 +15,7 @@
     popover: null,
     modal: null,
     picker: null,
+    lp: null,
     cmp: null,
     opt: null,
     hh: null,

@@ -159,6 +159,7 @@
     const prev = T.modal.prevFocus;
     T.modal = null;
     T.picker = null;
+    T.lp = null;
     T.cmp = null;
     T.opt = null;
     T.hh = null;
@@ -210,6 +211,99 @@
       : !T.picker.items.length && T.picker.empty
         ? `<div class="empty-small">${icon('checkCircle', 18)}<strong>${esc(T.picker.empty)}</strong></div>`
         : `<div class="empty-small"><strong>${esc(T.picker.noMatch[0])}</strong><span>${esc(T.picker.noMatch[1])}</span></div>`;
+  }
+
+  function openListPicker({ title, intro, groups, empty, noun, placeholder = `Search ${noun[1]}`, onAdd }) {
+    groups = groups.filter((g) => g.items.length);
+    const total = new Set(groups.flatMap((g) => g.items.map((it) => it.id))).size;
+    openModal({
+      title,
+      size: 'lg',
+      body: `${intro ? `<p>${esc(intro)}</p>` : ''}
+        <label class="search-field">${icon('search', 15)}<span class="sr-only">${esc(placeholder)}</span>
+          <input id="lp-search" type="search" placeholder="${esc(placeholder)}" autocomplete="off"></label>
+        <div id="lp-list"></div>`,
+      foot: '<div class="modal-foot" id="lp-foot"></div>',
+    });
+    T.lp = { groups, empty, noun, onAdd, sel: new Set(), open: new Set(groups.length === 1 || total <= 40 ? groups.map((g) => g.id) : []), query: '', onlySelected: false };
+    renderListPicker();
+    $('#lp-search').focus();
+  }
+
+  function listPickerGroups() {
+    const o = T.lp;
+    const q = o.query.trim().toLowerCase();
+    return o.groups
+      .map((g) => {
+        let list = g.items;
+        if (o.onlySelected) list = list.filter((it) => o.sel.has(it.id));
+        if (q && !g.name.toLowerCase().includes(q)) list = list.filter((it) => [it.name, it.alt, it.meta].some((s) => (s || '').toLowerCase().includes(q)));
+        return { g, list };
+      })
+      .filter((x) => x.list.length);
+  }
+
+  function renderListPicker() {
+    if (!T.lp || !$('#lp-list')) return;
+    const o = T.lp;
+    const q = o.query.trim();
+    const groups = listPickerGroups();
+    const flat = o.groups.length === 1;
+    const stateOf = (list) => {
+      const n = list.filter((it) => o.sel.has(it.id)).length;
+      return n === 0 ? 'off' : n === list.length ? 'on' : 'mixed';
+    };
+    const box = (st) => `<span class="check${st === 'off' ? '' : ' is-on'}" aria-hidden="true">${st === 'on' ? icon('check', 12) : st === 'mixed' ? icon('minus', 12) : ''}</span>`;
+    const checked = (st) => (st === 'mixed' ? 'mixed' : String(st === 'on'));
+    const allSt = stateOf(groups.flatMap((x) => x.list));
+    const row = (it) => {
+      const on = o.sel.has(it.id);
+      return `<button type="button" class="ms-row ms-store" role="checkbox" aria-checked="${on}" data-action="lp-item" data-id="${esc(it.id)}">${box(on ? 'on' : 'off')}${it.thumb || ''}<span class="ms-name">${esc(it.name)}${it.alt ? `<span class="ms-sub">${esc(it.alt)}</span>` : ''}</span>${it.meta ? `<span class="ms-city">${esc(it.meta)}</span>` : ''}</button>`;
+    };
+    $('#lp-list').innerHTML = !o.groups.length
+      ? `<div class="empty-small">${icon('checkCircle', 18)}<strong>${esc(o.empty)}</strong></div>`
+      : groups.length
+        ? `<div class="ms-tree">
+          <button type="button" class="ms-row ms-all" role="checkbox" aria-checked="${checked(allSt)}" data-action="lp-all" data-on="${allSt === 'on' ? 0 : 1}">${box(allSt)}Select all</button>
+          ${
+            flat
+              ? `<div class="ms-stores ms-flat">${groups[0].list.map(row).join('')}</div>`
+              : groups
+                  .map(({ g, list }) => {
+                    const st = stateOf(list);
+                    const open = !!q || o.onlySelected || o.open.has(g.id);
+                    return `<div class="ms-group">
+                <div class="ms-group-head">
+                  <button type="button" class="icon-btn sm ms-chev" data-action="lp-open" data-id="${esc(g.id)}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'} ${esc(g.name)}">${icon('chevRight', 14)}</button>
+                  <button type="button" class="ms-row" role="checkbox" aria-checked="${checked(st)}" data-action="lp-group" data-id="${esc(g.id)}" data-on="${st === 'on' ? 0 : 1}">${box(st)}<strong class="ms-name">${esc(g.name)}</strong><span class="ms-city tnum">${g.items.filter((it) => o.sel.has(it.id)).length} of ${g.items.length}</span></button>
+                </div>
+                ${open ? `<div class="ms-stores">${list.map(row).join('')}</div>` : ''}
+              </div>`;
+                  })
+                  .join('')
+          }
+        </div>`
+        : q
+          ? `<div class="empty-small"><strong>No matching ${esc(o.noun[1])}</strong><span>Try a different name.</span></div>`
+          : `<div class="empty-small"><strong>No ${esc(o.noun[1])} selected</strong></div>`;
+    const n = o.sel.size;
+    $('#lp-foot').innerHTML = `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="lp-only"${o.groups.length ? '' : ' disabled'}>${box(o.onlySelected ? 'on' : 'off')}Show only selected</button>
+      <button type="button" class="btn secondary" data-modal-close>Cancel</button>
+      <button type="button" class="btn primary" data-action="lp-add"${n ? '' : ' disabled'}>${n ? `Add ${plural(n, o.noun[0], o.noun[1])}` : `Add ${esc(o.noun[1])}`}</button>`;
+  }
+
+  function setListPicker(ids, on) {
+    ids.forEach((id) => (on ? T.lp.sel.add(id) : T.lp.sel.delete(id)));
+    renderListPicker();
+  }
+
+  function addFromListPicker() {
+    const o = T.lp;
+    const order = [...new Set(o.groups.flatMap((g) => g.items.map((it) => it.id)))].filter((id) => o.sel.has(id));
+    if (!order.length) return;
+    closeModal();
+    commit(() => o.onAdd(order));
+    toast(`${plural(order.length, o.noun[0], o.noun[1])} added`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
   function toast(msg, tone = 'success', { action } = {}) {

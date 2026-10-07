@@ -302,6 +302,31 @@
       case 'menu-group-remove':
         removeMenuStoreGroup(activeMenu(), el.dataset.id);
         break;
+      case 'lp-item':
+        setListPicker([el.dataset.id], el.getAttribute('aria-checked') !== 'true');
+        break;
+      case 'lp-group': {
+        const x = listPickerGroups().find((r) => r.g.id === el.dataset.id);
+        if (x) setListPicker(x.list.map((it) => it.id), el.dataset.on === '1');
+        break;
+      }
+      case 'lp-all':
+        setListPicker(
+          listPickerGroups().flatMap((x) => x.list.map((it) => it.id)),
+          el.dataset.on === '1',
+        );
+        break;
+      case 'lp-open':
+        T.lp.open.has(el.dataset.id) ? T.lp.open.delete(el.dataset.id) : T.lp.open.add(el.dataset.id);
+        renderListPicker();
+        break;
+      case 'lp-only':
+        T.lp.onlySelected = !T.lp.onlySelected;
+        renderListPicker();
+        break;
+      case 'lp-add':
+        addFromListPicker();
+        break;
       case 'ms-open':
         T.ms.open.has(el.dataset.id) ? T.ms.open.delete(el.dataset.id) : T.ms.open.add(el.dataset.id);
         renderManageStores();

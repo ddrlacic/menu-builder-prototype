@@ -43,6 +43,11 @@
       renderPicker();
       return;
     }
+    if (t.id === 'lp-search' && T.lp) {
+      T.lp.query = t.value;
+      renderListPicker();
+      return;
+    }
     if (t.id === 'ot-search' && T.ot) {
       T.ot.query = t.value;
       renderOwnTimesStores();

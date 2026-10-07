@@ -2958,6 +2958,10 @@ input[type='number']::-webkit-inner-spin-button {
   padding-left: 68px;
 }
 
+.ms-flat .ms-row {
+  padding-left: 40px;
+}
+
 .ot-tree .ms-row {
   padding-left: 12px;
 }
