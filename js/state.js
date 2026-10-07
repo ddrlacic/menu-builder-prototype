@@ -929,6 +929,7 @@
           Object.values(S.data.entities.group).forEach(migrateGroup);
           migratePreselections(oldGroups);
           migrateProductScopedPlacements();
+          migrateGroupHidden();
           migrateChoicesInMenus();
           S.data.menus.forEach((m) => (m.pricedKeys = !m.publishedAt ? [] : m.pricedKeys || menuPriceKeys(m)));
           normalizeAll();
@@ -968,6 +969,23 @@
       if (!g || rulesOf(g).type === 1) continue;
       if (pl.preselected > 0 && !Object.values(g.preselected).some((v) => v > 0)) g.preselected = { [last.slice(2)]: 1 };
       delete pl.preselected;
+    }
+  }
+
+  function migrateGroupHidden() {
+    for (const [k, pl] of Object.entries(S.data.placements)) {
+      if (!pl || !pl.hidden) continue;
+      const info = parsePath(k);
+      if (!info || info.kind !== 'group') continue;
+      const g = entity('group', info.id);
+      if (g) {
+        g.children.forEach((pid) => {
+          const op = childPath(k, 'product', pid);
+          S.data.placements[op] = { ...placement(op), hidden: true };
+        });
+      }
+      delete pl.hidden;
+      if (!Object.keys(pl).length) delete S.data.placements[k];
     }
   }
 

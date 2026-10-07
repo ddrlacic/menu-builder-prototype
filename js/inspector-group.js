@@ -27,7 +27,7 @@
         placementSection(path) +
         section(
           '',
-          nameBlock('group', g, { error: lengthError(g.name, 'Add a group name') }) +
+          nameBlock('group', g, { error: lengthError(g.name, 'Add a group name'), help: 'Customers see this name in Web App and Kiosk.' }) +
             field('Internal name', inputText(gb('internalName'), g.internalName, { id: 'g-int' }), {
               id: 'g-int',
               error: lengthError(g.internalName),
@@ -54,7 +54,7 @@
               'Behavior',
               toggle(gb('isSubstitutionContainer'), g.isSubstitutionContainer, {
                 label: 'Substitution group',
-                help: 'Customers do not see this group. Its options can only be offered as substitutes for other options.',
+                help: 'Web App hides this group. Use its options as substitutes. Kiosk still shows the group.',
               }),
             )
           : '')
@@ -107,17 +107,23 @@
     const pInfo = parsePath(parsePath(path).parentPath);
     const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));
     const rules = rulesOf(g);
-    const pl = placement(path);
-    const lockHide = rules.min > 0 && !pl.hidden;
-    return toggle(`pl|${path}|hidden`, !pl.hidden, {
+    const hidden = groupHiddenAt(path);
+    const noOptions = !g.children.length;
+    const lockHide = noOptions || (rules.min > 0 && !hidden);
+    const hiddenCount = g.children.filter((pid) => placement(childPath(path, 'product', pid)).hidden).length;
+    let help = 'Hides every option here. Showing one option shows the group again. Other places stay as they are.';
+    if (noOptions) help = 'Add an option before hiding this group.';
+    else if (lockHide)
+      help = rules.fixed
+        ? 'Customers always pick one option in this group, so it cannot be hidden.'
+        : 'Required groups cannot be hidden. Set the minimum to 0 first.';
+    else if (hidden) help = 'Every option is hidden here, so the group is hidden. Turn this on to show every option. Other places stay as they are.';
+    else if (hiddenCount) help = `${hiddenCount} of ${g.children.length} options are hidden here. The group stays visible until every option is hidden.`;
+    return toggle(`pl|${path}|hidden`, !hidden, {
       label: `Show in ${parentName}`,
       scope: crumbText(path),
       disabled: lockHide,
-      help: lockHide
-        ? rules.fixed
-          ? 'Customers always pick one option in this group, so it cannot be hidden.'
-          : 'Required groups cannot be hidden. Set the minimum to 0 first.'
-        : 'Hide it here without removing it. Other places stay as they are.',
+      help,
     });
   }
 
@@ -128,7 +134,7 @@
         <p>${esc(groupRuleSentence(rules))}</p>
       </div>`;
     if (g.isSubstitutionContainer)
-      return section('Rules', callout('info', 'Customers do not see this group, so it has no rules. Its options can be offered as substitutes on the products that use it.'));
+      return section('Rules', callout('info', 'Web App hides this group, so it has no rules. Kiosk still shows it. Its options can be offered as substitutes on the products that use it.'));
     if (rules.fixed) {
       const why = `${C.groupTypes[rules.type].label} groups always need exactly one choice.`;
       return section(

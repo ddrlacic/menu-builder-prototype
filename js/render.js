@@ -382,7 +382,7 @@
       const extra =
         (ent.gtype === 'linked' ? ` · From ${posLabel(ent.posGroupExt)}` : ent.gtype === 'standalone' ? ' · Each one added as its own item' : '') +
         (withHalves ? ` · ${withHalves} with halves` : '');
-      meta = `<span class="type-tag type-${rules.type}">${C.groupTypes[rules.type].label}</span>${esc(ent.isSubstitutionContainer ? 'Substitutes only · Hidden from customers' : groupRuleShort(rules) + extra)}`;
+      meta = `<span class="type-tag type-${rules.type}">${C.groupTypes[rules.type].label}</span>${esc(ent.isSubstitutionContainer ? 'Substitutes only · Hidden in Web App' : groupRuleShort(rules) + extra)}`;
     }
     const posId = S.ui.showPosIds ? posIdOf(kind, ent) : '';
     if (posId) meta = `${meta ? `${meta}<span aria-hidden="true">·</span>` : ''}<span class="tnum">${esc(posId)}</span>`;
@@ -397,7 +397,8 @@
     const badges = [];
     if (isMissingOnPos(ent)) badges.push(`<span class="badge tone-error">Deleted on POS</span>`);
     else if (removedFromPos(path)) badges.push(`<span class="badge tone-warning">Removed on POS</span>`);
-    if (pl.hidden) badges.push(`<span class="badge" title="Hidden in this placement">${icon('eyeOff', 12)}Hidden</span>`);
+    const hiddenHere = groupHiddenAt(path);
+    if (hiddenHere) badges.push(`<span class="badge" title="Hidden in this placement">${icon('eyeOff', 12)}Hidden</span>`);
     if (ownerGroup && name !== nameOf('product', ent)) badges.push(`<span class="badge" title="Product name: ${esc(nameOf('product', ent))}">Renamed</span>`);
     if (kind === 'group' && ruleOverridden(ent)) badges.push(`<span class="badge" title="Rules differ from POS">${icon('diff', 12)}Custom rules</span>`);
     if (kind === 'product') {
@@ -433,7 +434,7 @@
 
     const flashCls = T.flashPaths.has(path) || (ent.externalId && T.flashExt.has(ent.externalId)) ? ' is-flash' : '';
     const addTitle = kind === 'category' ? 'Add product' : kind === 'product' ? (ent.ptype === 'size' ? 'Add choice' : 'Add group') : 'Add option';
-    return `<div class="row${selected ? ' is-selected' : ''}${pl.hidden ? ' is-muted' : ''}${r.hit ? ' is-hit' : ''}${r.nestedHalf ? ' is-half' : ''}${flashCls}" role="treeitem" aria-level="${depth}" aria-selected="${selected}" ${hasChildren ? `aria-expanded="${r.expanded}"` : ''} tabindex="${selected ? 0 : -1}" draggable="${r.nestedHalf ? 'false' : 'true'}"${r.nestedHalf ? ` data-half-of="${esc(r.half.wholePath)}"` : ''} data-path="${esc(path)}" data-kind="${kind}" data-child-kind="${childKind(kind, ent)}" data-parent-kind="${parentKind}" data-name="${esc(name)}" style="--depth:${depth - 1}">
+    return `<div class="row${selected ? ' is-selected' : ''}${hiddenHere ? ' is-muted' : ''}${r.hit ? ' is-hit' : ''}${r.nestedHalf ? ' is-half' : ''}${flashCls}" role="treeitem" aria-level="${depth}" aria-selected="${selected}" ${hasChildren ? `aria-expanded="${r.expanded}"` : ''} tabindex="${selected ? 0 : -1}" draggable="${r.nestedHalf ? 'false' : 'true'}"${r.nestedHalf ? ` data-half-of="${esc(r.half.wholePath)}"` : ''} data-path="${esc(path)}" data-kind="${kind}" data-child-kind="${childKind(kind, ent)}" data-parent-kind="${parentKind}" data-name="${esc(name)}" style="--depth:${depth - 1}">
       <span class="row-indent" aria-hidden="true"></span>
       ${hasChildren ? `<button class="twisty" data-action="toggle" data-path="${esc(path)}" tabindex="-1" aria-label="${r.expanded ? 'Collapse' : 'Expand'}">${icon('chevRight', 14)}</button>` : '<span class="twisty-spacer"></span>'}
       ${thumb(kind, ent)}

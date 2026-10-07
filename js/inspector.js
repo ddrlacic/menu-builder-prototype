@@ -20,7 +20,7 @@
       product: `Same order everywhere ${name} is used.`,
     }[pInfo.kind];
     const noun = { category: 'products', group: 'options', product: info.kind === 'group' ? 'groups' : 'choices' }[pInfo.kind];
-    const anyHidden = noun && parent.children.some((id) => id !== info.id && placement(childPath(info.parentPath, info.kind, id)).hidden);
+    const anyHidden = noun && parent.children.some((id) => id !== info.id && groupHiddenAt(childPath(info.parentPath, info.kind, id)));
     const btn = (delta, ic, label) =>
       `<button type="button" class="icon-btn sm" data-action="pos-move" data-path="${esc(path)}" data-delta="${delta}" data-focus-key="pos-move|${delta}|${esc(path)}" aria-label="${label}" title="${label}" ${index + delta < 0 || index + delta >= count ? 'disabled' : ''}>${icon(ic, 14)}</button>`;
     return field(
@@ -333,7 +333,7 @@
     const tab = tabs.some((t) => t[0] === S.ui.tabs[kind]) ? S.ui.tabs[kind] : tabs[0][0];
     const uses = kind === 'menu' ? [] : ctx.usage.get(`${kind}:${info.id}`) || [];
     const issues = ctx.issues.byPath.get(path) || [];
-    const chipKind = kind === 'menu' ? 'menu' : isVirtual(ent) && ent.ptype !== 'linked' ? 'virtual' : kind;
+    const chipKind = kind === 'menu' ? 'menu' : isVirtual(ent) && !isCustomVersion(ent) ? 'virtual' : kind;
 
     const headPosId = kind === 'menu' ? ent.posExt : posIdOf(kind, ent);
     const kicker = [
@@ -341,7 +341,6 @@
       headPosId
         ? `<button type="button" class="src-chip src-id" data-action="copy-text" data-value="${esc(headPosId)}" data-label="POS ID" aria-label="Copy POS ID ${esc(headPosId)}" title="Copy POS ID ${esc(headPosId)}">${icon('link', 12)}<span class="mono">${esc(headPosId)}</span>${icon('copy', 12)}</button>`
         : '',
-      kind === 'group' && isVirtual(ent) && !isCustomVersion(ent) ? '<span class="src-chip">Menu only</span>' : '',
     ].join('');
 
     const crumbHtml =

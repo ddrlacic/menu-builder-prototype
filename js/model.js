@@ -7,6 +7,14 @@
   const entity = (kind, id) => (kind === 'menu' ? menuById(id) : S.data.entities[kind] && S.data.entities[kind][id]);
   const placement = (path) => S.data.placements[path] || {};
 
+  function groupHiddenAt(path) {
+    const info = parsePath(path);
+    if (info.kind !== 'group') return !!placement(path).hidden;
+    const g = entity('group', info.id);
+    if (!g || !g.children.length) return false;
+    return g.children.every((pid) => placement(childPath(path, 'product', pid)).hidden);
+  }
+
   function nameOf(kind, ent) {
     if (!ent) return 'Unknown';
     if (kind === 'menu') return ent.name || 'Untitled menu';

@@ -277,7 +277,7 @@
         name: nameOf(kind, e),
         internal_name: e.internalName || null,
         description: e.description || null,
-        is_available: !pl.hidden,
+        is_available: !groupHiddenAt(path),
       };
       if (kind === 'category') {
         Object.assign(out, {

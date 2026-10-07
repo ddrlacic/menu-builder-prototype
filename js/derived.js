@@ -165,7 +165,7 @@
         if (ent.children.some((pid, i) => preList[i] > optionMaxOf(ent, pid, r))) gAdd('error', `${label}: an option is preselected more times than it can be picked`, 'options', null);
         else if (max != null && pre > max) gAdd('error', `${label}: ${pre} options preselected, but the maximum is ${max}`, 'options', null);
         if (r.type === 2 && count && pre !== 1) gAdd('error', `${label}: preselect exactly one size`, 'options', null);
-        if (placement(path).hidden && r.min > 0)
+        if (groupHiddenAt(path) && r.min > 0)
           gAdd('error', r.fixed ? `${label} always needs a choice, so it cannot be hidden here. Show it` : `${label} is required, so it cannot be hidden here. Show it, or set the minimum to 0`, 'general', null);
         if (halvesSupported(ent) && Object.values(ent.halves).some((h) => !h.left !== !h.right)) gAdd('warning', `${label}: some toppings have only one half set`, 'halves');
         const ungrouped = suggestedHalves(ent)
@@ -321,13 +321,32 @@
   }
 
   const getBind = (bind) => {
+    const [scope, path, field] = bind.split('|');
+    if (scope === 'pl' && field === 'hidden' && parsePath(path).kind === 'group') return groupHiddenAt(path);
     const { obj, key } = bindTarget(bind, false);
     return obj[key];
   };
   const setBind = (bind, value) => {
+    const [scope, path, field] = bind.split('|');
+    if (scope === 'pl' && field === 'hidden' && parsePath(path).kind === 'group') {
+      const g = entity('group', parsePath(path).id);
+      (g ? g.children : []).forEach((pid) => {
+        const op = childPath(path, 'product', pid);
+        const pl = { ...placement(op) };
+        if (value) pl.hidden = true;
+        else delete pl.hidden;
+        if (Object.keys(pl).length) S.data.placements[op] = pl;
+        else delete S.data.placements[op];
+      });
+      const own = S.data.placements[path];
+      if (own && own.hidden) {
+        delete own.hidden;
+        if (!Object.keys(own).length) delete S.data.placements[path];
+      }
+      return;
+    }
     const { obj, key } = bindTarget(bind, true);
     obj[key] = value;
-    const [scope, path, field] = bind.split('|');
     if (scope === 'pl' && field === 'hidden') choicePeerPaths(path).forEach((p) => (S.data.placements[p] = { ...placement(p), hidden: value }));
   };
 
