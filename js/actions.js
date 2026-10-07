@@ -517,9 +517,11 @@
       case 'group-place-toggle':
         togglePlace('group', entity('group', parsePath(S.ui.selected).id), 'product', el.dataset.id);
         break;
-      case 'group-change-link':
-        openGroupLinkPicker(entity('group', parsePath(S.ui.selected).id));
+      case 'group-change-link': {
+        const info = parsePath(S.ui.selected);
+        openGroupLinkPicker(entity('group', info.id), info.parentPath);
         break;
+      }
       case 'group-delete':
         confirmDeleteGroup(entity('group', parsePath(el.dataset.path).id), el.dataset.path);
         break;

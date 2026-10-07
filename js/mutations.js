@@ -457,27 +457,31 @@
     if (hit(S.ui.selected)) S.ui.selected = S.ui.selected.slice(0, S.ui.selected.indexOf(`>g:${g.id}>`) + `>g:${g.id}`.length);
   }
 
-  function posGroupChoices(g) {
-    const own = new Set(groupParents(g.id).flatMap((p) => posChildren(posIdOf('product', p))));
-    return Object.entries(S.data.pos.items)
-      .filter(([id, it]) => it.type === 'group' && id !== g.posGroupExt)
-      .sort(([a], [b]) => own.has(b) - own.has(a))
-      .map(([id, it]) => ({
-        id,
-        name: posLabel(id),
-        alt: it.name,
-        meta: `${C.groupTypes[it.groupType || 1].label} · ${plural((it.children || []).length, 'option', 'options')} · ${id}`,
-        price: own.has(id) ? 'On this product' : '',
-      }));
+  function posGroupChoices(g, productPath) {
+    return allowedPosGroupsFor(productPath)
+      .filter((id) => id !== g.posGroupExt && posItemById(id))
+      .map((id) => {
+        const it = posItemById(id);
+        return {
+          id,
+          name: posLabel(id),
+          alt: it.name,
+          meta: `${C.groupTypes[it.groupType || 1].label} · ${plural((it.children || []).length, 'option', 'options')} · ${id}`,
+          price: '',
+        };
+      });
   }
 
-  function openGroupLinkPicker(g) {
-    const changing = g.gtype === 'linked';
+  function openGroupLinkPicker(g, productPath) {
+    const product = entity('product', parsePath(productPath).id);
+    const name = nameOf('product', product);
+    const uses = (ctx.usage.get(`group:${g.id}`) || []).length;
     openPicker({
-      title: changing ? 'Change the linked POS group' : 'Link to a POS group',
-      intro: 'Choices then ring up on POS as options of this group, at its POS prices. Options that are not in the POS group are removed.',
+      title: 'Change the linked POS group',
+      intro: `Groups of ${name} on POS. Choices ring up as options of the group you pick, at its POS prices. Options that are not in that group are removed.${uses > 1 ? ' A change applies everywhere this custom version is used.' : ''}`,
       placeholder: 'Search by group name or POS ID',
-      items: posGroupChoices(g),
+      items: posGroupChoices(g, productPath),
+      empty: `${name} has no other groups on POS`,
       noMatch: ['No matching POS groups', 'Try a different name or POS ID.'],
       onPick: (posId) => {
         closeModal(true);
