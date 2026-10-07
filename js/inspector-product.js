@@ -178,24 +178,23 @@
           <button type="button" class="check-toggle opt-pick" role="radio" aria-checked="${on}" aria-label="Preselect ${esc(l)}" data-action="code-pre" data-id="${esc(v)}"><span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span></button>
           <span class="store-name">${esc(l)}</span>
           ${on ? '<span class="code-hint">Preselected</span>' : ''}
-          <span class="row-tools">${enabled.length > 1 ? `<button type="button" class="icon-btn sm sort-handle" data-bind="${esc(bind)}" data-index="${i}" aria-label="Move ${esc(l)}. Use the arrow keys" title="Drag to reorder">${icon('grip', 14)}</button>` : ''}${removeButton(bind, i, l)}</span>
+          ${enabled.length > 1 ? `<span class="row-tools"><button type="button" class="icon-btn sm sort-handle" data-bind="${esc(bind)}" data-index="${i}" aria-label="Move ${esc(l)}. Use the arrow keys" title="Drag to reorder">${icon('grip', 14)}</button></span>` : ''}
         </div>`;
       })
       .join('');
-    const left = C.modifierCodes.length - enabled.length;
     return section(
       'Modifier codes',
-      toggle(pb('isModifierCodeRequired'), p.isModifierCodeRequired, {
-        label: 'Require a modifier code',
-        help: enabled.length ? 'Customers need a code to choose this option.' : 'Add a code first.',
-        disabled: !enabled.length,
-      }) +
+      field('Codes', chips(bind, p.modifierCodes, C.modifierCodes)) +
+        toggle(pb('isModifierCodeRequired'), p.isModifierCodeRequired, {
+          label: 'Require a modifier code',
+          help: enabled.length ? 'Customers need a code to choose this option.' : 'Add a code first.',
+          disabled: !enabled.length,
+        }) +
         (enabled.length
-          ? field('Codes', `<div class="store-list" data-sortable="${esc(bind)}" role="radiogroup" aria-label="Preselected code">${rows}</div>`, {
+          ? field('Preselection and order', `<div class="store-list" data-sortable="${esc(bind)}" role="radiogroup" aria-label="Preselected code">${rows}</div>`, {
               help: `${p.isModifierCodeRequired ? 'One code is always preselected.' : 'Preselect one code at most.'} Customers can change it.${enabled.length > 1 ? ' Drag codes to change the order customers see.' : ''}`,
             })
-          : '') +
-        (left ? addButton('code-add', 'Add code', 'aria-haspopup="menu" aria-expanded="false"') : ''),
+          : ''),
       { desc: 'Customers pick one when they choose this product as an option, like Extra or On the side. Codes come from your brand’s modifier codes.' },
     );
   }

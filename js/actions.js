@@ -475,15 +475,6 @@
         commit(() => (p.preselectedCode = p.preselectedCode === v ? null : v));
         break;
       }
-      case 'code-add': {
-        const p = entity('product', parsePath(S.ui.selected).id);
-        openPopover(
-          el,
-          C.modifierCodes.filter(([v]) => !p.modifierCodes.includes(v)).map(([v, l]) => ({ label: l, onClick: () => commit(() => p.modifierCodes.push(v)) })),
-          { align: 'start' },
-        );
-        break;
-      }
       case 'pre-reset':
         commit(() => setBind(`pl|${el.dataset.path}|preselected`, null));
         break;
