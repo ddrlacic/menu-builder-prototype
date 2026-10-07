@@ -265,7 +265,7 @@
   }
 
   function substitutesSection(p) {
-    const opts = productOptions(p);
+    const opts = productOptions(p, { noHalves: true });
     if (!opts.length) return section('Substitutes', '<p class="field-help">Add a group with options to this product first.</p>');
     const pb = productBind(p);
     const subsOf = (o) => substitutesAt(p, o.gid, o.pid).ids.filter((id) => entity('product', id));

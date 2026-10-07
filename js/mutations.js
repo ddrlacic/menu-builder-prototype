@@ -349,7 +349,7 @@
     const [gid, originId] = key.split(':');
     const chosen = substitutesAt(p, gid, originId).ids;
     const seen = new Set([originId, p.id, ...chosen]);
-    const items = productOptions(p)
+    const items = productOptions(p, { noHalves: true })
       .filter((o) => !seen.has(o.pid) && seen.add(o.pid))
       .map((o) => ({ id: o.pid, name: nameOf('product', o.x), alt: o.x.internalName || '', meta: nameOf('group', o.g), price: '' }));
     openListPicker({
@@ -362,7 +362,7 @@
   }
 
   function openGroupSwapPicker(g, originId) {
-    const chosen = new Set([originId, ...(g.swaps[originId] || [])]);
+    const chosen = new Set([originId, ...(g.swaps[originId] || []), ...siblingGroupedHalves(g)]);
     openListPicker({
       title: `Add substitutes for ${optionName(g, originId)}`,
       intro: `Options in ${nameOf('group', g)}. To offer an option from another group, add the substitute on the product instead.`,

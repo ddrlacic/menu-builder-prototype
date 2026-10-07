@@ -281,7 +281,8 @@
   }
 
   function groupSwapsSection(g, gb) {
-    const opts = g.children.filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container');
+    const halves = siblingGroupedHalves(g);
+    const opts = g.children.filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container' && !halves.has(pid));
     const parents = groupParents(g.id);
     const own = (p) => opts.filter((pid) => hasOwn(p.substitutes, `${g.id}:${pid}`)).length;
     const body =

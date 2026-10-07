@@ -257,6 +257,9 @@
 
   const groupedHalves = (g) => new Set(Object.entries(g.halves || {}).flatMap(([w, h]) => [h.left, h.right].filter((x) => x && x !== w)));
 
+  const siblingGroupedHalves = (g) =>
+    new Set([g, ...groupParents(g.id).flatMap((p) => p.children.map((gid) => entity('group', gid)))].filter(Boolean).flatMap((x) => [...groupedHalves(x)]));
+
   const productCodes = (p) => p.modifierCodes.map((v) => C.modifierCodes.find(([c]) => c === v)).filter(Boolean);
 
   const groupParents = (gid) => Object.values(S.data.entities.product).filter((p) => p.children.includes(gid));
