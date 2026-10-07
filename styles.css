@@ -2272,10 +2272,6 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 16px;
 }
 
-.toggle-row.is-disabled .toggle-text {
-  opacity: 0.55;
-}
-
 .toggle-text {
   display: flex;
   flex-direction: column;

@@ -94,7 +94,7 @@
 
   function toggle(bind, on, { label, help = '', scope = '', disabled = false, action = '' } = {}) {
     const trigger = action ? `data-action="${esc(action)}"` : `data-toggle="${esc(bind)}"`;
-    return `<div class="toggle-row${disabled ? ' is-disabled' : ''}">
+    return `<div class="toggle-row">
       <div class="toggle-text">
         <span class="toggle-label">${esc(label)}${scope ? scopePill(scope) : ''}</span>
         ${help ? `<span class="field-help">${help}</span>` : ''}
