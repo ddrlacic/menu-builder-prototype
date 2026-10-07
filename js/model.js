@@ -53,8 +53,6 @@
     return STORES.filter((s) => ids.has(s.id));
   }
 
-  const productPublishedIds = (p) => new Set(productMenus(p).flatMap((m) => m.publishedStoreIds));
-
   function productParents(p) {
     const holds = (x) => x.children.includes(p.id);
     return [

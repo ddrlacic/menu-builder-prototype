@@ -106,9 +106,6 @@
         S.ui.storeGroupId = t.value;
         loadPos('store-group', () => switchDataset(next, t.value));
       }
-    } else if (t.matches('[data-ms-field]') && T.ms && T.ms.bulk) {
-      T.ms.bulk[t.dataset.msField] = t.value;
-      renderManageStores();
     } else if (t.matches('select[data-bind], input[type="time"][data-bind], input[type="datetime-local"][data-bind]')) {
       commit(() => setBind(t.dataset.bind, t.value));
     } else if (t.matches('[data-pos-set]')) {

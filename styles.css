@@ -3360,14 +3360,54 @@ input[type='number']::-webkit-inner-spin-button {
   color: var(--warn);
 }
 
-.bulk-fields {
-  display: grid;
+.stock-head {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--ink-3);
+  background: var(--sunken);
+}
+
+.stock-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 8px 12px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.stock-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
-.opt-name-sub.muted {
-  font-weight: 400;
+.stock-row-name {
+  font-weight: 500;
+}
+
+.stock-row.is-muted .stock-row-name {
   color: var(--ink-3);
+}
+
+.stock-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 176px;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.stock-field .input {
+  height: 32px;
+}
+
+.stock-row .field-help {
+  margin: 0;
 }
 
 .opt-item + .opt-item {

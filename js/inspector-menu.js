@@ -276,8 +276,8 @@
 
   function msGroupStores(gid) {
     const all = groupStores(gid);
-    if (!T.ms.vis && !T.ms.bulk) return all;
-    const on = new Set((T.ms.bulk ? productStores(entity('product', T.ms.bulk.pid)) : visStores(T.ms.vis)).map((s) => s.id));
+    if (!T.ms.vis) return all;
+    const on = new Set(visStores(T.ms.vis).map((s) => s.id));
     return all.filter((s) => on.has(s.id));
   }
 
@@ -337,9 +337,7 @@
       : q
         ? '<div class="empty-small"><strong>No stores match</strong><span>Check the spelling or search by city.</span></div>'
         : `<div class="empty-small"><strong>${o.vis ? 'No stores hidden' : 'No stores selected'}</strong></div>`;
-    if (o.bulk) {
-      $('#ms-warn').innerHTML = bulkWarning(o);
-    } else if (o.vis) {
+    if (o.vis) {
       const published = visPublishedIds(o.vis);
       const live = visibilityChange(o).hide.filter((id) => published.has(id));
       $('#ms-warn').innerHTML = live.length ? callout('warning', `Customers at ${plural(live.length, 'store', 'stores')} you unticked stop seeing the ${o.vis.kind} right away.`) : '';
@@ -349,13 +347,9 @@
         ? callout('warning', `The menu is published at ${plural(removed.length, 'store', 'stores')} you unticked. Saving removes it from them right away.`)
         : '';
     }
-    const n = o.bulk ? Object.values(o.sel).reduce((sum, set) => sum + set.size, 0) : 0;
-    const save = o.bulk
-      ? `<button type="button" class="btn primary" data-action="ms-save" ${n && bulkHasChange(o.bulk) ? '' : 'disabled'}>${n ? `Change ${plural(n, 'store', 'stores')}` : 'Change stores'}</button>`
-      : '<button type="button" class="btn primary" data-action="ms-save">Save</button>';
     $('#ms-foot').innerHTML = `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="ms-only">${box(o.onlySelected ? 'on' : 'off')}${o.vis ? 'Show only hidden' : 'Show only selected'}</button>
       <button type="button" class="btn secondary" data-modal-close>Cancel</button>
-      ${save}`;
+      <button type="button" class="btn primary" data-action="ms-save">Save</button>`;
   }
 
   function setManageStores(gid, ids, on) {
@@ -367,7 +361,6 @@
   function saveManageStores() {
     const o = T.ms;
     if (o.vis) return saveVisibilityStores(o);
-    if (o.bulk) return saveBulkStores(o);
     const m = S.data.menus.find((x) => x.id === o.menuId);
     const removed = manageStoresRemoved(o);
     const pick = (gid, newStores) => {
@@ -425,9 +418,9 @@
     );
   }
 
-  const visStores = (vis) => (vis.kind === 'category' ? categoryStores : productStores)(entity(vis.kind, vis.id));
-  const visHiddenAt = (vis, sid) => (vis.kind === 'category' ? isHiddenAt : productHiddenAt)(entity(vis.kind, vis.id), sid);
-  const visPublishedIds = (vis) => (vis.kind === 'category' ? categoryPublishedIds(vis.id) : productPublishedIds(entity('product', vis.id)));
+  const visStores = (vis) => categoryStores(entity('category', vis.id));
+  const visHiddenAt = (vis, sid) => isHiddenAt(entity('category', vis.id), sid);
+  const visPublishedIds = (vis) => categoryPublishedIds(vis.id);
 
   function openVisibilityStores(kind, ent) {
     const vis = { kind, id: ent.id };
@@ -451,65 +444,6 @@
     T.ms = { vis, sel, open: new Set(shown.length === 1 ? [shown[0].id] : []), query: '', onlySelected: false };
     renderManageStores();
     $('#ms-search').focus();
-  }
-
-  const bulkHasChange = (b) => b.stock !== 'keep' || b.posStock !== 'keep' || b.shown !== 'keep';
-  const bulkSelected = (o) => Object.values(o.sel).flatMap((set) => [...set]);
-
-  function openBulkStores(p) {
-    const sel = {};
-    C.menuStoreGroups.forEach((g) => (sel[g.id] = new Set()));
-    const all = productStores(p);
-    const shown = C.menuStoreGroups.filter((g) => groupStores(g.id).some((s) => all.includes(s)));
-    const keep = [['keep', 'Keep as is']];
-    const pick = (f, label, options, help = '') =>
-      field(label, `<div class="select-wrap"><select id="ms-${f}" class="input" data-ms-field="${f}">${options.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select>${icon('chevDown', 14)}</div>`, { id: `ms-${f}`, help });
-    const brink = all.some((s) => hasPosStock(s.id));
-    openModal({
-      title: `Change ${nameOf('product', p)} at several stores`,
-      body: `<p>Choose what to set, then tick the stores. Settings you keep as is do not change.</p>
-        <div class="bulk-fields">
-          ${pick('stock', 'Stock for online ordering', [...keep, ...STOCK_OPTIONS])}
-          ${brink ? pick('posStock', 'Stock on POS', [...keep, ...POS_STOCK_OPTIONS], 'Only at PAR Brink stores.') : ''}
-          ${pick('shown', 'Shown', [...keep, ['show', 'Shown'], ['hide', 'Hidden']])}
-        </div>
-        <label class="search-field">${icon('search', 15)}<span class="sr-only">Search by store or city</span>
-          <input id="ms-search" type="search" placeholder="Search by store or city" autocomplete="off"></label>
-        <div id="ms-list"></div>`,
-      foot: '<div id="ms-warn"></div><div class="modal-foot" id="ms-foot"></div>',
-    });
-    T.ms = { bulk: { pid: p.id, stock: 'keep', posStock: 'keep', shown: 'keep' }, sel, open: new Set(shown.length === 1 ? [shown[0].id] : []), query: '', onlySelected: false };
-    renderManageStores();
-    $('#ms-stock').focus();
-  }
-
-  function bulkWarning(o) {
-    const b = o.bulk;
-    const ids = bulkSelected(o);
-    if (!ids.length || !bulkHasChange(b)) return '';
-    if (b.posStock !== 'keep' && b.stock === 'keep' && b.shown === 'keep' && !ids.some(hasPosStock))
-      return callout('info', 'None of the ticked stores use PAR Brink, so nothing changes there.');
-    const published = productPublishedIds(entity('product', b.pid));
-    const live = ids.filter((id) => published.has(id)).length;
-    return live ? callout('warning', `Customers at ${plural(live, 'store', 'stores')} you ticked see the change right away.`) : '';
-  }
-
-  function saveBulkStores(o) {
-    const b = o.bulk;
-    const p = entity('product', b.pid);
-    const ids = bulkSelected(o);
-    closeModal();
-    if (!ids.length || !bulkHasChange(b)) return;
-    const ok = commit(() => {
-      ids.forEach((id) => {
-        const v = { ...(p.stores[id] || {}) };
-        if (b.stock !== 'keep') v.stock = b.stock;
-        if (b.posStock !== 'keep' && hasPosStock(id)) v.posStock = b.posStock;
-        if (b.shown !== 'keep') v.hidden = b.shown === 'hide';
-        p.stores[id] = v;
-      });
-    });
-    if (ok) toast(`Product updated at ${storesWho(ids)}`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
   function visibilityChange(o) {

@@ -22,7 +22,6 @@
     ['out_of_stock', 'Out of stock indefinitely'],
   ];
   const POS_STOCK_OPTIONS = STOCK_OPTIONS.slice(0, 4);
-  const STOCK_FOR = { oos_1h: 'for 1 hour', oos_4h: 'for 4 hours', oos_eod: 'until end of day', out_of_stock: 'indefinitely' };
   const STOCK_DURATION = { oos_1h: '1h', oos_4h: '4h', oos_eod: 'end_of_day' };
   const isOutOfStock = (s) => s === 'out_of_stock' || /^oos_/.test(s);
   const DESC_LIMIT = 3000;
