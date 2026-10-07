@@ -167,8 +167,10 @@
     const here = crumbText(path);
     const max = limitOf(rules.max);
     const pick = rules.fixed || max === 1;
-    const host = rules.type === 1 ? sectionHost(path) : null;
+    const host = sectionHost(path);
     const onlyHere = !!host && T.preHere === path;
+    const preHere = onlyHere && rules.type === 1;
+    const lockPre = onlyHere && !preHere;
     const listed = listedOptions(g);
     const rows = listed
       .map((pid, i) => {
@@ -181,12 +183,12 @@
         const open = T.openCard === `opt:${pid}`;
         const pre = g.preselected[pid] || 0;
         let preCell = '';
-        if (onlyHere) {
+        if (preHere) {
           preCell = stepper(`pl|${productScopePath(op)}|preselected`, preselectedAt(op), { max: optionMaxOf(g, pid, rules), label: `preselected ${name}`, disabled: auto || folder, keepZero: true, start: pre });
         } else if (pick && !folder) {
           const on = pre > 0;
-          preCell = `<button type="button" class="check-toggle opt-pick" role="radio" aria-checked="${on}" aria-label="Preselect ${esc(name)}" data-action="pre-pick" data-id="${esc(pid)}" ${auto ? 'disabled' : ''}><span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span></button>`;
-        } else preCell = stepper(gb(`preselected.${pid}`), auto ? 1 : pre, { max: optionMaxOf(g, pid, rules), label: `preselected ${name}`, disabled: auto || folder });
+          preCell = `<button type="button" class="check-toggle opt-pick" role="radio" aria-checked="${on}" aria-label="Preselect ${esc(name)}" data-action="pre-pick" data-id="${esc(pid)}" ${auto || lockPre ? 'disabled' : ''}><span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span></button>`;
+        } else preCell = stepper(gb(`preselected.${pid}`), auto ? 1 : pre, { max: optionMaxOf(g, pid, rules), label: `preselected ${name}`, disabled: auto || folder || lockPre });
         const subs = [];
         if (auto) subs.push('Auto-added by POS');
         else if (folder) subs.push('Option folder');
@@ -231,8 +233,10 @@
           .map(([v, l]) => `<button type="button" role="radio" aria-checked="${(v === 'here') === onlyHere}" class="seg" data-action="pre-scope" data-value="${v}">${l}</button>`)
           .join('')}</div></div>`
       : '';
-    const help = onlyHere
-      ? `Preselected and modifier codes shown apply only to ${pName}, in every menu. Shown applies only in ${esc(here)}.`
+    const help = preHere
+      ? `Changes here apply only to ${pName}, in every menu. Shown applies only in ${esc(here)}.`
+      : onlyHere
+        ? `${C.groupTypes[rules.type].label} groups preselect the same option in every product. Shown applies only in ${esc(here)}.`
       : `${g.gtype === 'standalone' ? 'Each one customers pick goes on the order as its own item.' : 'Prices come from POS. Select an option’s name to see its price.'}${preHelp} Shown applies only in ${esc(here)}.`;
     return section(
       'Options',
@@ -290,7 +294,16 @@
   function groupSectionsSection(g, gb, path) {
     const host = sectionHost(path);
     const gName = esc(nameOf('group', g));
-    if (host && host.own) {
+    const onlyHere = !!host && T.preHere === path;
+    if (onlyHere && !host.own) {
+      const pName = esc(nameOf('product', host.p));
+      return section(
+        'Option sections',
+        `<p class="field-help">${g.sections.length ? 'Same sections as other products.' : 'No sections, same as other products.'}</p>
+        <div class="link-btns field-actions"><button type="button" class="link-btn" data-action="own-sections-start">Use own sections in ${pName}</button></div>`,
+      );
+    }
+    if (onlyHere) {
       const own = host.own;
       const pName = esc(nameOf('product', host.p));
       const listed = new Set(listedOptions(g));
@@ -300,18 +313,13 @@
         'Option sections',
         nestedSections(`place|${host.p.id}:${g.id}|optionSection`, own.sections, ob, items, 'option', 'options') +
           addButton('own-section-add', 'Add section') +
-          `<p class="field-help">Other products use the sections of ${gName}. <button type="button" class="link-btn" data-action="own-sections-reset">Use ${gName}’s sections</button></p>`,
+          `<div class="link-btns field-actions"><button type="button" class="link-btn" data-action="own-sections-reset">Use the same as other products</button></div>`,
         { desc: `${scopePill(productScopeText(path))} Customers see these headings in ${pName} only. Drag options and headings to arrange them.` },
       );
     }
     const items = listedOptions(g).map((pid) => ({ id: pid, name: optionName(g, pid), section: sectionOfOption(g, pid) }));
     const others = groupParents(g.id).filter((p) => p.optionSections && p.optionSections[g.id]).length;
-    const note = [
-      others ? `${plural(others, 'product uses', 'products use')} its own sections.` : '',
-      host ? `<button type="button" class="link-btn" data-action="own-sections-start">Use own sections in ${esc(nameOf('product', host.p))}</button>` : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
+    const note = others ? `${plural(others, 'product uses', 'products use')} its own sections.` : '';
     return section(
       'Option sections',
       nestedSections(`group|${g.id}|optionSection`, g.sections, gb, items, 'option', 'options') + addButton('opt-section-add', 'Add section') + (note ? `<p class="field-help">${note}</p>` : ''),
