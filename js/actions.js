@@ -206,6 +206,29 @@
         });
         break;
       }
+      case 'p-half-pick':
+      case 'p-half-clear': {
+        const p = entity('product', parsePath(S.ui.selected).id);
+        const key = el.dataset.key;
+        const side = el.dataset.side;
+        const [gid, pid] = key.split(':');
+        const g = entity('group', gid);
+        if (a === 'p-half-pick') {
+          openHalfPicker(g, pid, side, {
+            groups: p.children.map((id) => entity('group', id)).filter(Boolean),
+            halves: Object.fromEntries(g.children.map((id) => [id, halvesAt(p, gid, id).h])),
+            onPick: (id) => (p.halfWhole[key] = { ...halvesAt(p, gid, pid).h, [side]: id }),
+          });
+          break;
+        }
+        commit(() => {
+          const h = p.halfWhole[key];
+          if (!h) return;
+          delete h[side];
+          if (!h.left && !h.right && !(halvesSupported(g) && g.halves[pid])) delete p.halfWhole[key];
+        });
+        break;
+      }
       case 'half-filter':
         T.halfFilter = el.dataset.value;
         render();

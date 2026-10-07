@@ -263,7 +263,7 @@
       ? `<p>Customers pick a topping, then choose the left half, the right half, or the whole. Halves in ${esc(nameOf('group', g))} are matched to toppings by name. POS stays as it is.</p>
         ${block('Same name', '', exact, row)}
         ${block('Similar name', 'Check these before you group them.', close, row)}
-        ${block('No matching topping', 'These look like halves, but no topping in this group has a matching name. Set them on the Half and whole tab.', o.unmatched, (pid) => `<div class="cmp-row"><span class="cmp-main"><span class="cmp-name">${esc(nm(pid))}</span></span></div>`)}`
+        ${block('No matching topping', 'These look like halves, but no topping in this group has a matching name. Set them on the group’s Half and whole tab.', o.unmatched, (pid) => `<div class="cmp-row"><span class="cmp-main"><span class="cmp-name">${esc(nm(pid))}</span></span></div>`)}`
       : `<div class="empty-small">${icon('checkCircle', 20)}<strong>No halves to group</strong><span>Every topping with matching halves is already grouped.</span></div>`;
     const on = o.items.filter((i) => !o.off.has(i.pid)).length;
     $('#hh-foot').innerHTML = `<button type="button" class="btn secondary" data-modal-close>Cancel</button>
@@ -280,14 +280,14 @@
     toast(`Halves successfully grouped for ${plural(picks.length, 'topping', 'toppings')}`);
   }
 
-  function openHalfPicker(g, pid, side) {
+  function openHalfPicker(g, pid, side, { groups = siblingPosGroups(g), halves = g.halves, onPick } = {}) {
     const whole = normName(nameOf('product', entity('product', pid)));
-    const current = (g.halves[pid] || {})[side];
+    const current = (halves[pid] || {})[side];
     const roles = new Map();
-    Object.entries(g.halves).forEach(([w, h]) => ['left', 'right'].forEach((s) => h[s] && roles.set(h[s], { w, s })));
+    Object.entries(halves).forEach(([w, h]) => ['left', 'right'].forEach((s) => h[s] && roles.set(h[s], { w, s })));
     const seen = new Set();
     const items = [];
-    for (const x of siblingPosGroups(g)) {
+    for (const x of groups) {
       for (const id of x.children) {
         if (id === pid || seen.has(id) || !isPlainOption(id)) continue;
         seen.add(id);
@@ -315,7 +315,7 @@
       noMatch: ['No matching options', 'Try a different name or POS ID.'],
       onPick: (id) => {
         closeModal();
-        commit(() => (g.halves[pid] = { ...(g.halves[pid] || {}), [side]: id }));
+        commit(() => (onPick ? onPick(id) : (g.halves[pid] = { ...(g.halves[pid] || {}), [side]: id })));
       },
     });
   }

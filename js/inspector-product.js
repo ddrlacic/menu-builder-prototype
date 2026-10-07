@@ -132,8 +132,9 @@
     opts.forEach((o) => byGroup.set(o.gid, [...(byGroup.get(o.gid) || []), o]));
     return [...byGroup.entries()]
       .map(([gid, list]) => {
-        const key = `${prefix}:${gid}`;
-        const open = T.openCard === key;
+        const solo = byGroup.size === 1;
+        const key = `${solo ? '!' : ''}${prefix}:${gid}`;
+        const open = solo ? T.openCard !== key : T.openCard === key;
         return `<div class="group-card${open ? ' is-open' : ''}">
           <div class="group-card-head">
             <button type="button" class="group-card-toggle" data-action="card-open" data-id="${esc(key)}" aria-expanded="${open}">
@@ -303,40 +304,75 @@
   }
 
   function halfWholeSection(p) {
-    const opts = productOptions(p, { modifierOnly: true });
+    const modifiers = productOptions(p, { modifierOnly: true, noHalves: true });
+    const opts = modifiers.filter((o) => !(halfMatches(o.g).halfIds.has(o.pid) && !o.g.halves[o.pid]));
     if (!opts.length) return section('Half and whole', '<p class="field-help">Add a modifier group, like toppings, to this product first.</p>');
-    const pb = productBind(p);
-    const seen = new Set();
-    const pool = productOptions(p).filter((o) => !seen.has(o.pid) && seen.add(o.pid));
+    const halfCount = productOptions(p, { modifierOnly: true }).length - opts.length;
+    const nm = (id) => nameOf('product', entity('product', id));
+    const full = (o) => {
+      const { h } = halvesAt(p, o.gid, o.pid);
+      return !!(h.left && h.right);
+    };
+    const missing = opts.filter((o) => !full(o));
+    const filter = T.halfFilter === 'missing' && missing.length ? 'missing' : 'all';
+    const groups = [...new Set(opts.map((o) => o.gid))].map((gid) => entity('group', gid));
+    const pick = (o, side, h, locked) => {
+      const v = h[side];
+      const label = `${SIDE_LABEL[side]} of ${optionName(o.g, o.pid)}`;
+      const inner = `${icon(side === 'left' ? 'halfLeft' : 'halfRight', 13)}<span class="half-pick-label">${esc(v ? nm(v) : locked ? 'Not added' : `Add ${SIDE_LABEL[side].toLowerCase()}`)}</span>`;
+      if (locked) return `<div class="half-cell"><div class="input is-readonly half-pick${v ? '' : ' is-empty'}"><span class="sr-only">${esc(SIDE_LABEL[side])}: </span>${inner}</div></div>`;
+      return `<div class="half-cell">
+        <button type="button" class="input half-pick${v ? '' : ' is-empty'}" data-action="p-half-pick" data-key="${esc(o.key)}" data-side="${side}" aria-label="${esc(label)}"${v ? ` title="${esc(nm(v))}"` : ''}>${inner}${icon('chevDown', 14)}</button>
+        ${v ? `<button type="button" class="icon-btn sm" data-action="p-half-clear" data-key="${esc(o.key)}" data-side="${side}" aria-label="Remove ${esc(label.toLowerCase())}" title="Remove">${icon('x', 14)}</button>` : ''}
+      </div>`;
+    };
     const cards = groupCards(
       p,
-      opts,
+      filter === 'missing' ? missing : opts,
       'half',
       (list) => {
-        const n = list.filter((o) => halvesAt(p, o.gid, o.pid).h.left && halvesAt(p, o.gid, o.pid).h.right).length;
-        return n ? `${n} of ${list.length} with halves` : plural(list.length, 'option', 'options');
+        const inGroup = opts.filter((o) => o.gid === list[0].gid);
+        const n = inGroup.filter(full).length;
+        return n ? `${n} of ${inGroup.length} with halves` : plural(inGroup.length, 'option', 'options');
       },
       (o) => {
         const { h, own } = halvesAt(p, o.gid, o.pid);
-        const name = optionName(o.g, o.pid);
         const fromGroup = halvesSupported(o.g) && !!o.g.halves[o.pid];
         const locked = fromGroup && !own;
-        const choices = [['', 'Not added'], ...pool.filter((c) => c.pid !== o.pid).map((c) => [c.pid, nameOf('product', c.x)])];
-        const pick = (side, label) =>
-          locked
-            ? field(label, `<div class="input is-readonly">${esc(h[side] ? nameOf('product', entity('product', h[side])) : 'Not added')}</div>`)
-            : field(label, selectInput(pb(`halfWhole.${o.key}.${side}`), h[side] || '', choices, { label: `${label} of ${name}` }));
         return `<div class="opt-sub-row">
-          <span class="opt-sub-name">${esc(name)}</span>
-          <div class="grid-2">${pick('left', 'Left half')}${pick('right', 'Right half')}</div>
+          <span class="opt-sub-name">${esc(optionName(o.g, o.pid))}</span>
+          <div class="half-picks">${pick(o, 'left', h, locked)}${pick(o, 'right', h, locked)}</div>
           ${!locked && !h.left !== !h.right ? slotError('Add both halves, or remove both') : ''}
           ${fromGroup ? followNote(o.g, own, { customize: 'half-customize', reset: 'half-reset', key: o.key }) : ''}
         </div>`;
       },
     );
-    return section('Half and whole', `<div class="opt-cards">${cards}</div>`, {
-      desc: 'Let customers put a topping on the left half, the right half, or the whole product. Halves set on a POS group apply here unless you change them for this product. Only Web App supports this.',
-    });
+    const hints = groups
+      .filter((g) => suggestedHalves(g).length)
+      .map((g) => {
+        const n = suggestedHalves(g).length;
+        const name = esc(nameOf('group', g));
+        return `${callout('info', `${n === 1 ? `1 topping in ${name} has` : `${n} toppings in ${name} have`} halves with matching names. Group them, so customers choose a side on the topping instead of seeing each half as its own option. This applies to every product that uses ${name}.`, 'sparkles')}
+          <div class="hint-actions">
+            <button type="button" class="btn secondary sm" data-action="group-halves" data-id="${esc(g.id)}">${icon('sparkles', 14)}Group halves</button>
+            <button type="button" class="btn ghost sm" data-action="dismiss-half-hint" data-id="${esc(g.id)}">Dismiss suggestion</button>
+          </div>`;
+      });
+    const later = groups.filter((g) => halfSuggestions(g).length && !suggestedHalves(g).length);
+    const seg = (v, label, n) =>
+      `<button type="button" role="radio" aria-checked="${filter === v}" class="seg" data-action="half-filter" data-value="${v}">${label}<span class="seg-count tnum">${n}</span></button>`;
+    const body = `<div class="half-tools">
+        <div class="segmented" role="radiogroup" aria-label="Show toppings">${seg('all', 'All', opts.length)}${seg('missing', 'Missing halves', missing.length)}</div>
+        ${later.map((g) => `<button type="button" class="btn ghost sm" data-action="group-halves" data-id="${esc(g.id)}">${icon('sparkles', 14)}${groups.length > 1 ? `Group halves in ${esc(nameOf('group', g))}` : 'Group halves'}</button>`).join('')}
+      </div>
+      <div class="opt-cards">${cards}</div>
+      ${halfCount ? `<p class="field-help">${halfCount === 1 ? '1 option in this product is a half, so it is not listed.' : `${halfCount} options in this product are halves, so they are not listed.`} You’ll find each half under its topping in the menu.</p>` : ''}`;
+    return (
+      (hints.length ? section('Suggestion', hints.join('')) : '') +
+      section('Half and whole', body, {
+        desc: 'Let customers put a topping on the left half, the right half, or the whole product. Halves set on a POS group apply here unless you change them for this product. Only Web App supports this.',
+      })
+    );
   }
 
   function upsellSection(p) {
