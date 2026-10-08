@@ -379,7 +379,7 @@
     const parents = groupParents(g.id);
     openListPicker({
       title: `Add substitutes for ${optionName(g, originId)}`,
-      intro: `Options from the other groups of the products that use ${nameOf('group', g)}. A product that does not have one of the chosen groups gets no substitutes for this option.`,
+      intro: `Options from the other groups of the products that use ${nameOf('group', g)}.${parents.length > 1 ? ' Groups on only one product are not listed. Set those substitutes on the product’s Ordering tab.' : ''} A product that does not have one of the chosen groups gets no substitutes for this option.`,
       groups: swapSourceGroups(g)
         .map((x) => {
           const names = parents

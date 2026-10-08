@@ -341,8 +341,10 @@
     const name = nameOf('group', g);
     const body = !opts.length
       ? '<p class="field-help">Add options to this group first.</p>'
-      : !swapSourceGroups(g).length
+      : !swapSourceGroups(g, { shared: false }).length
         ? `<p class="field-help">Substitutes come from the other groups of the products that use ${esc(name)}. Add another group to ${parents.length === 1 ? esc(nameOf('product', parents[0])) : 'one of them'} first.</p>`
+        : !swapSourceGroups(g).length
+          ? `<p class="field-help">The products that use ${esc(name)} share no other group. Set substitutes on each product’s Ordering tab.</p>`
         : `<div class="opt-cards"><div class="group-card is-open"><div class="group-card-body">${opts
             .map(
               (pid) => `<div class="opt-sub-row">

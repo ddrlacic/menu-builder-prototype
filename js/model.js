@@ -379,15 +379,17 @@
     return [...out].map((gid) => entity('group', gid));
   }
 
-  function swapSourceGroups(g) {
+  function swapSourceGroups(g, { shared = true } = {}) {
+    const parents = groupParents(g.id);
     const out = new Map();
-    groupParents(g.id).forEach((p) =>
+    parents.forEach((p) =>
       p.children.forEach((gid) => {
         const x = entity('group', gid);
         if (x && gid !== g.id) out.set(gid, x);
       }),
     );
-    return [...out.values()];
+    const reach = (x) => parents.filter((p) => p.children.includes(x.id)).length;
+    return [...out.values()].filter((x) => !shared || parents.length < 2 || reach(x) > 1);
   }
 
   const swapGroupsMissing = (p, keys) => [...new Set(keys.map((k) => k.split(':')[0]))].filter((gid) => !p.children.includes(gid));
