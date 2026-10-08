@@ -396,7 +396,15 @@
             };
           }),
           sections: e.sections.map((s) => ({ id: s.id, name: s.name, product_ids: e.children.filter((pid) => sectionOfOption(e, pid) === s.id) })),
-          substitution_templates: Object.entries(e.swaps).map(([pid, ids]) => ({ product_id: pid, substitutes: ids.map(productRef).filter(Boolean) })),
+          substitution_templates: Object.entries(e.swaps).map(([pid, keys]) => ({
+            product_id: pid,
+            substitutes: keys
+              .map((k) => {
+                const [gid, sid] = k.split(':');
+                return productRef(sid) && { ...productRef(sid), product_group_id: gid };
+              })
+              .filter(Boolean),
+          })),
           partial_variant_templates: halvesSupported(e)
             ? Object.entries(e.halves)
                 .filter(([, h]) => h.left && h.right)

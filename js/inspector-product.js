@@ -267,13 +267,14 @@
   }
 
   function substituteList(bind, ids, labelOf, locked) {
-    const shown = ids.filter((id) => entity('product', id));
+    const shown = ids.filter((id) => labelOf(id));
     if (!shown.length) return '';
     const sortable = !locked && shown.length > 1;
     return `<div class="store-list"${sortable ? ` data-sortable="${esc(bind)}"` : ''}>${ids
       .map((sid, i) => {
-        if (!entity('product', sid)) return '';
-        const { name, sub } = labelOf(sid);
+        const label = labelOf(sid);
+        if (!label) return '';
+        const { name, sub } = label;
         return `<div class="store-row list-row"${sortable ? ` data-sort-index="${i}" tabindex="0" aria-label="${esc(name)}. Drag or use the arrow keys to move it"` : ''}>
           <span class="store-name list-name"><span>${esc(name)}</span>${sub ? `<span class="muted">${esc(sub)}</span>` : ''}</span>
           ${locked ? '' : `<span class="row-tools">${removeButton(bind, i, name)}</span>`}${sortable ? `<span class="sort-grip" aria-hidden="true">${icon('grip', 14)}</span>` : ''}
@@ -300,9 +301,10 @@
       },
       (o) => {
         const { ids, own } = substitutesAt(p, o.gid, o.pid);
-        const fromGroup = (o.g.swaps[o.pid] || []).length > 0;
+        const fromGroup = groupSubstitutes(p, o.g, o.pid).length > 0;
         const locked = fromGroup && !own;
         const labelOf = (sid) => {
+          if (!entity('product', sid)) return null;
           const g = groupOf.get(sid);
           return { name: g ? optionName(g, sid) : nameOf('product', entity('product', sid)), sub: g && g.id !== o.gid ? nameOf('group', g) : '' };
         };

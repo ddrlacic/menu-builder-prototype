@@ -389,8 +389,13 @@
       if (s.hiddenCodes && !s.hiddenCodes.length) delete s.hiddenCodes;
       if (!Object.keys(s).length) delete g.optionSettings[pid];
     }
-    for (const [pid, ids] of Object.entries(g.swaps)) {
-      const valid = ids.filter((id, i) => id !== pid && kids.has(id) && ids.indexOf(id) === i);
+    for (const [pid, keys] of Object.entries(g.swaps)) {
+      const subOf = (k) => String(k).split(':')[1];
+      const valid = keys.filter((k, i) => {
+        const [sg, sp] = String(k).split(':');
+        const x = sg !== g.id && sp !== pid && entity('group', sg);
+        return !!x && x.children.includes(sp) && keys.findIndex((k2) => subOf(k2) === sp) === i;
+      });
       if (valid.length) g.swaps[pid] = valid;
       else delete g.swaps[pid];
     }

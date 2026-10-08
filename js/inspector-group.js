@@ -329,17 +329,25 @@
     const halves = siblingGroupedHalves(g);
     const opts = g.children.filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container' && !halves.has(pid));
     const parents = groupParents(g.id);
+    const keysOf = (pid) => g.swaps[pid] || [];
     const own = (p) => opts.filter((pid) => hasOwn(p.substitutes, `${g.id}:${pid}`)).length;
-    const labelOf = (sid) => ({ name: optionName(g, sid) });
-    const sortable = opts.some((pid) => (g.swaps[pid] || []).filter((id) => entity('product', id)).length > 1);
-    const body =
-      opts.length < 2
-        ? '<p class="field-help">Add at least two options to this group first.</p>'
+    const skipped = (p) => opts.filter((pid) => !hasOwn(p.substitutes, `${g.id}:${pid}`) && swapGroupsMissing(p, keysOf(pid)).length);
+    const labelOf = (k) => {
+      const [sg, sp] = k.split(':');
+      const x = entity('group', sg);
+      return x && entity('product', sp) ? { name: optionName(x, sp), sub: nameOf('group', x) } : null;
+    };
+    const sortable = opts.some((pid) => keysOf(pid).length > 1);
+    const name = nameOf('group', g);
+    const body = !opts.length
+      ? '<p class="field-help">Add options to this group first.</p>'
+      : !swapSourceGroups(g).length
+        ? `<p class="field-help">Substitutes come from the other groups of the products that use ${esc(name)}. Add another group to ${parents.length === 1 ? esc(nameOf('product', parents[0])) : 'one of them'} first.</p>`
         : `<div class="opt-cards"><div class="group-card is-open"><div class="group-card-body">${opts
             .map(
               (pid) => `<div class="opt-sub-row">
                 <span class="opt-sub-name">${esc(optionName(g, pid))}</span>
-                ${substituteList(gb(`swaps.${pid}`), g.swaps[pid] || [], labelOf, false)}
+                ${substituteList(gb(`swaps.${pid}`), keysOf(pid), labelOf, false)}
                 ${addButton('swap-add', 'Add', `data-id="${esc(pid)}"`)}
               </div>`,
             )
@@ -348,13 +356,19 @@
       ? `<div class="store-list">${parents
           .map((p) => {
             const n = own(p);
-            return `<div class="store-row"><span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${n ? `Uses its own substitutes for ${plural(n, 'option', 'options')}` : 'Same as this group'}</span></span></div>`;
+            const off = skipped(p);
+            const missing = [...new Set(off.flatMap((pid) => swapGroupsMissing(p, keysOf(pid))))].map((gid) => nameOf('group', entity('group', gid)));
+            const parts = [
+              n ? `Uses its own substitutes for ${plural(n, 'option', 'options')}` : '',
+              off.length ? `${plural(off.length, 'option', 'options')} without substitutes. Add ${listJoin(missing)} to use them` : '',
+            ].filter(Boolean);
+            return `<div class="store-row"><span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${esc(parts.join('. ') || 'Same as this group')}</span></span></div>`;
           })
           .join('')}</div>`
       : '';
     return (
       section('Substitutes', body, {
-        desc: `Let customers swap an option for another option in this group, like fries for a salad.${sortable ? ' Drag substitutes to change the order customers see.' : ''}`,
+        desc: `Let customers swap an option here for one from another group on the same product, like ham for extra cheese.${sortable ? ' Drag substitutes to change the order customers see.' : ''}`,
       }) + (applies ? section('Applies to', applies, { desc: 'Each product uses these substitutes unless you change them on its Ordering tab.' }) : '')
     );
   }

@@ -375,24 +375,26 @@
   }
 
   function openGroupSwapPicker(g, originId) {
-    const chosen = new Set([originId, ...(g.swaps[originId] || []), ...siblingGroupedHalves(g)]);
+    const chosen = new Set([originId, ...(g.swaps[originId] || []).map((k) => k.split(':')[1]), ...siblingGroupedHalves(g)]);
+    const parents = groupParents(g.id);
     openListPicker({
       title: `Add substitutes for ${optionName(g, originId)}`,
-      intro: `Options in ${nameOf('group', g)}. To offer an option from another group, add the substitute on the product instead.`,
-      groups: [
-        {
-          id: g.id,
-          name: nameOf('group', g),
-          items: g.children
+      intro: `Options from the other groups of the products that use ${nameOf('group', g)}. A product that does not have one of the chosen groups gets no substitutes for this option.`,
+      groups: swapSourceGroups(g).map((x) => {
+        const n = parents.filter((p) => p.children.includes(x.id)).length;
+        return {
+          id: x.id,
+          name: parents.length > 1 ? `${nameOf('group', x)} · In ${n} of ${parents.length} products` : nameOf('group', x),
+          items: listedOptions(x)
             .map((pid) => entity('product', pid))
-            .filter((x) => x && !chosen.has(x.id) && x.ptype !== 'container')
-            .map((x) => pickItem(x, { name: optionName(g, x.id) })),
-        },
-      ],
+            .filter((y) => y.ptype !== 'container' && !chosen.has(y.id))
+            .map((y) => pickItem(y, { id: `${x.id}:${y.id}`, name: optionName(x, y.id) })),
+        };
+      }),
       noun: ['substitute', 'substitutes'],
       placeholder: 'Search options',
-      empty: `Every option in ${nameOf('group', g)} is already a substitute`,
-      onAdd: (ids) => (g.swaps[originId] = [...(g.swaps[originId] || []), ...ids]),
+      empty: 'Every option in the other groups is already a substitute',
+      onAdd: (keys) => (g.swaps[originId] = [...(g.swaps[originId] || []), ...keys]),
     });
   }
 

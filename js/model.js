@@ -379,11 +379,28 @@
     return [...out].map((gid) => entity('group', gid));
   }
 
+  function swapSourceGroups(g) {
+    const out = new Map();
+    groupParents(g.id).forEach((p) =>
+      p.children.forEach((gid) => {
+        const x = entity('group', gid);
+        if (x && gid !== g.id) out.set(gid, x);
+      }),
+    );
+    return [...out.values()];
+  }
+
+  const swapGroupsMissing = (p, keys) => [...new Set(keys.map((k) => k.split(':')[0]))].filter((gid) => !p.children.includes(gid));
+
+  function groupSubstitutes(p, g, pid) {
+    const keys = (g && g.swaps && g.swaps[pid]) || [];
+    return keys.length && !swapGroupsMissing(p, keys).length ? keys.map((k) => k.split(':')[1]) : [];
+  }
+
   function substitutesAt(p, gid, pid) {
     const key = `${gid}:${pid}`;
     if (hasOwn(p.substitutes, key)) return { ids: p.substitutes[key], own: true };
-    const g = entity('group', gid);
-    return { ids: (g && g.swaps && g.swaps[pid]) || [], own: false };
+    return { ids: groupSubstitutes(p, entity('group', gid), pid), own: false };
   }
 
   const halvesSupported = (g) => !!g && g.gtype === 'pos' && !g.isSubstitutionContainer && rulesOf(g).type === 1;
