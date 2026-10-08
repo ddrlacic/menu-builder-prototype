@@ -330,23 +330,19 @@
     const opts = g.children.filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container' && !halves.has(pid));
     const parents = groupParents(g.id);
     const own = (p) => opts.filter((pid) => hasOwn(p.substitutes, `${g.id}:${pid}`)).length;
+    const labelOf = (sid) => ({ name: optionName(g, sid) });
+    const sortable = opts.some((pid) => (g.swaps[pid] || []).filter((id) => entity('product', id)).length > 1);
     const body =
       opts.length < 2
         ? '<p class="field-help">Add at least two options to this group first.</p>'
         : `<div class="opt-cards"><div class="group-card is-open"><div class="group-card-body">${opts
-            .map((pid) => {
-              const subs = (g.swaps[pid] || []).filter((id) => entity('product', id));
-              const name = optionName(g, pid);
-              return `<div class="opt-sub-row">
-                <span class="opt-sub-name">${esc(name)}</span>
-                <div class="chips">${subs
-                  .map((sid, i) => {
-                    const n = optionName(g, sid);
-                    return `<button type="button" class="chip is-on has-remove" data-action="arr-remove" data-bind="${esc(gb(`swaps.${pid}`))}" data-index="${i}" aria-label="Remove ${esc(n)}" title="Remove">${esc(n)}${icon('x', 12)}</button>`;
-                  })
-                  .join('')}<button type="button" class="chip" data-action="swap-add" data-id="${esc(pid)}">${icon('plus', 12)}Add</button></div>
-              </div>`;
-            })
+            .map(
+              (pid) => `<div class="opt-sub-row">
+                <span class="opt-sub-name">${esc(optionName(g, pid))}</span>
+                ${substituteList(gb(`swaps.${pid}`), g.swaps[pid] || [], labelOf, false)}
+                ${addButton('swap-add', 'Add', `data-id="${esc(pid)}"`)}
+              </div>`,
+            )
             .join('')}</div></div></div>`;
     const applies = parents.length
       ? `<div class="store-list">${parents
@@ -357,8 +353,9 @@
           .join('')}</div>`
       : '';
     return (
-      section('Substitutes', body, { desc: 'Let customers swap an option for another option in this group, like fries for a salad.' }) +
-      (applies ? section('Applies to', applies, { desc: 'Products follow these substitutes unless they set their own on their Ordering tab.' }) : '')
+      section('Substitutes', body, {
+        desc: `Let customers swap an option for another option in this group, like fries for a salad.${sortable ? ' Drag substitutes to change the order customers see.' : ''}`,
+      }) + (applies ? section('Applies to', applies, { desc: 'Each product uses these substitutes unless you change them on its Ordering tab.' }) : '')
     );
   }
 

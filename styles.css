@@ -2592,6 +2592,10 @@ input[type='number']::-webkit-inner-spin-button {
   font-weight: 500;
 }
 
+.opt-sub-row > .btn {
+  align-self: flex-start;
+}
+
 .half-tools {
   display: flex;
   align-items: center;

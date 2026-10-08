@@ -266,11 +266,30 @@
     return `<p class="field-help">Same as the ${esc(nameOf('group', g))} group. <button type="button" class="link-btn" data-action="${customize}" data-key="${esc(key)}">Change for this product</button></p>`;
   }
 
+  function substituteList(bind, ids, labelOf, locked) {
+    const shown = ids.filter((id) => entity('product', id));
+    if (!shown.length) return '';
+    const sortable = !locked && shown.length > 1;
+    return `<div class="store-list"${sortable ? ` data-sortable="${esc(bind)}"` : ''}>${ids
+      .map((sid, i) => {
+        if (!entity('product', sid)) return '';
+        const { name, sub } = labelOf(sid);
+        return `<div class="store-row list-row"${sortable ? ` data-sort-index="${i}" tabindex="0" aria-label="${esc(name)}. Drag or use the arrow keys to move it"` : ''}>
+          <span class="store-name list-name"><span>${esc(name)}</span>${sub ? `<span class="muted">${esc(sub)}</span>` : ''}</span>
+          ${locked ? '' : `<span class="row-tools">${removeButton(bind, i, name)}</span>`}${sortable ? `<span class="sort-grip" aria-hidden="true">${icon('grip', 14)}</span>` : ''}
+        </div>`;
+      })
+      .join('')}</div>`;
+  }
+
   function substitutesSection(p) {
     const opts = productOptions(p, { noHalves: true });
     if (!opts.length) return section('Substitutes', '<p class="field-help">Add a group with options to this product first.</p>');
     const pb = productBind(p);
     const subsOf = (o) => substitutesAt(p, o.gid, o.pid).ids.filter((id) => entity('product', id));
+    const groupOf = new Map();
+    productOptions(p).forEach((o) => groupOf.has(o.pid) || groupOf.set(o.pid, o.g));
+    const sortable = opts.some((o) => substitutesAt(p, o.gid, o.pid).own && subsOf(o).length > 1);
     const cards = groupCards(
       p,
       opts,
@@ -280,27 +299,23 @@
         return n ? `${n} of ${list.length} with substitutes` : plural(list.length, 'option', 'options');
       },
       (o) => {
-        const subs = subsOf(o);
-        const { own } = substitutesAt(p, o.gid, o.pid);
+        const { ids, own } = substitutesAt(p, o.gid, o.pid);
         const fromGroup = (o.g.swaps[o.pid] || []).length > 0;
         const locked = fromGroup && !own;
-        const chipsHtml = subs
-          .map((sid, i) => {
-            const n = nameOf('product', entity('product', sid));
-            return locked
-              ? `<span class="chip is-on">${esc(n)}</span>`
-              : `<button type="button" class="chip is-on has-remove" data-action="arr-remove" data-bind="${esc(pb(`substitutes.${o.key}`))}" data-index="${i}" aria-label="Remove ${esc(n)}" title="Remove">${esc(n)}${icon('x', 12)}</button>`;
-          })
-          .join('');
+        const labelOf = (sid) => {
+          const g = groupOf.get(sid);
+          return { name: g ? optionName(g, sid) : nameOf('product', entity('product', sid)), sub: g && g.id !== o.gid ? nameOf('group', g) : '' };
+        };
         return `<div class="opt-sub-row">
           <span class="opt-sub-name">${esc(optionName(o.g, o.pid))}</span>
-          <div class="chips">${chipsHtml}${locked ? '' : `<button type="button" class="chip" data-action="add-substitute" data-key="${esc(o.key)}">${icon('plus', 12)}Add</button>`}</div>
+          ${substituteList(pb(`substitutes.${o.key}`), ids, labelOf, locked)}
+          ${locked ? '' : addButton('add-substitute', 'Add', `data-key="${esc(o.key)}"`)}
           ${fromGroup ? followNote(o.g, own, { customize: 'sub-customize', reset: 'sub-reset', key: o.key }) : ''}
         </div>`;
       },
     );
     return section('Substitutes', `<div class="opt-cards">${cards}</div>`, {
-      desc: 'Let customers swap an option for another, like fries for a salad. Substitutes set on a group apply here unless you change them for this product. Only Web App supports this.',
+      desc: `Let customers swap an option for another, like fries for a salad. Substitutes set on a group apply here unless you change them for this product. Only Web App supports this.${sortable ? ' Drag substitutes to change the order customers see.' : ''}`,
     });
   }
 
