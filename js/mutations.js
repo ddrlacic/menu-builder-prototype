@@ -380,17 +380,26 @@
     openListPicker({
       title: `Add substitutes for ${optionName(g, originId)}`,
       intro: `Options from the other groups of the products that use ${nameOf('group', g)}. A product that does not have one of the chosen groups gets no substitutes for this option.`,
-      groups: swapSourceGroups(g).map((x) => {
-        const n = parents.filter((p) => p.children.includes(x.id)).length;
-        return {
-          id: x.id,
-          name: parents.length > 1 ? `${nameOf('group', x)} · In ${n} of ${parents.length} products` : nameOf('group', x),
-          items: listedOptions(x)
-            .map((pid) => entity('product', pid))
-            .filter((y) => y.ptype !== 'container' && !chosen.has(y.id))
-            .map((y) => pickItem(y, { id: `${x.id}:${y.id}`, name: optionName(x, y.id) })),
-        };
-      }),
+      groups: swapSourceGroups(g)
+        .map((x) => {
+          const names = parents
+            .filter((p) => p.children.includes(x.id))
+            .map((p) => nameOf('product', p))
+            .sort((a, b) => a.localeCompare(b));
+          const sub =
+            parents.length < 2 ? '' : names.length === parents.length ? `In all ${parents.length} products` : names.length > 3 ? `In ${names[0]}, ${names[1]}, and ${names.length - 2} more` : `In ${listJoin(names)}`;
+          return {
+            id: x.id,
+            name: nameOf('group', x),
+            sub,
+            reach: names.length,
+            items: listedOptions(x)
+              .map((pid) => entity('product', pid))
+              .filter((y) => y.ptype !== 'container' && !chosen.has(y.id))
+              .map((y) => pickItem(y, { id: `${x.id}:${y.id}`, name: optionName(x, y.id) })),
+          };
+        })
+        .sort((a, b) => b.reach - a.reach || a.name.localeCompare(b.name)),
       noun: ['substitute', 'substitutes'],
       placeholder: 'Search options',
       empty: 'Every option in the other groups is already a substitute',

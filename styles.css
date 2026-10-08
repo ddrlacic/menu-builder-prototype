@@ -2965,6 +2965,10 @@ input[type='number']::-webkit-inner-spin-button {
   min-width: 0;
 }
 
+.ms-group-head .ms-sub {
+  font-weight: 400;
+}
+
 .ms-city {
   flex: none;
   color: var(--ink-3);
