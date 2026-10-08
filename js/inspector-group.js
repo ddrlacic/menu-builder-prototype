@@ -326,9 +326,9 @@
   }
 
   function groupSwapsSection(g, gb) {
-    const halves = siblingGroupedHalves(g);
-    const opts = g.children.filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container' && !halves.has(pid));
+    const opts = swapOrigins(g);
     const parents = groupParents(g.id);
+    const shared = Array.isArray(g.swapAll);
     const keysOf = (pid) => g.swaps[pid] || [];
     const own = (p) => opts.filter((pid) => hasOwn(p.substitutes, `${g.id}:${pid}`)).length;
     const skipped = (p) => opts.filter((pid) => !hasOwn(p.substitutes, `${g.id}:${pid}`) && swapGroupsMissing(p, keysOf(pid)).length);
@@ -337,32 +337,52 @@
       const x = entity('group', sg);
       return x && entity('product', sp) ? { name: optionName(x, sp), sub: nameOf('group', x) } : null;
     };
-    const sortable = opts.some((pid) => keysOf(pid).length > 1);
+    const sortable = shared ? g.swapAll.length > 1 : opts.some((pid) => keysOf(pid).length > 1);
     const name = nameOf('group', g);
-    const reachNote = (pid) => {
-      const off = parents.filter((p) => !hasOwn(p.substitutes, `${g.id}:${pid}`) && swapGroupsMissing(p, keysOf(pid)).length);
+    const reachNote = (keys, label, skip = () => false) => {
+      const off = parents.filter((p) => !skip(p) && swapGroupsMissing(p, keys).length);
       if (!off.length) return '';
-      const groups = [...new Set(off.flatMap((p) => swapGroupsMissing(p, keysOf(pid))))].map((gid) => nameOf('group', entity('group', gid)));
+      const groups = [...new Set(off.flatMap((p) => swapGroupsMissing(p, keys)))].map((gid) => nameOf('group', entity('group', gid)));
       const names = off.map((p) => nameOf('product', p)).sort((a, b) => a.localeCompare(b));
       const one = names.length === 1;
-      return `<p class="field-help">${esc(`${fewNames(names)} ${one ? 'does' : 'do'} not have ${fewNames(groups, 'or')}, so ${one ? 'it gets' : 'they get'} no substitutes for ${optionName(g, pid)}.`)}</p>`;
+      return `<p class="field-help">${esc(`${fewNames(names)} ${one ? 'does' : 'do'} not have ${fewNames(groups, 'or')}, so ${one ? 'it gets' : 'they get'} no substitutes for ${label}.`)}</p>`;
     };
+    const scope =
+      opts.length > 1
+        ? `<div class="field"><div class="field-head"><span class="field-label">Edit for</span></div>
+          <div class="segmented" role="radiogroup" aria-label="Edit for">${[
+            ['all', 'Every option'],
+            ['each', 'Each option'],
+          ]
+            .map(([v, l]) => `<button type="button" role="radio" aria-checked="${(v === 'all') === shared}" class="seg" data-action="swap-scope" data-value="${v}">${l}</button>`)
+            .join('')}</div></div>`
+        : '';
+    const card = (rows) => `${scope}<div class="opt-cards"><div class="group-card is-open"><div class="group-card-body">${rows}</div></div></div>`;
     const body = !opts.length
       ? '<p class="field-help">Add options to this group first.</p>'
       : !swapSourceGroups(g, { shared: false }).length
         ? `<p class="field-help">Substitutes come from the other groups of the products that use ${esc(name)}. Add another group to ${parents.length === 1 ? esc(nameOf('product', parents[0])) : 'one of them'} first.</p>`
         : !swapSourceGroups(g).length
           ? `<p class="field-help">No other group is on more than one of the products that use ${esc(name)}. Set substitutes on each product’s Ordering tab.</p>`
-        : `<div class="opt-cards"><div class="group-card is-open"><div class="group-card-body">${opts
-            .map(
-              (pid) => `<div class="opt-sub-row">
+          : shared
+            ? card(`<div class="opt-sub-row">
+                <span class="opt-sub-name">${opts.length > 1 ? `Every option in ${esc(name)}` : esc(optionName(g, opts[0]))}</span>
+                ${substituteList(gb('swapAll'), g.swapAll, labelOf, false)}
+                ${reachNote(g.swapAll, opts.length > 1 ? name : optionName(g, opts[0]))}
+                ${addButton('swap-add', 'Add', 'data-id="*"')}
+              </div>`)
+            : card(
+                opts
+                  .map(
+                    (pid) => `<div class="opt-sub-row">
                 <span class="opt-sub-name">${esc(optionName(g, pid))}</span>
                 ${substituteList(gb(`swaps.${pid}`), keysOf(pid), labelOf, false)}
-                ${reachNote(pid)}
+                ${reachNote(keysOf(pid), optionName(g, pid), (p) => hasOwn(p.substitutes, `${g.id}:${pid}`))}
                 ${addButton('swap-add', 'Add', `data-id="${esc(pid)}"`)}
               </div>`,
-            )
-            .join('')}</div></div></div>`;
+                  )
+                  .join(''),
+              );
     const applies = parents.length
       ? `<div class="store-list">${parents
           .map((p) => {

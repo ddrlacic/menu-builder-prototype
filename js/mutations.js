@@ -375,11 +375,14 @@
   }
 
   function openGroupSwapPicker(g, originId) {
-    const chosen = new Set([originId, ...(g.swaps[originId] || []).map((k) => k.split(':')[1]), ...siblingGroupedHalves(g)]);
+    const all = originId === '*';
+    const current = all ? g.swapAll : g.swaps[originId] || [];
+    const chosen = new Set([...(all ? [] : [originId]), ...current.map((k) => k.split(':')[1]), ...siblingGroupedHalves(g)]);
     const parents = groupParents(g.id);
     const byName = (a, b) => a.localeCompare(b);
+    const origins = swapOrigins(g);
     openListPicker({
-      title: `Add substitutes for ${optionName(g, originId)}`,
+      title: `Add substitutes for ${all ? (origins.length > 1 ? `every option in ${nameOf('group', g)}` : optionName(g, origins[0])) : optionName(g, originId)}`,
       intro:
         parents.length > 1
           ? `Options from groups on at least two of the products that use ${nameOf('group', g)}. A substitute works only on products that have its group.`
@@ -399,7 +402,42 @@
       noun: ['substitute', 'substitutes'],
       placeholder: 'Search options',
       empty: 'Every option in the other groups is already a substitute',
-      onAdd: (keys) => (g.swaps[originId] = [...(g.swaps[originId] || []), ...keys]),
+      onAdd: (keys) => {
+        if (all) g.swapAll = [...g.swapAll, ...keys];
+        else g.swaps[originId] = [...(g.swaps[originId] || []), ...keys];
+      },
+    });
+  }
+
+  function setGroupSwapScope(g, value) {
+    if ((value === 'all') === Array.isArray(g.swapAll)) return;
+    if (value === 'each') {
+      commit(() => (g.swapAll = null));
+      return;
+    }
+    const lists = swapOrigins(g).map((pid) => g.swaps[pid] || []);
+    const union = [...new Set(lists.flat())];
+    const same = lists.every((l) => JSON.stringify(l) === JSON.stringify(lists[0]));
+    if (same) {
+      commit(() => (g.swapAll = union));
+      return;
+    }
+    const name = nameOf('group', g);
+    openModal({
+      title: 'Use same substitutes for every option?',
+      body: `<p>Every option in ${esc(name)} gets all the substitutes set on its options now. Lists set for single options are replaced.</p>`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        {
+          label: 'Use same substitutes',
+          kind: 'primary',
+          onClick: () => {
+            closeModal();
+            commit(() => (g.swapAll = union));
+            toast(`Same substitutes for every option in ${name}`, 'success', { action: { label: 'Undo', onClick: undo } });
+          },
+        },
+      ],
     });
   }
 

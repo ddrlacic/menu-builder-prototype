@@ -399,6 +399,11 @@
     return `${list.slice(0, -1).join(', ')}, ${joiner} ${list[list.length - 1]}`;
   }
 
+  function swapOrigins(g) {
+    const halves = siblingGroupedHalves(g);
+    return g.children.filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container' && !halves.has(pid));
+  }
+
   const swapGroupsMissing = (p, keys) => [...new Set(keys.map((k) => k.split(':')[0]))].filter((gid) => !p.children.includes(gid));
 
   function groupSubstitutes(p, g, pid) {

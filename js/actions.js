@@ -622,6 +622,9 @@
       case 'swap-add':
         openGroupSwapPicker(entity('group', parsePath(S.ui.selected).id), el.dataset.id);
         break;
+      case 'swap-scope':
+        setGroupSwapScope(entity('group', parsePath(S.ui.selected).id), el.dataset.value);
+        break;
       case 'sub-customize':
       case 'half-customize': {
         const p = entity('product', parsePath(S.ui.selected).id);

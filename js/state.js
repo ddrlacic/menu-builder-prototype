@@ -320,6 +320,7 @@
       freeCount: 0,
       isSubstitutionContainer: false,
       ...groupDefaults(),
+      swapAll: [],
       ...o,
     };
   }
@@ -389,15 +390,30 @@
       if (s.hiddenCodes && !s.hiddenCodes.length) delete s.hiddenCodes;
       if (!Object.keys(s).length) delete g.optionSettings[pid];
     }
-    for (const [pid, keys] of Object.entries(g.swaps)) {
-      const subOf = (k) => String(k).split(':')[1];
-      const valid = keys.filter((k, i) => {
+    const subOf = (k) => String(k).split(':')[1];
+    const validSwaps = (keys, pid) =>
+      keys.filter((k, i) => {
         const [sg, sp] = String(k).split(':');
         const x = sg !== g.id && sp !== pid && entity('group', sg);
         return !!x && x.children.includes(sp) && keys.findIndex((k2) => subOf(k2) === sp) === i;
       });
+    for (const [pid, keys] of Object.entries(g.swaps)) {
+      const valid = validSwaps(keys, pid);
       if (valid.length) g.swaps[pid] = valid;
       else delete g.swaps[pid];
+    }
+    const origins = swapOrigins(g);
+    if (g.swapAll === undefined) {
+      const lists = origins.map((pid) => JSON.stringify(g.swaps[pid] || []));
+      g.swapAll = lists.every((l) => l === lists[0]) ? (lists.length ? JSON.parse(lists[0]) : []) : null;
+    }
+    if (Array.isArray(g.swapAll)) {
+      g.swapAll = validSwaps(g.swapAll, null);
+      g.swaps = {};
+      origins.forEach((pid) => {
+        const list = g.swapAll.filter((k) => subOf(k) !== pid);
+        if (list.length) g.swaps[pid] = list;
+      });
     }
     for (const [pid, h] of Object.entries(g.halves)) if (!h.left && !h.right) delete g.halves[pid];
     const sectionIds = new Set(g.sections.map((s) => s.id));
