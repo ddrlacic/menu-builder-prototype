@@ -388,7 +388,15 @@
         if (x && gid !== g.id) out.set(gid, x);
       }),
     );
-    return [...out.values()].filter((x) => !shared || parents.every((p) => p.children.includes(x.id)));
+    const reach = (x) => parents.filter((p) => p.children.includes(x.id)).length;
+    return [...out.values()].filter((x) => !shared || parents.length < 2 || reach(x) > 1).sort((a, b) => reach(b) - reach(a));
+  }
+
+  function fewNames(names, joiner = 'and') {
+    const list = names.length > 3 ? [...names.slice(0, 2), `${names.length - 2} more`] : names;
+    if (list.length <= 1) return list.join('');
+    if (list.length === 2) return `${list[0]} ${joiner} ${list[1]}`;
+    return `${list.slice(0, -1).join(', ')}, ${joiner} ${list[list.length - 1]}`;
   }
 
   const swapGroupsMissing = (p, keys) => [...new Set(keys.map((k) => k.split(':')[0]))].filter((gid) => !p.children.includes(gid));

@@ -275,7 +275,7 @@
                     return `<div class="ms-group">
                 <div class="ms-group-head">
                   <button type="button" class="icon-btn sm ms-chev" data-action="lp-open" data-id="${esc(g.id)}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'} ${esc(g.name)}">${icon('chevRight', 14)}</button>
-                  <button type="button" class="ms-row" role="checkbox" aria-checked="${checked(st)}" data-action="lp-group" data-id="${esc(g.id)}" data-on="${st === 'on' ? 0 : 1}">${box(st)}<strong class="ms-name">${esc(g.name)}</strong><span class="ms-city tnum">${g.items.filter((it) => o.sel.has(it.id)).length} of ${g.items.length}</span></button>
+                  <button type="button" class="ms-row" role="checkbox" aria-checked="${checked(st)}" data-action="lp-group" data-id="${esc(g.id)}" data-on="${st === 'on' ? 0 : 1}">${box(st)}<strong class="ms-name">${esc(g.name)}${g.sub ? `<span class="ms-sub">${esc(g.sub)}</span>` : ''}</strong><span class="ms-city tnum">${g.items.filter((it) => o.sel.has(it.id)).length} of ${g.items.length}</span></button>
                 </div>
                 ${open ? `<div class="ms-stores">${list.map(row).join('')}</div>` : ''}
               </div>`;

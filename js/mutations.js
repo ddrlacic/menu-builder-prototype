@@ -376,15 +376,21 @@
 
   function openGroupSwapPicker(g, originId) {
     const chosen = new Set([originId, ...(g.swaps[originId] || []).map((k) => k.split(':')[1]), ...siblingGroupedHalves(g)]);
-    const many = groupParents(g.id).length > 1;
+    const parents = groupParents(g.id);
+    const byName = (a, b) => a.localeCompare(b);
     openListPicker({
       title: `Add substitutes for ${optionName(g, originId)}`,
-      intro: many
-        ? `Options from the groups that every product with ${nameOf('group', g)} has. To use another group, set the substitute on the product’s Ordering tab.`
-        : `Options from the other groups of ${nameOf('product', groupParents(g.id)[0])}.`,
+      intro:
+        parents.length > 1
+          ? `Options from groups on at least two of the products that use ${nameOf('group', g)}. A substitute works only on products that have its group.`
+          : `Options from the other groups of ${nameOf('product', parents[0])}.`,
       groups: swapSourceGroups(g).map((x) => ({
         id: x.id,
         name: nameOf('group', x),
+        sub: (() => {
+          const off = parents.filter((p) => !p.children.includes(x.id)).map((p) => nameOf('product', p)).sort(byName);
+          return off.length ? `Not on ${fewNames(off)}` : '';
+        })(),
         items: listedOptions(x)
           .map((pid) => entity('product', pid))
           .filter((y) => y.ptype !== 'container' && !chosen.has(y.id))

@@ -339,17 +339,26 @@
     };
     const sortable = opts.some((pid) => keysOf(pid).length > 1);
     const name = nameOf('group', g);
+    const reachNote = (pid) => {
+      const off = parents.filter((p) => !hasOwn(p.substitutes, `${g.id}:${pid}`) && swapGroupsMissing(p, keysOf(pid)).length);
+      if (!off.length) return '';
+      const groups = [...new Set(off.flatMap((p) => swapGroupsMissing(p, keysOf(pid))))].map((gid) => nameOf('group', entity('group', gid)));
+      const names = off.map((p) => nameOf('product', p)).sort((a, b) => a.localeCompare(b));
+      const one = names.length === 1;
+      return `<p class="field-help">${esc(`${fewNames(names)} ${one ? 'does' : 'do'} not have ${fewNames(groups, 'or')}, so ${one ? 'it gets' : 'they get'} no substitutes for ${optionName(g, pid)}.`)}</p>`;
+    };
     const body = !opts.length
       ? '<p class="field-help">Add options to this group first.</p>'
       : !swapSourceGroups(g, { shared: false }).length
         ? `<p class="field-help">Substitutes come from the other groups of the products that use ${esc(name)}. Add another group to ${parents.length === 1 ? esc(nameOf('product', parents[0])) : 'one of them'} first.</p>`
         : !swapSourceGroups(g).length
-          ? `<p class="field-help">The products that use ${esc(name)} have no other group in common. Set substitutes on each product’s Ordering tab.</p>`
+          ? `<p class="field-help">No other group is on more than one of the products that use ${esc(name)}. Set substitutes on each product’s Ordering tab.</p>`
         : `<div class="opt-cards"><div class="group-card is-open"><div class="group-card-body">${opts
             .map(
               (pid) => `<div class="opt-sub-row">
                 <span class="opt-sub-name">${esc(optionName(g, pid))}</span>
                 ${substituteList(gb(`swaps.${pid}`), keysOf(pid), labelOf, false)}
+                ${reachNote(pid)}
                 ${addButton('swap-add', 'Add', `data-id="${esc(pid)}"`)}
               </div>`,
             )
