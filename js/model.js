@@ -423,14 +423,17 @@
   }
 
   function siblingPosGroups(g) {
-    const out = new Set([g.id]);
+    const reach = new Map();
     groupParents(g.id).forEach((p) =>
       p.children.forEach((gid) => {
         const x = entity('group', gid);
-        if (x && x.gtype === 'pos') out.add(gid);
+        if (x && x.gtype === 'pos' && gid !== g.id) reach.set(gid, (reach.get(gid) || 0) + 1);
       }),
     );
-    return [...out].map((gid) => entity('group', gid));
+    const own = normName(nameOf('group', g));
+    const likeness = new Map([...reach.keys()].map((gid) => [gid, nameScore(own, normName(nameOf('group', entity('group', gid))))]));
+    const others = [...reach.keys()].sort((a, b) => reach.get(b) - reach.get(a) || likeness.get(b) - likeness.get(a));
+    return [g.id, ...others].map((gid) => entity('group', gid));
   }
 
   function swapSourceGroups(g, { shared = true } = {}) {
@@ -526,6 +529,11 @@
     return !!x && x.ptype !== 'container' && !x.children.length;
   };
 
+  const isHalfOption = (pid) => {
+    const x = entity('product', pid);
+    return !!x && x.ptype !== 'container' && x.ptype !== 'size';
+  };
+
   function halfMatches(g) {
     const key = `match:${g.id}`;
     if (halfCache.has(key)) return halfCache.get(key);
@@ -534,10 +542,10 @@
     for (const x of siblingPosGroups(g)) {
       const own = x.id === g.id;
       const groupSide = own ? null : parseHalfName(nameOf('group', x), { minWord: 2 });
-      const names = x.children.filter(isPlainOption).map((pid) => normName(nameOf('product', entity('product', pid))));
+      const names = x.children.filter(isHalfOption).map((pid) => normName(nameOf('product', entity('product', pid))));
       const hostsWhole = own ? null : new Set(names.filter((n) => !parseHalfName(n)).map(stemKey));
       x.children.forEach((pid) => {
-        if (seen.has(pid) || !isPlainOption(pid)) return;
+        if (seen.has(pid) || !isHalfOption(pid)) return;
         const name = nameOf('product', entity('product', pid));
         const parsed = parseHalfName(name) || (groupSide ? { side: groupSide.side, base: normName(name) } : null);
         if (!parsed || (hostsWhole && hostsWhole.has(stemKey(parsed.base)))) return;
@@ -546,13 +554,13 @@
       });
     }
     const halfIds = new Set(candidates.map((c) => c.pid));
-    const wholes = g.children.filter((pid) => isPlainOption(pid) && !halfIds.has(pid)).map((pid) => ({ pid, norm: normName(nameOf('product', entity('product', pid))) }));
+    const wholes = g.children.filter((pid) => isHalfOption(pid) && !halfIds.has(pid)).map((pid) => ({ pid, norm: normName(nameOf('product', entity('product', pid))) }));
     const links = [];
     const unmatched = [];
     for (const c of candidates) {
       const scored = wholes.map((w) => ({ w, s: nameScore(c.base, w.norm) })).sort((a, b) => b.s - a.s);
       const best = scored[0];
-      if (!best || best.s < 0.6 || (scored[1] && scored[1].s === best.s)) {
+      if (!best || best.s < (c.gid === g.id ? 0.6 : 0.8) || (scored[1] && scored[1].s === best.s)) {
         if (c.gid === g.id) unmatched.push(c.pid);
         continue;
       }

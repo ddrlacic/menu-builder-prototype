@@ -291,7 +291,7 @@
     const items = [];
     for (const x of groups) {
       for (const id of x.children) {
-        if (id === pid || seen.has(id) || !isPlainOption(id)) continue;
+        if (id === pid || seen.has(id) || !isHalfOption(id)) continue;
         seen.add(id);
         const ent = entity('product', id);
         const name = nameOf('product', ent);
