@@ -307,6 +307,7 @@ window.MENU_CONSTANTS = {
     { id: 'sg-corporate', name: 'Corporate stores', pos: 'PAR POS', dataset: 'example' },
     { id: 'sg-airport', name: 'Airport concessions', pos: 'PAR POS', dataset: 'example' },
     { id: 'sg-cravewave', name: 'Cravewave Pizza', pos: 'PAR Brink', dataset: 'cravewave' },
+    { id: 'sg-cravewave-express', name: 'Cravewave Express', pos: 'PAR Brink', dataset: 'cravewave-halves' },
   ],
   groupTypes: {
     1: { label: 'Modifier', help: 'Extras and choices that change the product.' },

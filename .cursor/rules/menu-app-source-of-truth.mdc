@@ -24,7 +24,7 @@ This prototype re-creates Management Center (MC) menu building with better UX. I
 
 ## Prototype conventions
 
-- Plain JS, no build step: `index.html`, `styles.css`, `data.js` and `data-cravewave.js` (seed data), and classic scripts in `js/` that share one global scope and load in the order listed in `index.html`:
+- Plain JS, no build step: `index.html`, `styles.css`, `data.js`, `data-cravewave.js` and `data-cravewave-halves.js` (seed data), and classic scripts in `js/` that share one global scope and load in the order listed in `index.html`:
   - `core.js`: constants, formatting and validation utils, icons.
   - `state.js`: `S`, `T`, `ctx`, entity defaults and migrations, POS lookups and price caches, stores, seed, persistence, undo.
   - `model.js`: paths and entity lookups, group rules, half-and-half matching, prices, size sets.
