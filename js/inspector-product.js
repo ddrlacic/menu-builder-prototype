@@ -62,6 +62,9 @@
 
   const addButton = (action, label, attrs = '') => `<button type="button" class="btn ghost sm" data-action="${action}" ${attrs}>${icon('plus', 14)}${esc(label)}</button>`;
 
+  const substituteActions = (add, bind, count) =>
+    `<div class="hint-actions">${add}${count > 1 ? `<button type="button" class="btn ghost sm tone-danger" data-action="subs-clear" data-bind="${esc(bind)}">${icon('trash', 14)}Remove all</button>` : ''}</div>`;
+
   function choicesSection(p, path) {
     const pb = productBind(p);
     const pName = nameOf('product', p);
@@ -311,7 +314,7 @@
         return `<div class="opt-sub-row">
           <span class="opt-sub-name">${esc(optionName(o.g, o.pid))}</span>
           ${substituteList(pb(`substitutes.${o.key}`), ids, labelOf, locked)}
-          ${locked ? '' : addButton('add-substitute', 'Add', `data-key="${esc(o.key)}"`)}
+          ${locked ? '' : substituteActions(addButton('add-substitute', 'Add', `data-key="${esc(o.key)}"`), pb(`substitutes.${o.key}`), subsOf(o).length)}
           ${fromGroup ? followNote(o.g, own, { customize: 'sub-customize', reset: 'sub-reset', key: o.key }) : ''}
         </div>`;
       },

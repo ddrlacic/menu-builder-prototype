@@ -432,6 +432,12 @@
         });
         break;
       }
+      case 'subs-clear': {
+        const n = (getBind(el.dataset.bind) || []).length;
+        commit(() => setBind(el.dataset.bind, []));
+        toast(`${plural(n, 'substitute', 'substitutes')} removed`, 'success', { action: { label: 'Undo', onClick: undo } });
+        break;
+      }
       case 'arr-remove':
         commit(() => {
           const list = (getBind(el.dataset.bind) || []).slice();

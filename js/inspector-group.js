@@ -369,7 +369,7 @@
                 <span class="opt-sub-name">${opts.length > 1 ? `Every option in ${esc(name)}` : esc(optionName(g, opts[0]))}</span>
                 ${substituteList(gb('swapAll'), g.swapAll, labelOf, false)}
                 ${reachNote(g.swapAll, opts.length > 1 ? name : optionName(g, opts[0]))}
-                ${addButton('swap-add', 'Add', 'data-id="*"')}
+                ${substituteActions(addButton('swap-add', 'Add', 'data-id="*"'), gb('swapAll'), g.swapAll.filter(labelOf).length)}
               </div>`)
             : card(
                 opts
@@ -378,7 +378,7 @@
                 <span class="opt-sub-name">${esc(optionName(g, pid))}</span>
                 ${substituteList(gb(`swaps.${pid}`), keysOf(pid), labelOf, false)}
                 ${reachNote(keysOf(pid), optionName(g, pid), (p) => hasOwn(p.substitutes, `${g.id}:${pid}`))}
-                ${addButton('swap-add', 'Add', `data-id="${esc(pid)}"`)}
+                ${substituteActions(addButton('swap-add', 'Add', `data-id="${esc(pid)}"`), gb(`swaps.${pid}`), keysOf(pid).filter(labelOf).length)}
               </div>`,
                   )
                   .join(''),
