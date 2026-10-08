@@ -393,7 +393,12 @@
               n ? `Uses its own substitutes for ${plural(n, 'option', 'options')}` : '',
               off.length ? `${plural(off.length, 'option', 'options')} without substitutes. Add ${listJoin(missing)} to use them` : '',
             ].filter(Boolean);
-            return `<div class="store-row"><span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${esc(parts.join('. ') || 'Same as this group')}</span></span></div>`;
+            const paths = ctx.usage.get(`product:${p.id}`) || [];
+            const to = paths.find((u) => parsePath(u).menuId === S.ui.activeMenuId) || paths[0];
+            const label = `<span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${esc(parts.join('. ') || 'Same as this group')}</span></span>`;
+            return to
+              ? `<button type="button" class="store-row list-row row-link" data-action="goto" data-path="${esc(to)}" data-tab="ordering" data-section="Substitutes">${label}${icon('chevRight', 14)}</button>`
+              : `<div class="store-row list-row">${label}</div>`;
           })
           .join('')}</div>`
       : '';

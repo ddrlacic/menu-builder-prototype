@@ -2537,6 +2537,30 @@ input[type='number']::-webkit-inner-spin-button {
   min-width: 0;
 }
 
+.row-link {
+  width: 100%;
+  padding-right: 12px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.row-link > svg {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.row-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row-link:hover {
+    background: var(--hover);
+  }
+}
+
 .list-name {
   flex-direction: column;
   align-items: flex-start;

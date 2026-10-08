@@ -65,6 +65,11 @@
       T.posScrollTo = null;
       if (row) row.scrollIntoView({ block: 'start' });
     }
+    if (T.inspScrollTo) {
+      const title = [...document.querySelectorAll('.insp-section > .section-title')].find((h) => h.textContent === T.inspScrollTo);
+      T.inspScrollTo = null;
+      if (title) title.parentElement.scrollIntoView({ block: 'start' });
+    }
     if (T.flashPaths.has(S.ui.selected)) {
       const row = document.querySelector(`.row[data-path="${cssEsc(S.ui.selected)}"]`);
       if (row) row.scrollIntoView({ block: 'nearest' });

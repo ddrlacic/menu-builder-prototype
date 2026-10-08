@@ -27,6 +27,7 @@
     posSearchExpanded: {},
     posLoading: null,
     posScrollTo: null,
+    inspScrollTo: null,
     focusName: false,
     focusRow: null,
     storeQuery: '',

@@ -163,6 +163,8 @@
           S.ui.activeMenuId = menuId;
           S.ui.canvasQuery = '';
         }
+        if (el.dataset.tab) S.ui.tabs[parsePath(path).kind] = el.dataset.tab;
+        T.inspScrollTo = el.dataset.section || null;
         expandTo(path);
         select(path, { focusRow: false });
         break;
