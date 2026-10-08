@@ -417,7 +417,7 @@
     return { ids: groupSubstitutes(p, entity('group', gid), pid), own: false };
   }
 
-  const halvesSupported = (g) => !!g && g.gtype === 'pos' && !g.isSubstitutionContainer && rulesOf(g).type === 1;
+  const halvesSupported = (g) => !!g && (g.gtype === 'pos' || g.gtype === 'linked') && !g.isSubstitutionContainer && rulesOf(g).type === 1;
 
   function halvesAt(p, gid, pid) {
     const key = `${gid}:${pid}`;

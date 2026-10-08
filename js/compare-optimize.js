@@ -283,6 +283,8 @@
   function openHalfPicker(g, pid, side, { groups = siblingPosGroups(g), halves = g.halves, onPick } = {}) {
     const whole = normName(nameOf('product', entity('product', pid)));
     const current = (halves[pid] || {})[side];
+    const otherSide = side === 'left' ? 'right' : 'left';
+    const other = (halves[pid] || {})[otherSide];
     const roles = new Map();
     Object.entries(halves).forEach(([w, h]) => ['left', 'right'].forEach((s) => h[s] && roles.set(h[s], { w, s })));
     const seen = new Set();
@@ -296,14 +298,15 @@
         const parsed = parseHalfName(name);
         const score = parsed ? nameScore(parsed.base, whole) + (parsed.side === side ? 1 : 0) : 0;
         const r = roles.get(id);
+        const isOther = id === other;
         const meta = [
-          id === current ? 'Selected' : score >= 1.6 ? 'Suggested' : '',
-          r && r.w !== pid ? `${SIDE_LABEL[r.s]} of ${optionName(g, r.w)}` : '',
+          id === current ? 'Selected' : isOther ? `Already the ${SIDE_LABEL[otherSide].toLowerCase()}` : score >= 1.6 ? 'Suggested' : '',
+          !isOther && r && r.w !== pid ? `${SIDE_LABEL[r.s]} of ${optionName(g, r.w)}` : '',
           x.id === g.id ? '' : `In ${nameOf('group', x)}`,
         ]
           .filter(Boolean)
           .join(' · ');
-        items.push({ id, name, alt: posIdOf('product', ent) || '', meta, price: '', score: id === current ? 9 : score });
+        items.push({ id, name, alt: posIdOf('product', ent) || '', meta, price: '', disabled: isOther, score: isOther ? -1 : id === current ? 9 : score });
       }
     }
     items.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));

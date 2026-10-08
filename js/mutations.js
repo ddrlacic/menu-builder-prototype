@@ -502,6 +502,7 @@
     const segs = pids.map((pid) => `g:${g.id}>p:${pid}`);
     const hit = (k) => segs.some((s) => k.endsWith(`>${s}`) || k.includes(`>${s}>`));
     g.children = g.children.filter((pid) => !pids.includes(pid));
+    for (const map of [g.preselected, g.optionSettings, g.optionSection, g.swaps, g.halves]) pids.forEach((pid) => map && delete map[pid]);
     for (const k of Object.keys(S.data.placements)) if (hit(k)) delete S.data.placements[k];
     if (hit(S.ui.selected)) S.ui.selected = S.ui.selected.slice(0, S.ui.selected.indexOf(`>g:${g.id}>`) + `>g:${g.id}`.length);
   }

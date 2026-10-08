@@ -4358,6 +4358,10 @@ button.check:active {
   border-top: 1px solid var(--line);
 }
 
+.picker-row:disabled {
+  color: var(--ink-3);
+}
+
 .picker-main {
   flex: 1;
   min-width: 0;
@@ -4380,7 +4384,7 @@ button.check:active {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .picker-row:hover {
+  .picker-row:not(:disabled):hover {
     background: var(--hover);
   }
   .choice-row:not(.is-on):hover {

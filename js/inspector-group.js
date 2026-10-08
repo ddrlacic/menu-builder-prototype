@@ -411,13 +411,18 @@
 
   function groupHalvesSection(g) {
     const matched = halfMatches(g).halfIds;
-    const mapped = groupedHalves(g);
+    const mapped = siblingGroupedHalves(g);
     const isHalf = (pid) => (mapped.has(pid) || matched.has(pid)) && !g.halves[pid];
     const opts = g.children.filter((pid) => entity('product', pid) && entity('product', pid).ptype !== 'container' && !isHalf(pid));
     const halfCount = g.children.filter(isHalf).length;
     const parents = groupParents(g.id);
     const own = (p) => opts.filter((pid) => hasOwn(p.halfWhole, `${g.id}:${pid}`)).length;
     const nm = (pid) => nameOf('product', entity('product', pid));
+    const halfGroups = siblingPosGroups(g);
+    const hover = (pid) => {
+      const x = halfGroups.find((s) => s.children.includes(pid));
+      return x && x.id !== g.id ? `${nm(pid)}, in ${nameOf('group', x)}` : nm(pid);
+    };
     const missing = opts.filter((pid) => !(g.halves[pid] && g.halves[pid].left && g.halves[pid].right));
     const filter = T.halfFilter === 'missing' && missing.length ? 'missing' : 'all';
     const list = filter === 'missing' ? missing : opts;
@@ -425,7 +430,7 @@
       const v = (g.halves[pid] || {})[side];
       const label = `${SIDE_LABEL[side]} of ${optionName(g, pid)}`;
       return `<div class="half-cell">
-        <button type="button" class="input half-pick${v ? '' : ' is-empty'}" data-action="half-pick" data-id="${esc(pid)}" data-side="${side}" aria-label="${esc(label)}"${v ? ` title="${esc(nm(v))}"` : ''}>${icon(side === 'left' ? 'halfLeft' : 'halfRight', 13)}<span class="half-pick-label">${esc(v ? nm(v) : `Add ${SIDE_LABEL[side].toLowerCase()}`)}</span>${icon('chevDown', 14)}</button>
+        <button type="button" class="input half-pick${v ? '' : ' is-empty'}" data-action="half-pick" data-id="${esc(pid)}" data-side="${side}" aria-label="${esc(label)}"${v ? ` title="${esc(hover(v))}"` : ''}>${icon(side === 'left' ? 'halfLeft' : 'halfRight', 13)}<span class="half-pick-label">${esc(v ? nm(v) : `Add ${SIDE_LABEL[side].toLowerCase()}`)}</span>${icon('chevDown', 14)}</button>
         ${v ? `<button type="button" class="icon-btn sm" data-action="half-clear" data-id="${esc(pid)}" data-side="${side}" aria-label="Remove ${esc(label.toLowerCase())}" title="Remove">${icon('x', 14)}</button>` : ''}
       </div>`;
     };
@@ -466,7 +471,12 @@
       ? `<div class="store-list">${parents
           .map((p) => {
             const n = own(p);
-            return `<div class="store-row"><span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${n ? `Uses its own halves for ${plural(n, 'option', 'options')}` : 'Same as this group'}</span></span></div>`;
+            const paths = ctx.usage.get(`product:${p.id}`) || [];
+            const to = paths.find((u) => parsePath(u).menuId === S.ui.activeMenuId) || paths[0];
+            const label = `<span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${n ? `Uses its own halves for ${plural(n, 'option', 'options')}` : 'Same as this group'}</span></span>`;
+            return to
+              ? `<button type="button" class="store-row list-row row-link" data-action="goto" data-path="${esc(to)}" data-tab="ordering" data-section="Half and whole">${label}${icon('chevRight', 14)}</button>`
+              : `<div class="store-row list-row">${label}</div>`;
           })
           .join('')}</div>`
       : '';
@@ -475,7 +485,7 @@
       section('Half and whole', body, {
         desc: 'Let customers put a topping on the left half, the right half, or the whole product. For each half, pick the POS option that rings up. Options come from the POS groups of the products that use this group.',
       }) +
-      (applies ? section('Applies to', applies, { desc: 'Products follow these halves unless they set their own on their Ordering tab.' }) : '')
+      (applies ? section('Applies to', applies, { desc: 'Each product uses these halves unless you change them on its Ordering tab.' }) : '')
     );
   }
 

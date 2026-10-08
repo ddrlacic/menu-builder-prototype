@@ -330,6 +330,10 @@
     if (!opts.length) return section('Half and whole', '<p class="field-help">Add a modifier group, like toppings, to this product first.</p>');
     const halfCount = productOptions(p, { modifierOnly: true }).length - opts.length;
     const nm = (id) => nameOf('product', entity('product', id));
+    const hover = (id, gid) => {
+      const x = p.children.map((cid) => entity('group', cid)).find((s) => s && s.children.includes(id));
+      return x && x.id !== gid ? `${nm(id)}, in ${nameOf('group', x)}` : nm(id);
+    };
     const full = (o) => {
       const { h } = halvesAt(p, o.gid, o.pid);
       return !!(h.left && h.right);
@@ -343,7 +347,7 @@
       const inner = `${icon(side === 'left' ? 'halfLeft' : 'halfRight', 13)}<span class="half-pick-label">${esc(v ? nm(v) : locked ? 'Not added' : `Add ${SIDE_LABEL[side].toLowerCase()}`)}</span>`;
       if (locked) return `<div class="half-cell"><div class="input is-readonly half-pick${v ? '' : ' is-empty'}"><span class="sr-only">${esc(SIDE_LABEL[side])}: </span>${inner}</div></div>`;
       return `<div class="half-cell">
-        <button type="button" class="input half-pick${v ? '' : ' is-empty'}" data-action="p-half-pick" data-key="${esc(o.key)}" data-side="${side}" aria-label="${esc(label)}"${v ? ` title="${esc(nm(v))}"` : ''}>${inner}${icon('chevDown', 14)}</button>
+        <button type="button" class="input half-pick${v ? '' : ' is-empty'}" data-action="p-half-pick" data-key="${esc(o.key)}" data-side="${side}" aria-label="${esc(label)}"${v ? ` title="${esc(hover(v, o.gid))}"` : ''}>${inner}${icon('chevDown', 14)}</button>
         ${v ? `<button type="button" class="icon-btn sm" data-action="p-half-clear" data-key="${esc(o.key)}" data-side="${side}" aria-label="Remove ${esc(label.toLowerCase())}" title="Remove">${icon('x', 14)}</button>` : ''}
       </div>`;
     };
@@ -391,7 +395,7 @@
     return (
       (hints.length ? section('Suggestion', hints.join('')) : '') +
       section('Half and whole', body, {
-        desc: 'Let customers put a topping on the left half, the right half, or the whole product. Halves set on a POS group apply here unless you change them for this product. Only Web App supports this.',
+        desc: 'Let customers put a topping on the left half, the right half, or the whole product. Halves set on a group apply here unless you change them for this product. Only Web App supports this.',
       })
     );
   }
