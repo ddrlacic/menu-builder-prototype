@@ -388,8 +388,7 @@
         if (x && gid !== g.id) out.set(gid, x);
       }),
     );
-    const reach = (x) => parents.filter((p) => p.children.includes(x.id)).length;
-    return [...out.values()].filter((x) => !shared || parents.length < 2 || reach(x) > 1);
+    return [...out.values()].filter((x) => !shared || parents.every((p) => p.children.includes(x.id)));
   }
 
   const swapGroupsMissing = (p, keys) => [...new Set(keys.map((k) => k.split(':')[0]))].filter((gid) => !p.children.includes(gid));

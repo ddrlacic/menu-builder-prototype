@@ -376,30 +376,20 @@
 
   function openGroupSwapPicker(g, originId) {
     const chosen = new Set([originId, ...(g.swaps[originId] || []).map((k) => k.split(':')[1]), ...siblingGroupedHalves(g)]);
-    const parents = groupParents(g.id);
+    const many = groupParents(g.id).length > 1;
     openListPicker({
       title: `Add substitutes for ${optionName(g, originId)}`,
-      intro: `Options from the other groups of the products that use ${nameOf('group', g)}.${parents.length > 1 ? ' Groups on only one product are not listed. Set those substitutes on the product’s Ordering tab.' : ''} A product that does not have one of the chosen groups gets no substitutes for this option.`,
-      groups: swapSourceGroups(g)
-        .map((x) => {
-          const names = parents
-            .filter((p) => p.children.includes(x.id))
-            .map((p) => nameOf('product', p))
-            .sort((a, b) => a.localeCompare(b));
-          const sub =
-            parents.length < 2 ? '' : names.length === parents.length ? `In all ${parents.length} products` : names.length > 3 ? `In ${names[0]}, ${names[1]}, and ${names.length - 2} more` : `In ${listJoin(names)}`;
-          return {
-            id: x.id,
-            name: nameOf('group', x),
-            sub,
-            reach: names.length,
-            items: listedOptions(x)
-              .map((pid) => entity('product', pid))
-              .filter((y) => y.ptype !== 'container' && !chosen.has(y.id))
-              .map((y) => pickItem(y, { id: `${x.id}:${y.id}`, name: optionName(x, y.id) })),
-          };
-        })
-        .sort((a, b) => b.reach - a.reach || a.name.localeCompare(b.name)),
+      intro: many
+        ? `Options from the groups that every product with ${nameOf('group', g)} has. To use another group, set the substitute on the product’s Ordering tab.`
+        : `Options from the other groups of ${nameOf('product', groupParents(g.id)[0])}.`,
+      groups: swapSourceGroups(g).map((x) => ({
+        id: x.id,
+        name: nameOf('group', x),
+        items: listedOptions(x)
+          .map((pid) => entity('product', pid))
+          .filter((y) => y.ptype !== 'container' && !chosen.has(y.id))
+          .map((y) => pickItem(y, { id: `${x.id}:${y.id}`, name: optionName(x, y.id) })),
+      })),
       noun: ['substitute', 'substitutes'],
       placeholder: 'Search options',
       empty: 'Every option in the other groups is already a substitute',
