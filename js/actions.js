@@ -147,15 +147,18 @@
         openOptimize();
         break;
       case 'toggle': {
-        const info = parsePath(path);
-        S.ui.expanded[path] = !isExpanded(path, info.depth);
+        const open = !isExpanded(path, parsePath(path).depth);
+        if (e && e.altKey) walkSubtree(path, (k, id, ent, p) => (S.ui.expanded[p] = open));
+        else S.ui.expanded[path] = open;
         render();
         break;
       }
       case 'add':
-      case 'more':
         if (T.popover && T.popover.anchor === el) closePopover();
         else rowMenu(el, path, a);
+        break;
+      case 'remove-row':
+        confirmRemove(path);
         break;
       case 'goto': {
         const { menuId } = parsePath(path);
@@ -949,6 +952,10 @@
     }
     const row = e.target.closest('.row');
     if (row) {
+      if (e.altKey && row.hasAttribute('aria-expanded')) {
+        const twisty = row.querySelector('[data-action="toggle"]');
+        if (twisty) handleAction(twisty, e);
+      }
       select(row.dataset.path, { focusRow: true });
       return;
     }

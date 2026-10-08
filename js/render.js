@@ -449,20 +449,19 @@
 
     const flashCls = T.flashPaths.has(path) || (ent.externalId && T.flashExt.has(ent.externalId)) ? ' is-flash' : '';
     const addTitle = kind === 'category' ? 'Add product' : kind === 'product' ? (ent.ptype === 'size' ? 'Add choice' : 'Add group') : 'Add option';
+    const removeTitle = `Remove from ${nameOf(parentKind, entity(parentKind, parsePath(info.parentPath).id))}`;
     return `<div class="row${selected ? ' is-selected' : ''}${hiddenHere ? ' is-muted' : ''}${r.hit ? ' is-hit' : ''}${r.nestedHalf ? ' is-half' : ''}${flashCls}" role="treeitem" aria-level="${depth}" aria-selected="${selected}" ${hasChildren ? `aria-expanded="${r.expanded}"` : ''} tabindex="${selected ? 0 : -1}" draggable="${r.nestedHalf ? 'false' : 'true'}"${r.nestedHalf ? ` data-half-of="${esc(r.half.wholePath)}"` : ''} data-path="${esc(path)}" data-kind="${kind}" data-child-kind="${childKind(kind, ent)}" data-parent-kind="${parentKind}" data-name="${esc(name)}" style="--depth:${depth - 1}">
       <span class="row-indent" aria-hidden="true"></span>
       ${hasChildren ? `<button class="twisty" data-action="toggle" data-path="${esc(path)}" tabindex="-1" aria-label="${r.expanded ? 'Collapse' : 'Expand'}">${icon('chevRight', 14)}</button>` : '<span class="twisty-spacer"></span>'}
       ${thumb(kind, ent)}
       <span class="row-main"><span class="row-title">${esc(name)}</span>${meta ? `<span class="row-meta">${meta}</span>` : ''}</span>
       ${suggestion}${issueDot}
-      <span class="row-swap">
-        <span class="row-badges">${badges.join('')}</span>
-        <span class="row-actions">
-          <button class="icon-btn sm" data-action="add" data-path="${esc(path)}" aria-label="${addTitle}" title="${addTitle}">${icon('plus', 15)}</button>
-          <button class="icon-btn sm" data-action="more" data-path="${esc(path)}" aria-label="More options for ${esc(name)}" title="More options">${icon('more', 15)}</button>
-        </span>
-      </span>
+      ${badges.length ? `<span class="row-badges">${badges.join('')}</span>` : ''}
       ${posLink}
+      <span class="row-actions">
+        <button class="icon-btn sm" data-action="add" data-path="${esc(path)}" aria-label="${addTitle}" title="${addTitle}">${icon('plus', 15)}</button>
+        <button class="icon-btn sm" data-action="remove-row" data-path="${esc(path)}" aria-label="${esc(removeTitle)}" title="${esc(removeTitle)}" data-tip-kbd="⌫">${icon('trash', 15)}</button>
+      </span>
     </div>`;
   }
 

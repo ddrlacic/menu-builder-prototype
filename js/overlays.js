@@ -2,7 +2,7 @@
 
   /* ---------- overlays ---------- */
 
-  function openPopover(anchor, items, { align = 'end', className = '' } = {}) {
+  function openPopover(anchor, items, { align = 'end', className = '', at = null } = {}) {
     closePopover();
     const el = document.createElement('div');
     el.className = `popover ${className}`;
@@ -19,7 +19,7 @@
       })
       .join('');
     $('#popover-root').appendChild(el);
-    const r = anchor.getBoundingClientRect();
+    const r = at ? { left: at.x, right: at.x, top: at.y, bottom: at.y - 6 } : anchor.getBoundingClientRect();
     const pw = el.offsetWidth;
     const ph = el.offsetHeight;
     let left = align === 'end' ? r.right - pw : r.left;
@@ -103,6 +103,11 @@
     el.className = 'tip';
     el.setAttribute('role', 'tooltip');
     el.textContent = anchor.dataset.tip;
+    if (anchor.dataset.tipKbd) {
+      const k = document.createElement('kbd');
+      k.textContent = anchor.dataset.tipKbd;
+      el.append(k);
+    }
     $('#popover-root').appendChild(el);
     const r = anchor.getBoundingClientRect();
     const left = clamp(r.left + r.width / 2 - el.offsetWidth / 2, 8, window.innerWidth - el.offsetWidth - 8);
@@ -371,7 +376,7 @@
     );
   }
 
-  function rowMenu(anchor, path, which) {
+  function rowMenu(anchor, path, which, opts) {
     const info = parsePath(path);
     const ent = entity(info.kind, info.id);
     const pInfo = parsePath(info.parentPath);
@@ -448,6 +453,7 @@
       items.push({
         label: 'Expand all inside',
         icon: 'expand',
+        kbd: '⌥ Click',
         onClick: () => {
           walkSubtree(path, (k, id, e, p) => (S.ui.expanded[p] = true));
           render();
@@ -455,7 +461,7 @@
       });
     if (items.length) items.push('-');
     items.push({ label: `Remove from ${parentName}`, icon: 'trash', tone: 'danger', kbd: '⌫', onClick: () => confirmRemove(path) });
-    openPopover(anchor, items);
+    openPopover(anchor, items, opts);
   }
 
   function appMenu(anchor) {

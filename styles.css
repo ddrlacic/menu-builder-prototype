@@ -1293,43 +1293,22 @@ mark {
   box-shadow: 0 0 0 3px var(--danger-soft);
 }
 
-.row-swap {
-  display: grid;
-  justify-items: end;
-  align-items: center;
-  flex: none;
-}
-
-.row-swap > * {
-  grid-area: 1 / 1;
-  transition: opacity 120ms ease;
-}
-
 .row-actions {
   display: flex;
+  flex: none;
   gap: 2px;
   opacity: 0;
   pointer-events: none;
+  transition: opacity 120ms ease;
 }
 
-.row:has(.row-actions :focus-visible) .row-badges,
-.row:has(.row-actions [aria-expanded='true']) .row-badges {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.row:has(.row-actions :focus-visible) .row-actions,
+.row-actions:has(:focus-visible),
 .row:has(.row-actions [aria-expanded='true']) .row-actions {
   opacity: 1;
   pointer-events: auto;
 }
 
 @media (hover: hover) {
-  .row:hover .row-badges {
-    opacity: 0;
-    pointer-events: none;
-  }
-
   .row:hover .row-actions {
     opacity: 1;
     pointer-events: auto;
@@ -1337,12 +1316,6 @@ mark {
 }
 
 @media (hover: none) {
-  .row-swap {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
   .row-actions {
     opacity: 1;
     pointer-events: auto;
@@ -1579,10 +1552,6 @@ mark {
 body[data-drag-kind] .row-actions {
   opacity: 0 !important;
   pointer-events: none !important;
-}
-
-body[data-drag-kind] .row-badges {
-  opacity: 1 !important;
 }
 
 body[data-drag-kind='product'] .row:is([data-kind='category'], [data-kind='group']),
@@ -3849,6 +3818,14 @@ input[type='number']::-webkit-inner-spin-button {
 
 .tip[data-side='bottom'] {
   transform: translateY(-2px);
+}
+
+.tip kbd {
+  margin-left: 6px;
+  padding: 1px 4px;
+  background: oklch(1 0 0 / 0.14);
+  color: oklch(1 0 0 / 0.8);
+  box-shadow: none;
 }
 
 .tip[data-open='true'] {

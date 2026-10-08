@@ -15,6 +15,15 @@
     select(row.dataset.path);
   });
 
+  document.addEventListener('contextmenu', (e) => {
+    const row = e.target.closest('#canvas-tree .row');
+    if (!row) return;
+    e.preventDefault();
+    hideTip();
+    const fromKeyboard = !e.clientX && !e.clientY;
+    rowMenu(row.querySelector('[data-action="remove-row"]'), row.dataset.path, 'more', fromKeyboard ? undefined : { at: { x: e.clientX, y: e.clientY }, align: 'start' });
+  });
+
   document.addEventListener('beforeinput', (e) => {
     const t = e.target;
     const type = t.dataset && t.dataset.type;
