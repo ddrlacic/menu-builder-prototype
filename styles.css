@@ -3233,8 +3233,12 @@ input[type='number']::-webkit-inner-spin-button {
   padding-right: 6px;
 }
 
+.store-check:disabled .check {
+  opacity: 0.45;
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .store-check:hover {
+  .store-check:not(:disabled):hover {
     background: var(--hover);
   }
 }

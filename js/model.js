@@ -794,6 +794,7 @@
     const pi = parsePath(info.parentPath);
     if (pi.kind === 'menu') return false;
     const parent = entity(pi.kind, pi.id);
+    if (info.kind === 'group' && pi.kind === 'product' && inheritedFrom(parent, info.id).length) return false;
     let pos = null;
     if (pi.kind === 'product' && parent.ptype === 'container') {
       const anc = nearestPosProduct(info.parentPath);
