@@ -303,6 +303,7 @@
     optionSection: {},
     swaps: {},
     halves: {},
+    propagated: [],
   });
 
   function newGroup(o = {}) {
@@ -1053,7 +1054,51 @@
     }
   }
 
+  function propagationWanted() {
+    const E = S.data.entities;
+    const want = new Map();
+    for (const g of Object.values(E.group)) {
+      if (!g.propagated) continue;
+      g.propagated = g.propagated.filter((gid, i, a) => gid !== g.id && E.group[gid] && a.indexOf(gid) === i);
+      if (!isVirtual(g)) continue;
+      for (const pid of g.children) {
+        const p = E.product[pid];
+        if (!p || p.ptype === 'size') continue;
+        for (const gid of g.propagated) {
+          if (reaches('group', gid, 'product', pid)) continue;
+          if (!want.has(pid)) want.set(pid, new Set());
+          want.get(pid).add(gid);
+        }
+      }
+    }
+    return want;
+  }
+
+  function applyPropagation() {
+    const want = propagationWanted();
+    for (const p of Object.values(S.data.entities.product)) {
+      const w = want.get(p.id);
+      const inh = p.inherited || {};
+      for (const gid of Object.keys(inh)) {
+        if (w && w.has(gid) && p.children.includes(gid)) continue;
+        delete inh[gid];
+        p.children = p.children.filter((c) => c !== gid);
+        const seg = `>p:${p.id}>g:${gid}`;
+        for (const k of Object.keys(S.data.placements)) if (k.endsWith(seg) || k.includes(`${seg}>`)) delete S.data.placements[k];
+      }
+      if (w)
+        for (const gid of w)
+          if (!p.children.includes(gid)) {
+            p.children.push(gid);
+            inh[gid] = true;
+          }
+      if (Object.keys(inh).length) p.inherited = inh;
+      else delete p.inherited;
+    }
+  }
+
   function normalizeAll() {
+    applyPropagation();
     Object.values(S.data.entities.group).forEach(normalizeGroup);
     Object.values(S.data.entities.product).forEach(normalizeProduct);
   }

@@ -24,11 +24,6 @@
               help: 'Use it to tell apart groups with the same name. Only your team sees it.',
             }) +
             posField +
-            field('External ID', inputText(gb('reportingId'), g.reportingId, { id: 'g-ext', mono: true }), {
-              id: 'g-ext',
-              error: lengthError(g.reportingId),
-              help: 'Use it to match this group in reports outside this platform.',
-            }) +
             descriptionField(gb('description'), g.description, 'g-desc', 'Not shown in our ordering apps. Apps built with the Ordering API can show it.') +
             imageField(gb('image'), g.image, { help: 'Not shown in our ordering apps. Apps built with the Ordering API can show it.' }),
         ) +
@@ -66,23 +61,60 @@
           g.gtype === 'standalone'
             ? 'Drag any POS product here. Each one customers pick goes on the order as its own item, at its POS price.'
             : `Add options from ${esc(posLabel(gpos))}.`;
-        return rulesHtml + section('Options', `<div class="empty-small"><strong>No options yet</strong><span>${hint}</span></div>`) + missingHtml;
+        return rulesHtml + section('Options', `<div class="empty-small"><strong>No options yet</strong><span>${hint}</span></div>`) + groupPropagationSection(g) + missingHtml;
       }
-      return rulesHtml + groupOptionsSection(g, path, gb, rules) + missingHtml + groupSectionsSection(g, gb, path);
+      return rulesHtml + groupOptionsSection(g, path, gb, rules) + groupPropagationSection(g) + missingHtml + groupSectionsSection(g, gb, path);
     }
     if (tab === 'substitutes') return groupSwapsSection(g, gb);
     if (tab === 'halves') return groupHalvesSection(g);
-    const parents = groupParents(g.id);
     return (
-      groupAppearsInSection(g, path) +
-      metadataSection(g, 'group') +
       sourceSection('group', g, path) +
-      removeSection(path, 'group', g) +
       section(
-        '',
-        `<button type="button" class="btn secondary tone-danger" data-action="group-delete" data-path="${esc(path)}">${icon('trash', 15)}Delete group</button>
-        <p class="field-help">${parents.length > 1 ? `Removes it from all ${parents.length} products that use it.` : 'Removes it and its settings.'} Its options are not deleted.</p>`,
-      )
+        'Identifiers',
+        field('External ID', inputText(gb('reportingId'), g.reportingId, { id: 'g-ext', mono: true }), {
+          id: 'g-ext',
+          error: lengthError(g.reportingId),
+          help: 'Use it to match this group in reports outside this platform.',
+        }),
+      ) +
+      metadataSection(g, 'group') +
+      groupAppearsInSection(g, path) +
+      removeSection(path, 'group', g) +
+      groupDeleteSection(g, path)
+    );
+  }
+
+  function groupPropagationSection(g) {
+    if (!isVirtual(g)) return '';
+    const opts = g.children.map((pid) => entity('product', pid)).filter((p) => p && p.ptype !== 'size');
+    const notes = [];
+    const rows = g.propagated
+      .map((gid) => {
+        const x = entity('group', gid);
+        const name = nameOf('group', x);
+        const skipped = opts.filter((p) => !p.children.includes(gid)).map((p) => nameOf('product', p));
+        if (skipped.length) notes.push(`${listJoin(skipped)} ${skipped.length === 1 ? 'does' : 'do'} not get ${name}, because ${name} already contains ${skipped.length === 1 ? 'it' : 'them'}.`);
+        return `<div class="missing-row"><span class="missing-name">${esc(name)} <span class="muted">· ${esc(kindLabel('group', x))} · ${esc(plural(x.children.length, 'option', 'options'))}</span></span>
+          <button type="button" class="icon-btn sm" data-action="prop-remove" data-id="${esc(gid)}" aria-label="Remove ${esc(name)}" title="Remove">${icon('x', 14)}</button></div>`;
+      })
+      .join('');
+    return section(
+      'Groups on every option',
+      `${rows ? `<div class="missing-list">${rows}</div>` : ''}${notes.map((t) => `<p class="field-help">${esc(t)}</p>`).join('')}${addButton('prop-add', 'Add group')}`,
+      { desc: 'Each option gets these groups, like dips on every side. On an option, you can move them but not remove them.' },
+    );
+  }
+
+  function groupDeleteSection(g, path) {
+    const block = groupDeleteBlock(g);
+    const parents = groupParents(g.id);
+    const where = parents.length === 1 ? `Removes it from ${nameOf('product', parents[0])}.` : parents.length ? `Removes it from all ${parents.length} products that use it.` : 'Deletes it from this brand.';
+    const halves = Object.keys(g.halves).length || Object.values(S.data.entities.product).some((p) => Object.keys(p.halfWhole || {}).some((k) => k.startsWith(`${g.id}:`)));
+    const help = block || `${where} Its options are not deleted.${halves ? ' Its halves are deleted with it.' : ''}${g.source === 'pos' ? ' Nothing changes on POS.' : ''}`;
+    return section(
+      '',
+      `<button type="button" class="btn secondary tone-danger" data-action="group-delete" data-path="${esc(path)}" ${block ? 'disabled' : ''}>${icon('trash', 15)}Delete group</button>
+      <p class="field-help">${esc(help)}</p>`,
     );
   }
 
@@ -102,12 +134,32 @@
         : 'Required groups cannot be hidden. Set the minimum to 0 first.';
     else if (hidden) help = 'Every option is hidden here, so the group is hidden. Turn this on to show every option. Other places stay as they are.';
     else if (hiddenCount) help = `${hiddenCount} of ${g.children.length} options are hidden here. The group stays visible until every option is hidden.`;
-    return toggle(`pl|${path}|hidden`, !hidden, {
-      label: `Show in ${parentName}`,
-      scope: crumbText(path),
-      disabled: lockHide,
-      help,
-    });
+    const from = listJoin(inheritedAt(path).map((x) => nameOf('group', x)));
+    return (
+      (from ? callout('info', `${esc(from)} adds this group to every option. Remove it on the Options tab of ${esc(from)}.`) : '') +
+      toggle(`pl|${path}|hidden`, !hidden, {
+        label: `Show in ${parentName}`,
+        scope: crumbText(path),
+        disabled: lockHide,
+        help,
+      }) +
+      groupPosParentField(g, path)
+    );
+  }
+
+  function groupPosParentField(g, path) {
+    const choices = posParentChoices(path);
+    if (choices.length < 2) return '';
+    const first = nameOf('product', choices[0]);
+    const cur = posParentAt(path);
+    const help = cur
+      ? `POS gets the picks in ${nameOf('group', g)} as modifiers of ${nameOf('product', cur)}, not ${first}.`
+      : `POS gets the picks in ${nameOf('group', g)} as modifiers of ${first}. To send them with a product higher up, choose it here.`;
+    return field(
+      'Send to POS with',
+      selectInput(`pl|${path}|posParent`, cur ? cur.id : '', [['', first], ...choices.slice(1).map((p) => [p.id, nameOf('product', p)])], { id: 'g-pos-parent' }),
+      { id: 'g-pos-parent', scope: crumbText(path), help: esc(help) },
+    );
   }
 
   function groupRulesSection(g, gb, rules) {
@@ -514,10 +566,16 @@
     const total = groupParents(g.id).length;
     const row = (x) => {
       const sel = on(x);
-      const last = sel && total === 1;
-      return `<button type="button" class="store-row store-check" data-action="group-place-toggle" data-id="${esc(x.id)}" aria-pressed="${sel}" ${last ? 'disabled title="A group needs at least one product. To take it out everywhere, delete it below."' : ''}>
+      const from = inheritedFrom(x.ent, g.id).map((h) => nameOf('group', h));
+      const why = from.length
+        ? `${listJoin(from)} adds it to every option. Remove it on the Options tab of ${listJoin(from)}.`
+        : sel && total === 1
+          ? 'A group needs at least one product. To take it out everywhere, delete it below.'
+          : '';
+      const meta = [from.length ? `From ${listJoin(from)}` : '', x.where.length ? `In ${listJoin(x.where)}` : 'Not in any menu'].filter(Boolean).join(' · ');
+      return `<button type="button" class="store-row store-check" data-action="group-place-toggle" data-id="${esc(x.id)}" aria-pressed="${sel}" ${why ? `disabled title="${esc(why)}"` : ''}>
         <span class="check${sel ? ' is-on' : ''}" aria-hidden="true">${sel ? icon('check', 12) : ''}</span>
-        <span class="store-name list-name"><span>${esc(nameOf('product', x.ent))}</span><span class="muted">${x.where.length ? `In ${esc(listJoin(x.where))}` : 'Not in any menu'}</span></span></button>`;
+        <span class="store-name list-name"><span>${esc(nameOf('product', x.ent))}</span><span class="muted">${esc(meta)}</span></span></button>`;
     };
     const tools = long
       ? `<label class="search-field sm">${icon('search', 14)}<span class="sr-only">Search products</span><input id="place-q" type="search" data-place-search data-focus-key="place-q" placeholder="Search ${all.length} products" value="${esc(T.placeQuery)}" autocomplete="off"></label>

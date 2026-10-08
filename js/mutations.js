@@ -575,37 +575,91 @@
     });
   }
 
+  function openPropagatePicker(g) {
+    const name = nameOf('group', g);
+    const items = Object.values(S.data.entities.group)
+      .filter((x) => x.id !== g.id && !g.propagated.includes(x.id) && !reaches('group', x.id, 'group', g.id))
+      .sort((a, b) => nameOf('group', a).localeCompare(nameOf('group', b)))
+      .map((x) => ({
+        id: x.id,
+        name: nameOf('group', x),
+        alt: x.internalName,
+        meta: `${kindLabel('group', x)} · ${plural(x.children.length, 'option', 'options')} · in ${plural(groupParents(x.id).length, 'product', 'products')}`,
+        price: '',
+      }));
+    openPicker({
+      title: 'Add a group to every option',
+      intro: `Each option in ${name} gets this group, with the same options and rules. Options you add later get it too.`,
+      placeholder: 'Search by group name',
+      items,
+      empty: 'No other groups to add',
+      noMatch: ['No matching groups', 'Try a different name.'],
+      onPick: (gid) => {
+        closeModal(true);
+        commit(() => g.propagated.push(gid));
+        toast(`${nameOf('group', entity('group', gid))} added to every option`, 'success', { action: { label: 'Undo', onClick: undo } });
+      },
+    });
+  }
+
+  function removePropagated(g, gid) {
+    commit(() => (g.propagated = g.propagated.filter((x) => x !== gid)));
+    toast(`${nameOf('group', entity('group', gid))} removed from every option`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function groupDeleteBlock(g) {
+    if (groupMenus(g).some((m) => m.status === 'publishing')) return 'You can delete the group once publishing finishes.';
+    const halfIn = groupHalfUse(g);
+    if (halfIn.length) return `Its options are halves in ${listJoin(halfIn)}. Remove them from half and whole there first, then delete it.`;
+    return '';
+  }
+
   function confirmDeleteGroup(g, path) {
+    if (groupDeleteBlock(g)) return;
+    const name = nameOf('group', g);
     const parents = groupParents(g.id);
+    const menus = groupMenus(g);
+    const remove = () => {
+      closeModal();
+      commit(() => {
+        parents.forEach((p) => (p.children = p.children.filter((c) => c !== g.id)));
+        for (const p of Object.values(S.data.entities.product)) for (const k of Object.keys(p.halfWhole || {})) if (k.startsWith(`${g.id}:`)) delete p.halfWhole[k];
+        for (const k of Object.keys(S.data.placements)) if (k.split('>').includes(`g:${g.id}`)) delete S.data.placements[k];
+        delete S.data.entities.group[g.id];
+        S.ui.selected = parsePath(path).parentPath;
+        menus.forEach((m) => m.status === 'published' && (m.status = 'changed'));
+      });
+      toast('Group deleted');
+    };
+    if (!parents.length) {
+      openModal({
+        title: `Delete ${name}?`,
+        body: '<p>This will permanently delete the product group</p>',
+        actions: [
+          { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+          { label: 'Delete', kind: 'danger', onClick: remove },
+        ],
+      });
+      return;
+    }
+    const lines = [
+      'This product group will be removed from all stores, online ordering channels, external channels, and associated order types',
+      'This product group will be removed from all products',
+      'Products within this product group will not be deleted',
+    ];
     openModal({
-      title: `Delete ${nameOf('group', g)}?`,
-      body: `<ul class="modal-list">
-          ${parents.length ? `<li>It is removed from ${parents.length > 1 ? `${parents.length} products: ` : ''}${esc(listJoin(parents.map((p) => nameOf('product', p))))}, with its settings there.</li>` : ''}
-          <li>Its options are not deleted.</li>
-          <li>${g.source === 'pos' ? 'It stays on POS. You can add it back from POS items.' : 'It exists only in this menu builder, so nothing changes on POS.'}</li>
-        </ul>
-        ${parents.length ? '<button type="button" class="check-toggle" role="checkbox" aria-checked="false" data-action="delete-ack"><span class="check" aria-hidden="true"></span>Yes, I understand</button>' : ''}`,
+      title: `Delete ${name}?`,
+      size: 'lg',
+      body: `<h3 class="delete-warning-title">This action cannot be undone. Proceed with caution.</h3>
+        <ul class="delete-warning-list">${lines.map((t) => `<li>${icon('alertCircle', 18)}<span>${esc(t)}</span></li>`).join('')}</ul>
+        <button type="button" class="check-toggle delete-confirm-check" role="checkbox" aria-checked="false" data-action="delete-confirm-toggle">
+          <span class="check" aria-hidden="true"></span>Yes, I understand
+        </button>`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },
-        {
-          label: parents.length ? 'Delete forever' : 'Delete group',
-          kind: 'danger',
-          onClick: () => {
-            closeModal();
-            commit(() => {
-              parents.forEach((p) => (p.children = p.children.filter((c) => c !== g.id)));
-              for (const k of Object.keys(S.data.placements)) if (k.split('>').includes(`g:${g.id}`)) delete S.data.placements[k];
-              delete S.data.entities.group[g.id];
-              S.ui.selected = parsePath(path).parentPath;
-            });
-            toast('Group deleted', 'success', { action: { label: 'Undo', onClick: undo } });
-          },
-        },
+        { label: 'Delete forever', kind: 'danger', disabled: true, onClick: remove },
       ],
     });
-    if (!parents.length) return;
-    $('#modal-root .modal-foot .btn.danger').disabled = true;
-    $('#modal-root [data-action="delete-ack"]').focus({ preventScroll: true });
   }
 
   const ringsUpAs = (p) => (p.source === 'pos' ? Object.values(S.data.entities.product).filter((x) => x.ptype === 'linked' && x.posParentExt === p.externalId) : []);
@@ -744,6 +798,11 @@
   }
 
   function removeLink(path, { quiet = false } = {}) {
+    const from = inheritedAt(path).map((g) => nameOf('group', g));
+    if (from.length) {
+      toast(`${listJoin(from)} adds this group to every option. Remove it on the Options tab of ${listJoin(from)}.`, 'error');
+      return;
+    }
     const info = parsePath(path);
     const pInfo = parsePath(info.parentPath);
     const parent = entity(pInfo.kind, pInfo.id);
@@ -831,6 +890,7 @@
   function confirmRemove(path) {
     const info = parsePath(path);
     if (info.kind === 'menu') return;
+    if (inheritedAt(path).length) return removeLink(path);
     if (info.kind === 'category') return confirmRemoveCategory(entity('category', info.id), menuById(info.menuId));
     const pInfo = parsePath(info.parentPath);
     const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));

@@ -55,6 +55,9 @@
           if (oldIndex < index) index--;
         } else if (parent.children.includes(id)) {
           throw new Abort(`${nameOf(d.kind, entity(d.kind, id))} is already in ${parentName}`);
+        } else if (inheritedAt(d.path).length) {
+          const from = listJoin(inheritedAt(d.path).map((g) => nameOf('group', g)));
+          throw new Abort(`${from} adds this group to every option. Remove it on the Options tab of ${from}.`);
         }
         oldParent.children.splice(oldIndex, 1);
       }
@@ -382,6 +385,7 @@
           max_single_quantity: r.maxSingle,
           free_count: r.freeCount,
           is_substitution_container: e.isSubstitutionContainer,
+          propagated_product_groups: isVirtual(e) ? e.propagated : [],
           metadata: e.metadata,
           product_settings: e.children.map((pid, i) => {
             const s = e.optionSettings[pid] || {};

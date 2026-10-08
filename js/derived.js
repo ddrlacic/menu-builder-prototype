@@ -358,6 +358,12 @@
       }
       return;
     }
+    if (scope === 'pl' && field === 'posParent' && !value) {
+      const pl = S.data.placements[path];
+      if (pl) delete pl.posParent;
+      if (pl && !Object.keys(pl).length) delete S.data.placements[path];
+      return;
+    }
     const { obj, key } = bindTarget(bind, true);
     obj[key] = value;
     if (scope === 'pl' && field === 'hidden') choicePeerPaths(path).forEach((p) => (S.data.placements[p] = { ...placement(p), hidden: value }));

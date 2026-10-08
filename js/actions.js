@@ -530,6 +530,12 @@
         openGroupLinkPicker(entity('group', info.id), info.parentPath);
         break;
       }
+      case 'prop-add':
+        openPropagatePicker(entity('group', parsePath(S.ui.selected).id));
+        break;
+      case 'prop-remove':
+        removePropagated(entity('group', parsePath(S.ui.selected).id), el.dataset.id);
+        break;
       case 'group-delete':
         confirmDeleteGroup(entity('group', parsePath(el.dataset.path).id), el.dataset.path);
         break;
@@ -783,15 +789,6 @@
       case 'prod-delete':
         confirmDeleteProduct(entity('product', el.dataset.id));
         break;
-      case 'delete-ack': {
-        const on = el.getAttribute('aria-checked') !== 'true';
-        el.setAttribute('aria-checked', String(on));
-        const box = el.querySelector('.check');
-        box.classList.toggle('is-on', on);
-        box.innerHTML = on ? icon('check', 12) : '';
-        $('#modal-root .modal-foot .btn.danger').disabled = !on;
-        break;
-      }
       case 'copy-text': {
         const { value, label } = el.dataset;
         const done = () => toast(`${label} copied`);

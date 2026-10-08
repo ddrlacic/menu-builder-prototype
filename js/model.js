@@ -368,6 +368,60 @@
 
   const groupParents = (gid) => Object.values(S.data.entities.product).filter((p) => p.children.includes(gid));
 
+  const inheritedFrom = (p, gid) =>
+    p && p.inherited && p.inherited[gid] ? Object.values(S.data.entities.group).filter((g) => isVirtual(g) && g.children.includes(p.id) && (g.propagated || []).includes(gid)) : [];
+
+  function inheritedAt(path) {
+    const info = parsePath(path);
+    if (info.kind !== 'group' || !info.parentPath) return [];
+    const pi = parsePath(info.parentPath);
+    return pi.kind === 'product' ? inheritedFrom(entity('product', pi.id), info.id) : [];
+  }
+
+  function groupHalfUse(g) {
+    const halfGroupOf = (whole, pid) => siblingPosGroups(whole).find((x) => x.children.includes(pid));
+    const usesG = (whole, h) => whole && whole.id !== g.id && [h.left, h.right].some((id) => id && (halfGroupOf(whole, id) || {}).id === g.id);
+    return [
+      ...new Set([
+        ...Object.values(S.data.entities.group)
+          .filter((x) => Object.values(x.halves || {}).some((h) => usesG(x, h)))
+          .map((x) => nameOf('group', x)),
+        ...Object.values(S.data.entities.product)
+          .filter((p) => Object.entries(p.halfWhole || {}).some(([k, h]) => usesG(entity('group', k.split(':')[0]), h)))
+          .map((p) => nameOf('product', p)),
+      ]),
+    ];
+  }
+
+  const groupMenus = (g) => {
+    const ids = new Set((ctx.usage.get(`group:${g.id}`) || []).map((path) => parsePath(path).menuId));
+    return S.data.menus.filter((m) => ids.has(m.id));
+  };
+
+  function posParentChoices(path) {
+    const g = entity('group', parsePath(path).id);
+    if (!g || g.gtype === 'standalone') return [];
+    const out = [];
+    for (const a of ancestorsOf(path).reverse()) {
+      const info = parsePath(a);
+      if (info.kind === 'category' || info.kind === 'menu') break;
+      const ent = entity(info.kind, info.id);
+      if (info.kind === 'group') {
+        if (ent && ent.gtype === 'standalone') break;
+        continue;
+      }
+      if (ent && ent.ptype !== 'container' && ent.ptype !== 'size') out.push(ent);
+    }
+    return out;
+  }
+
+  function posParentAt(path) {
+    const id = placement(path).posParent;
+    if (!id) return null;
+    const choices = posParentChoices(path);
+    return choices.slice(1).find((p) => p.id === id) || null;
+  }
+
   function siblingPosGroups(g) {
     const out = new Set([g.id]);
     groupParents(g.id).forEach((p) =>

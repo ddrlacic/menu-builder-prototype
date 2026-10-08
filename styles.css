@@ -3563,14 +3563,6 @@ input[type='number']::-webkit-inner-spin-button {
   color: var(--ink-3);
 }
 
-.modal-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding-left: 18px;
-}
-
 .modal-body .check-toggle {
   align-self: flex-start;
   color: var(--ink);

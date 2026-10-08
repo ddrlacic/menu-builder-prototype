@@ -303,10 +303,16 @@
   const removeSection = (path, kind, ent) => {
     const pInfo = parsePath(parsePath(path).parentPath);
     const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));
+    const from = inheritedAt(path).map((g) => nameOf('group', g));
+    const help = from.length
+      ? `${listJoin(from)} adds it to every option. Remove it on the Options tab of ${listJoin(from)}.`
+      : isVirtual(ent)
+        ? 'Nothing changes on POS.'
+        : `The ${KIND_LABEL[kind].toLowerCase()} stays on POS. You can add it back from POS items.`;
     return section(
       '',
-      `<button type="button" class="btn secondary tone-danger" data-action="remove" data-path="${esc(path)}">${icon('trash', 15)}Remove from ${esc(parentName)}</button>
-       <p class="field-help">${isVirtual(ent) ? 'Nothing changes on POS.' : `The ${KIND_LABEL[kind].toLowerCase()} stays on POS. You can add it back from POS items.`}</p>`,
+      `<button type="button" class="btn secondary tone-danger" data-action="remove" data-path="${esc(path)}" ${from.length ? 'disabled' : ''}>${icon('trash', 15)}Remove from ${esc(parentName)}</button>
+       <p class="field-help">${esc(help)}</p>`,
     );
   };
 
