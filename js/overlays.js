@@ -141,9 +141,10 @@
     setTimeout(() => el.remove(), 120);
   }
 
-  function openModal({ title, body, actions = [], size = 'md', foot = '' }) {
+  function openModal({ title, body, actions = [], size = 'md', foot = '', top = false }) {
     closeModal(true);
     const root = $('#modal-root');
+    root.classList.toggle('is-top', top);
     root.innerHTML = `<div class="modal-backdrop" data-modal-close></div>
       <div class="modal modal-${size}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-head"><h2 id="modal-title">${esc(title)}</h2>

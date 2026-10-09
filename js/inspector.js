@@ -71,6 +71,15 @@
     return body ? section(`In ${nameOf(pInfo.kind, parent)}`, body) : '';
   }
 
+  function tabList(tabs, current, attrs) {
+    return `<div class="tabs" role="tablist">${tabs
+      .map(
+        ([id, label, count]) =>
+          `<button type="button" role="tab" class="tab" aria-selected="${id === current}" ${attrs(id)}>${label}${count != null ? `<span class="tab-count tnum">${count}</span>` : ''}</button>`,
+      )
+      .join('')}</div>`;
+  }
+
   function field(label, control, { help = '', scope = '', id = '', error = '', pos = false } = {}) {
     return `<div class="field${error ? ' has-error' : ''}">
       ${label || scope || pos ? `<div class="field-head">${label ? `<label class="field-label"${id ? ` for="${id}"` : ''}>${esc(label)}</label>` : ''}${scope ? scopePill(scope) : ''}${pos ? lockPill() : ''}</div>` : ''}
@@ -422,9 +431,7 @@
       return;
     }
 
-    $('#inspector-tabs').innerHTML = `<div class="tabs" role="tablist">${tabs
-      .map(([id, label]) => `<button type="button" role="tab" class="tab" aria-selected="${id === tab}" data-action="tab" data-kind="${kind}" data-tab="${id}">${label}</button>`)
-      .join('')}</div>`;
+    $('#inspector-tabs').innerHTML = tabList(tabs, tab, (id) => `data-action="tab" data-kind="${kind}" data-tab="${id}"`);
     const tabBar = $('#inspector-tabs .tabs');
     const tabFade = () => {
       tabBar.classList.toggle('fade-start', tabBar.scrollLeft > 1);

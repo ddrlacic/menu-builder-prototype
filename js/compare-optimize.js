@@ -3,7 +3,7 @@
   /* ---------- compare to POS ---------- */
 
   function openCompare() {
-    openModal({ title: 'Compare to POS', body: '<div id="cmp"></div>', size: 'lg', foot: '<div class="modal-foot" id="cmp-foot"></div>' });
+    openModal({ title: 'Compare to POS', body: '<div id="cmp"></div>', size: 'lg', top: true, foot: '<div class="modal-foot" id="cmp-foot"></div>' });
     const d = ctx.compare;
     T.cmp = { tab: d.missing.length || !(d.changed.length || d.gone.length) ? 'new' : d.changed.length ? 'changed' : 'gone', sel: new Set() };
     renderCompare();
@@ -31,9 +31,7 @@
       ['gone', 'No longer on POS', data.gone.length],
       ['ignored', 'Ignored items', data.ignored.length],
     ];
-    let body = `<div class="segmented cmp-tabs" role="tablist">${tabs
-      .map(([id, label, n]) => `<button type="button" role="tab" class="seg" aria-checked="${tab === id}" data-action="cmp-tab" data-tab="${id}">${label}<span class="seg-count tnum">${n}</span></button>`)
-      .join('')}</div>`;
+    let body = `<div class="cmp-tabs">${tabList(tabs, tab, (id) => `data-action="cmp-tab" data-tab="${id}"`)}</div>`;
     const empty = (title) => `<div class="empty-small">${icon('checkCircle', 20)}<strong>${title}</strong></div>`;
     if (tab !== 'ignored' && !data.count) {
       body += `<div class="empty-small">${icon('checkCircle', 20)}<strong>${esc(activeMenu().name)} matches POS</strong><span>Nothing new, changed, or removed since the last review.</span></div>`;

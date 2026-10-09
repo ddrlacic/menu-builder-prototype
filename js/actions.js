@@ -843,6 +843,7 @@
       case 'cmp-tab':
         T.cmp.tab = el.dataset.tab;
         renderCompare();
+        $('#modal-root .modal-scroll').scrollTop = 0;
         break;
       case 'cmp-toggle': {
         const k = el.dataset.key;
