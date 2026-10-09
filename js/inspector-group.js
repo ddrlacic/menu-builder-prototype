@@ -186,7 +186,8 @@
       );
     }
     const fromPos = g.gtype === 'pos';
-    const now = fromPos ? posRulesNow(g) : null;
+    const live = fromPos ? posRulesNow(g) : null;
+    const now = live && live.groupType === rules.type ? live : null;
     const posR = fromPos ? { ...posRulesOf(g), ...(now ? { min: now.min, max: now.max } : {}) } : null;
     const errs = ruleErrors(g);
     const bindOf = (k) => (fromPos ? gb(`ruleOverrides.${k}`) : gb(k));
@@ -208,7 +209,9 @@
       )
       .join('');
     const note = fromPos
-      ? rulesDifferFromPos(g)
+      ? live && !now
+        ? `<p class="field-help">On POS this is now a ${esc(C.groupTypes[live.groupType].label)} group. A group’s type can’t change in MC. To use the POS type, delete the group, then import it again from POS.</p>`
+        : rulesDifferFromPos(g)
         ? `<p class="field-help">Changed from the POS rules. <button type="button" class="link-btn" data-action="rules-reset">Reset to POS rules</button></p>`
         : '<p class="field-help">Same as the POS rules. A change applies to every product that uses this group.</p>'
       : g.gtype === 'linked'

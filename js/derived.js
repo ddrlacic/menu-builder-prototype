@@ -265,16 +265,20 @@
     const name = was.name !== it.name;
     if (name) diffs.push(`Name: ${was.name} → ${it.name}`);
     let rules = false;
+    let type = false;
     const now = kind === 'group' && ent.gtype === 'pos' && was.rules && posRulesNow(ent);
     if (now) {
       const lim = (v) => (v == null ? 'no limit' : v);
-      const before = diffs.length;
-      if (was.rules.groupType !== now.groupType) diffs.push(`Type: ${C.groupTypes[was.rules.groupType].label} → ${C.groupTypes[now.groupType].label}`);
-      if (was.rules.min !== now.min) diffs.push(`Minimum: ${was.rules.min} → ${now.min}`);
-      if (was.rules.max !== now.max) diffs.push(`Maximum: ${lim(was.rules.max)} → ${lim(now.max)}`);
-      rules = diffs.length > before;
+      type = was.rules.groupType !== now.groupType;
+      if (type) diffs.push(`Type: ${C.groupTypes[was.rules.groupType].label} → ${C.groupTypes[now.groupType].label}`);
+      else {
+        const before = diffs.length;
+        if (was.rules.min !== now.min) diffs.push(`Minimum: ${was.rules.min} → ${now.min}`);
+        if (was.rules.max !== now.max) diffs.push(`Maximum: ${lim(was.rules.max)} → ${lim(now.max)}`);
+        rules = diffs.length > before;
+      }
     }
-    return { diffs, name, rules };
+    return { diffs, name, rules, type };
   }
 
   function compareData(menu) {

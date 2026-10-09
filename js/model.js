@@ -291,9 +291,7 @@
   function rulesDifferFromPos(g) {
     if (g.gtype !== 'pos') return false;
     const now = posRulesNow(g);
-    if (!now) return ruleOverridden(g);
-    if (groupTypeOf(g) !== now.groupType) return true;
-    if (groupTypeOf(g) !== 1) return false;
+    if (!now || groupTypeOf(g) !== 1 || now.groupType !== 1) return ruleOverridden(g);
     const r = rulesOf(g);
     return r.min !== now.min || r.max !== now.max || ruleOverridden(g);
   }

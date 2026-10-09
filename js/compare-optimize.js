@@ -54,7 +54,7 @@
           <div class="cmp-list">${data.changed
             .map(
               (c) => `<div class="cmp-row"><span class="kind-glyph kind-${c.kind}">${icon(KIND_ICON[c.kind], 13)}</span>
-                <span class="cmp-main"><span class="cmp-name">${esc(nameOf(c.kind, c.ent))}</span><span class="cmp-meta tnum">${c.diffs.map(esc).join(' · ')}</span></span>
+                <span class="cmp-main"><span class="cmp-name">${esc(nameOf(c.kind, c.ent))}</span><span class="cmp-meta tnum">${c.diffs.map(esc).join(' · ')}</span>${c.type ? '<span class="cmp-meta">A group’s type can’t change in MC. To use the POS type, delete the group, then import it again from POS.</span>' : ''}</span>
                 ${c.name && c.ent.name !== posItem(c.ent).name ? `<button type="button" class="btn secondary sm" data-action="cmp-use-name" data-path="${esc(c.path)}">Use POS name</button>` : ''}
                 ${c.rules && rulesDifferFromPos(c.ent) ? `<button type="button" class="btn secondary sm" data-action="cmp-use-rules" data-path="${esc(c.path)}">Use POS rules</button>` : ''}
                 <button type="button" class="btn ghost sm" data-action="cmp-goto" data-path="${esc(c.path)}">Show</button></div>`,
@@ -135,11 +135,11 @@
 
   function usePosRules(g) {
     const now = posRulesNow(g);
-    if (!now) return commit(() => (g.ruleOverrides = {}));
+    if (!now || now.groupType !== groupTypeOf(g)) return commit(() => (g.ruleOverrides = {}));
     return commit(() => {
-      g.posRules = { ...(g.posRules || {}), groupType: now.groupType, min: now.min, max: now.max };
+      g.posRules = { ...(g.posRules || {}), min: now.min, max: now.max };
       g.ruleOverrides = {};
-      if (g.reviewed) g.reviewed = { ...g.reviewed, rules: { ...now } };
+      if (g.reviewed) g.reviewed = { ...g.reviewed, rules: { ...(g.reviewed.rules || now), min: now.min, max: now.max } };
     });
   }
 
