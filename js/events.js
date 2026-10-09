@@ -413,7 +413,10 @@
     product: 'Drop between products to change the order, or on a category or group to move it. Hold ⌥ to add it there too',
     group: 'Drop between groups to change the order, or on a product to move it. Hold ⌥ to add it there too',
   };
-  const baseHint = (d) => (d.origin === 'canvas' ? MOVE_HINT : DRAG_HINT)[d.kind];
+  const baseHint = (d) => {
+    const hint = (d.origin === 'canvas' ? MOVE_HINT : DRAG_HINT)[d.kind];
+    return d.multi ? hint.replace('. Hold ⌥ to add it there too', '').replace(/\bit\b/, 'them') : hint;
+  };
 
   function linkError(d, parentPath) {
     const pi = parsePath(parentPath);

@@ -148,6 +148,7 @@
       paths.forEach(flash);
       T.sel = paths;
       S.ui.selected = paths[paths.length - 1];
+      T.focusRow = S.ui.selected;
     });
     const [one, many] = BULK_NOUN[ds[0].kind];
     if (ok && moved) toast(`${plural(moved, one, many)} moved to ${nameOf(pi.kind, entity(pi.kind, pi.id))}`, 'success', { action: { label: 'Undo', onClick: undo } });

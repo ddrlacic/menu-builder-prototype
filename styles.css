@@ -971,6 +971,7 @@ mark {
 }
 
 .canvas-foot {
+  container-type: inline-size;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -1014,6 +1015,7 @@ mark {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
 }
 
 .foot-keys kbd + kbd {
@@ -1039,7 +1041,7 @@ mark {
   background: oklch(0.65 0.15 155);
 }
 
-@media (max-width: 1360px) {
+@container (max-width: 940px) {
   .foot-keys {
     display: none;
   }

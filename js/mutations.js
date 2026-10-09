@@ -1148,7 +1148,10 @@
     const list = paths.filter((p) => !pendingRoot(p) && groupHiddenAt(p) !== hide && (hide ? canHideHere(p) : canShowHere(p)));
     if (!list.length) return;
     const where = sharedParent(list);
-    const ok = commit(() => list.forEach((p) => setBind(`pl|${p}|hidden`, hide)));
+    const ok = commit(() => {
+      list.forEach((p) => setBind(`pl|${p}|hidden`, hide));
+      T.focusRow = S.ui.selected;
+    });
     if (ok) toast(`${noun(list.length)} ${hide ? 'hidden' : 'shown'}${where ? ` in ${where}` : ''}`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
@@ -1169,7 +1172,10 @@
     const n = list.length;
     const run = () => {
       closeModal();
-      const ok = commit(() => list.forEach(unlinkPath));
+      const ok = commit(() => {
+        list.forEach(unlinkPath);
+        T.focusRow = S.ui.selected;
+      });
       if (ok) toast(`${noun(n)} removed`, 'success', { action: { label: 'Undo', onClick: undo } });
     };
     const cancel = { label: 'Cancel', kind: 'secondary', onClick: closeModal };
@@ -1243,6 +1249,7 @@
       const done = commit(() => {
         ok.forEach((e) => (kind === 'product' ? deleteProductNow(e) : kind === 'group' ? deleteGroupNow(e) : deleteCategoryNow(e)));
         S.ui.selected = parentPathOf(first);
+        T.focusRow = S.ui.selected;
       });
       if (done) toast(`${noun(n)} deleted`);
     };
@@ -1302,7 +1309,8 @@
   }
 
   function applyBulkStores(kind, ents, mode, stock, ids, who) {
-    const ok = commit(() =>
+    const ok = commit(() => {
+      T.focusRow = S.ui.selected;
       ents.forEach((e) => {
         const mine = new Set(storesOf(kind, e).map((s) => s.id));
         if (!e.stores) e.stores = {};
@@ -1322,8 +1330,8 @@
           if (Object.keys(cur).length) e.stores[sid] = cur;
           else delete e.stores[sid];
         });
-      }),
-    );
+      });
+    });
     if (!ok) return;
     const where = storesWho(ids);
     const what = mode === 'hide' ? 'hidden' : mode === 'show' ? 'shown' : stock ? 'out of stock' : 'back in stock';
@@ -1357,7 +1365,13 @@
     const others = targets.filter((e) => !e.image);
     const set = (list) => {
       closeModal();
-      if (!commit(() => list.forEach((e) => (e.image = url)))) return;
+      if (
+        !commit(() => {
+          list.forEach((e) => (e.image = url));
+          T.focusRow = S.ui.selected;
+        })
+      )
+        return;
       const msg = n === 1 ? (had.length ? 'Image successfully replaced' : 'Image successfully added') : `Image successfully added to ${plural(list.length, one, many)}`;
       toast(msg, 'success', { action: { label: 'Undo', onClick: undo } });
     };
@@ -1366,11 +1380,15 @@
     openModal({
       title: 'Replace images?',
       body: `<p>${had.length === n ? `All ${n} ${many} already have an image.` : `${had.length} of ${n} ${many} already ${had.length === 1 ? 'has' : 'have'} an image.`} ${
-        others.length ? `Replace ${them}, or add this image only to the other ${others.length}.` : `This image replaces ${them}.`
+        others.length === 1
+          ? `Replace ${them}, or keep ${them} and add this image only to ${esc(nameOf(parsePath(paths[0]).kind, others[0]))}.`
+          : others.length
+            ? `Replace ${them}, or keep ${them} and add this image only to the other ${others.length}.`
+            : `This image replaces ${them}.`
       }</p>`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },
-        ...(others.length ? [{ label: `Add to other ${others.length}`, kind: 'secondary', onClick: () => set(others) }] : []),
+        ...(others.length ? [{ label: had.length === 1 ? 'Keep existing image' : 'Keep existing images', kind: 'secondary', onClick: () => set(others) }] : []),
         { label: 'Replace images', kind: 'primary', onClick: () => set(targets) },
       ],
     });
