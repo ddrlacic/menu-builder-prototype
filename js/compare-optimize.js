@@ -4,7 +4,8 @@
 
   function openCompare() {
     openModal({ title: 'Compare to POS', body: '<div id="cmp"></div>', size: 'lg', foot: '<div class="modal-foot" id="cmp-foot"></div>' });
-    T.cmp = { tab: 'pos', sel: new Set() };
+    const d = ctx.compare;
+    T.cmp = { tab: d.missing.length || !(d.changed.length || d.gone.length) ? 'new' : d.changed.length ? 'changed' : 'gone', sel: new Set() };
     renderCompare();
   }
 
@@ -22,20 +23,25 @@
         <span class="cmp-main"><span class="cmp-name">${esc(it.name)}</span><span class="cmp-meta"><span${m.parents.length > 1 ? ` title="${esc(listJoin(m.parents))}"` : ''}>In ${esc(where)}</span> · <span class="mono">${esc(m.posId)}</span></span></span>
       </div>`;
     };
-    let body = `<div class="segmented cmp-tabs" role="tablist">
-      <button type="button" role="tab" class="seg" aria-checked="${tab === 'pos'}" data-action="cmp-tab" data-tab="pos">Changes on POS</button>
-      <button type="button" role="tab" class="seg" aria-checked="${tab === 'ignored'}" data-action="cmp-tab" data-tab="ignored">Ignored items<span class="seg-count tnum">${data.ignored.length}</span></button>
-    </div>`;
-    if (tab === 'pos') {
-      if (!data.count) {
-        body += `<div class="empty-small">${icon('checkCircle', 20)}<strong>${esc(activeMenu().name)} matches POS</strong><span>Nothing new, changed, or removed since the last review.</span></div>`;
-      }
-      if (data.missing.length) {
+    const tabs = [
+      ['new', 'New on POS', data.missing.length],
+      ['changed', 'Changed on POS', data.changed.length],
+      ['gone', 'No longer on POS', data.gone.length],
+      ['ignored', 'Ignored items', data.ignored.length],
+    ];
+    let body = `<div class="segmented cmp-tabs" role="tablist">${tabs
+      .map(([id, label, n]) => `<button type="button" role="tab" class="seg" aria-checked="${tab === id}" data-action="cmp-tab" data-tab="${id}">${label}<span class="seg-count tnum">${n}</span></button>`)
+      .join('')}</div>`;
+    const empty = (title) => `<div class="empty-small">${icon('checkCircle', 20)}<strong>${title}</strong></div>`;
+    if (tab !== 'ignored' && !data.count) {
+      body += `<div class="empty-small">${icon('checkCircle', 20)}<strong>${esc(activeMenu().name)} matches POS</strong><span>Nothing new, changed, or removed since the last review.</span></div>`;
+    } else if (tab === 'new') {
+      if (!data.missing.length) body += empty('Nothing new on POS');
+      else {
         const allOn = data.missing.every((m) => sel.has(m.key));
         body += `<section class="cmp-section">
-          <header class="cmp-head"><h3 class="section-title">New on POS<span class="tnum"> · ${data.missing.length}</span></h3>
+          <header class="cmp-head"><p class="section-desc">On POS under items in this menu, but not added yet.</p>
             <button type="button" class="btn ghost sm" data-action="cmp-all">${allOn ? 'Clear selection' : 'Select all'}</button></header>
-          <p class="section-desc">On POS under items in this menu, but not added yet.</p>
           <div class="cmp-list">${data.missing
             .map((m) =>
               posRow(
@@ -46,11 +52,12 @@
             .join('')}</div>
         </section>`;
       }
-      if (data.changed.length) {
+    } else if (tab === 'changed') {
+      if (!data.changed.length) body += empty('Nothing changed on POS');
+      else {
         body += `<section class="cmp-section">
-          <header class="cmp-head"><h3 class="section-title">Changed on POS<span class="tnum"> · ${data.changed.length}</span></h3>
+          <header class="cmp-head"><p class="section-desc">Already in the menu. Nothing changes here until you use the POS name or rules.</p>
             <button type="button" class="btn ghost sm" data-action="cmp-review">Mark as reviewed</button></header>
-          <p class="section-desc">Already in the menu. Nothing changes here until you use the POS name or rules.</p>
           <div class="cmp-list">${data.changed
             .map(
               (c) => `<div class="cmp-row"><span class="kind-glyph kind-${c.kind}">${icon(KIND_ICON[c.kind], 13)}</span>
@@ -62,9 +69,10 @@
             .join('')}</div>
         </section>`;
       }
-      if (data.gone.length) {
+    } else if (tab === 'gone') {
+      if (!data.gone.length) body += empty('Nothing deleted or moved on POS');
+      else {
         body += `<section class="cmp-section">
-          <header class="cmp-head"><h3 class="section-title">No longer on POS<span class="tnum"> · ${data.gone.length}</span></h3></header>
           <p class="section-desc">Products and options deleted on POS are hidden from customers. Remove them from the menu, or add them back on POS.</p>
           <div class="cmp-list">${data.gone
             .map((g) => {
@@ -79,14 +87,14 @@
       }
     } else {
       body += data.ignored.length
-        ? `<section class="cmp-section"><p class="section-desc">Hidden from the changes list. They stay on POS.</p><div class="cmp-list">${data.ignored
+        ? `<section class="cmp-section"><p class="section-desc">Hidden from New on POS. They stay on POS.</p><div class="cmp-list">${data.ignored
             .map((m) => posRow(m, '').replace('</div>', '') + `<button type="button" class="btn ghost sm" data-action="cmp-unignore" data-key="${esc(m.key)}">Stop ignoring</button></div>`)
             .join('')}</div></section>`
         : `<div class="empty-small"><strong>No ignored items</strong><span>Items you ignore show up here.</span></div>`;
     }
     $('#cmp').innerHTML = body;
     $('#cmp-foot').innerHTML =
-      tab === 'pos' && data.missing.length
+      tab === 'new' && data.missing.length
         ? `<span class="foot-note tnum">${sel.size} selected</span>
            <button type="button" class="btn secondary" data-action="cmp-ignore" ${sel.size ? '' : 'disabled'}>Ignore selected</button>
            <button type="button" class="btn primary" data-action="cmp-add" ${sel.size ? '' : 'disabled'}>Add selected</button>`

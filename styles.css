@@ -4255,7 +4255,13 @@ button.check:active {
 }
 
 .cmp-tabs {
-  align-self: flex-start;
+  align-self: stretch;
+}
+
+.cmp-tabs .seg {
+  flex: 1;
+  padding: 0 8px;
+  white-space: nowrap;
 }
 
 .cmp-section {
