@@ -184,7 +184,7 @@ mark {
 }
 
 .workspace.is-pos-collapsed {
-  --pos-w: 44px;
+  --pos-w: 0px;
 }
 
 .panel {
@@ -199,48 +199,14 @@ mark {
   overflow: hidden;
 }
 
-.pos > :not(.pos-rail) {
+.pos > * {
   min-width: 259px;
 }
 
-.pos-rail {
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
-  padding: 10px 0;
-}
-
-.is-pos-collapsed .pos-rail {
-  display: flex;
-}
-
-.is-pos-collapsed .pos > :not(.pos-rail) {
-  display: none;
-}
-
-.pos-rail-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  width: 100%;
-  margin-top: 4px;
-  padding: 10px 0;
-  writing-mode: vertical-rl;
-  color: var(--ink-3);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 120ms var(--ease-out), color 120ms var(--ease-out);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .pos-rail-label:hover {
-    background: var(--hover);
-    color: var(--ink);
-  }
+.is-pos-collapsed .pos {
+  visibility: hidden;
+  border-right-color: transparent;
+  transition: visibility 0s linear 200ms, border-color 0s linear 200ms;
 }
 
 .inspector {
@@ -623,7 +589,7 @@ mark {
 /* ---------- POS panel ---------- */
 
 .pos-head {
-  padding: 16px 16px 10px;
+  padding: 20px 16px 10px;
 }
 
 .panel-title-row {
@@ -631,12 +597,10 @@ mark {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  height: calc(var(--text-xl) * 1.15);
 }
 
-.panel-title-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
+.panel-title-row .icon-btn {
   margin-right: -6px;
 }
 
@@ -654,12 +618,35 @@ mark {
 }
 
 .pos-store {
-  margin-top: 10px;
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.pos-store .select-wrap {
+  flex: 1;
+  min-width: 0;
 }
 
 .pos-store .input {
   height: 32px;
   font-size: var(--text-sm);
+}
+
+.pos-sync {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--ink-2);
+}
+
+.pos-show {
+  margin-left: -6px;
+}
+
+.pos-show + .menu-card {
+  margin-left: -4px;
 }
 
 .pos-menus {

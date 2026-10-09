@@ -9,10 +9,10 @@
 
   function togglePosPanel(open = !!S.ui.posCollapsed) {
     hideTip();
-    const hadFocus = !!document.activeElement.closest('.pos');
+    const a = document.activeElement;
+    const hadFocus = !!(a.closest('.pos') || a.matches('[data-action="pos-panel"]'));
     S.ui.posCollapsed = !open;
-    renderPos();
-    schedulePersist();
+    render();
     if (hadFocus) $(open ? '[data-focus-key="pos-hide"]' : '[data-focus-key="pos-show"]').focus();
   }
 

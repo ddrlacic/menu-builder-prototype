@@ -100,7 +100,7 @@
       </nav>`;
     renderPos();
     $('#canvas').classList.add('is-no-menu');
-    $('#canvas-head').innerHTML = '';
+    $('#canvas-head').innerHTML = posShowButton();
     $('#canvas-tree').innerHTML = `
       <div class="blank">
         <div class="blank-art">${icon('layers', 22)}</div>
@@ -163,6 +163,12 @@
     return `<button class="btn secondary" data-action="import" ${n ? `title="${plural(n, 'item', 'items')} not imported yet"` : 'disabled'}>${icon('download', 15)}Import${n ? `<span class="btn-count tnum">${n}</span>` : ''}</button>`;
   }
 
+  function posShowButton() {
+    return S.ui.posCollapsed
+      ? `<button class="icon-btn pos-show" data-action="pos-panel" data-focus-key="pos-show" title="Show POS items" data-tip-kbd="⌘B">${icon('panelOpen', 18)}</button>`
+      : '';
+  }
+
   function posSubText() {
     return `Synced ${relTime(S.data.pos.syncedAt)}`;
   }
@@ -171,18 +177,12 @@
     const pos = S.data.pos;
     const pm = posMenu();
     const loading = T.posLoading;
+    const syncLabel = loading === 'sync' ? 'Syncing' : 'Sync POS';
     $('.workspace').classList.toggle('is-pos-collapsed', !!S.ui.posCollapsed);
-    $('#pos-rail').innerHTML = `
-      <button class="icon-btn" data-action="pos-panel" data-focus-key="pos-show" title="Show POS items" data-tip-kbd="⌘B">${icon('panelOpen', 16)}</button>
-      <button class="icon-btn" data-action="pos-search-open" title="Search POS items" data-tip-kbd="/">${icon('search', 16)}</button>
-      <div class="pos-rail-label" data-action="pos-panel" aria-hidden="true">${loading ? '<span class="spinner"></span>' : ''}POS items</div>`;
     $('#pos-head').innerHTML = `
       <div class="panel-title-row">
         <h2 class="panel-title">POS items</h2>
-        <div class="panel-title-actions">
-          <button class="btn ghost sm" data-action="sync-pos" ${loading || T.importing ? 'disabled' : ''}>${loading === 'sync' ? '<span class="spinner"></span>Syncing' : `${icon('refresh', 14)}Sync POS`}</button>
-          <button class="icon-btn sm" data-action="pos-panel" data-focus-key="pos-hide" title="Hide POS items" data-tip-kbd="⌘B">${icon('panelClose', 16)}</button>
-        </div>
+        <button class="icon-btn sm" data-action="pos-panel" data-focus-key="pos-hide" title="Hide POS items" data-tip-kbd="⌘B">${icon('panelClose', 16)}</button>
       </div>
       <p class="panel-sub">${esc(posSubText())}</p>
       <div class="pos-store">
@@ -192,6 +192,7 @@
             .map((g) => `<option value="${g.id}"${g.id === storeGroup().id ? ' selected' : ''}>${esc(g.name)} · ${esc(g.pos)}</option>`)
             .join('')}</select>${icon('chevDown', 14)}
         </div>
+        <button class="btn secondary pos-sync" data-action="sync-pos" data-focus-key="sync-pos" aria-label="${syncLabel}" title="${syncLabel}" ${loading || T.importing ? 'disabled' : ''}>${loading === 'sync' ? '<span class="spinner"></span>' : icon('refresh', 15)}</button>
       </div>
       <div class="pos-menus" role="tablist" aria-label="POS menus">${pos.menus
         .map((m) => `<button type="button" role="tab" class="pos-menu-tab" aria-selected="${m.id === pm.id}" data-action="pos-menu" data-id="${m.id}">${esc(m.name)}</button>`)
@@ -492,6 +493,7 @@
     const selected = S.ui.selected === menu.id;
     const changes = ctx.compare.count;
     $('#canvas-head').innerHTML = `
+      ${posShowButton()}
       <button class="menu-card${selected ? ' is-selected' : ''}" data-action="select-menu">
         <span class="menu-card-title">${esc(menu.name || 'Untitled menu')}</span>
         <span class="menu-card-meta tnum">${plural(c.category, 'category', 'categories')} · ${plural(c.product, 'product', 'products')} · ${plural(c.group, 'group', 'groups')}<span class="sep">·</span>${icon('clock', 12)}${esc(menuScheduleSummary(menu))}</span>
