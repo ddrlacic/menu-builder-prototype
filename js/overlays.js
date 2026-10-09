@@ -209,7 +209,7 @@
       ? list
           .map(
             (it) => `<button type="button" class="picker-row" role="option" data-action="pick" data-id="${esc(it.id)}"${it.disabled ? ' disabled aria-disabled="true"' : ''}>
-              <span class="thumb thumb-initials thumb-sm">${esc(initials(it.name))}</span>
+              <span class="thumb thumb-product thumb-sm">${icon('utensils', 13)}</span>
               <span class="picker-main"><span class="picker-name">${esc(it.name)}</span><span class="picker-meta">${esc(it.meta)}</span></span>
               <span class="picker-price tnum">${esc(it.price)}</span></button>`,
           )

@@ -1009,5 +1009,6 @@
       return;
     }
     const posRow = e.target.closest('.pos-row[data-key]');
-    if (posRow) togglePosRow(posRow);
+    if (posRow) return togglePosRow(posRow);
+    if (e.target.closest('#canvas') && !e.target.closest('button, a, input, label, select, textarea, [role="menu"], .menu-card') && !T.modal && !T.dismissing) clearSelection();
   });

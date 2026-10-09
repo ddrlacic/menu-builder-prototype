@@ -469,7 +469,14 @@
     $('#inspector-body').innerHTML = html;
   }
 
+  function renderEmptyInspector() {
+    $('#inspector-head').innerHTML = '';
+    $('#inspector-tabs').innerHTML = '';
+    $('#inspector-body').innerHTML = `<div class="empty-small insp-empty">${icon('cursorClick', 20)}<strong>Nothing selected</strong><span>Select a category, product, or group to edit it. Shift-click or ⌘-click to select several.</span></div>`;
+  }
+
   function renderInspector() {
+    if (T.cleared) return renderEmptyInspector();
     if (T.sel.length > 1) return renderBulkInspector();
     const path = S.ui.selected;
     const info = parsePath(path);

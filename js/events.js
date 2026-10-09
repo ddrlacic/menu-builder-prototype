@@ -143,6 +143,7 @@
   });
 
   document.addEventListener('pointerdown', (e) => {
+    T.dismissing = !!T.popover;
     if (T.popover && !T.popover.el.contains(e.target) && !T.popover.anchor.contains(e.target)) closePopover();
   });
 

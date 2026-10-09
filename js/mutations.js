@@ -6,7 +6,19 @@
     S.ui.selected = path;
     T.sel = [];
     T.selAnchor = path;
+    T.cleared = null;
     if (focusRow) T.focusRow = path;
+    render();
+  }
+
+  function clearSelection() {
+    const menu = activeMenu();
+    if (!menu || T.cleared) return;
+    S.ui.selected = menu.id;
+    T.sel = [];
+    T.selAnchor = null;
+    T.cleared = menu.id;
+    if (document.activeElement && document.activeElement.closest('#canvas-tree')) document.activeElement.blur();
     render();
   }
 

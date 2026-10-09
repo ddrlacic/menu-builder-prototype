@@ -855,6 +855,14 @@ mark {
   margin-top: 10px;
 }
 
+.insp-empty {
+  padding: 96px 24px;
+}
+
+.insp-empty .icon {
+  margin-bottom: 6px;
+}
+
 /* ---------- canvas ---------- */
 
 .canvas {
@@ -1134,7 +1142,7 @@ mark {
   object-fit: cover;
 }
 
-.thumb-initials {
+.thumb-product {
   background: var(--prd-soft);
   color: var(--prd);
 }

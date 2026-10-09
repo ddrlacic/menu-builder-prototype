@@ -48,6 +48,7 @@
     if (!S.ui.selected || !pathExists(S.ui.selected) || parsePath(S.ui.selected).menuId !== menu.id) S.ui.selected = menu.id;
     T.sel = T.sel.filter((p) => parsePath(p).menuId === menu.id && pathExists(p));
     if (T.sel.length < 2 || !T.sel.includes(S.ui.selected)) T.sel = [];
+    if (T.cleared && (T.cleared !== S.ui.selected || T.sel.length)) T.cleared = null;
     ctx = derivedCtx();
     renderTopbar();
     renderPos();
@@ -295,9 +296,8 @@
         return true;
       });
     } else {
-      const keep = new Set([S.ui.selected, ...T.sel].flatMap((p) => [p, ...ancestorsOf(p)]));
       walkMenu(menu, (kind, id, ent, path, depth) => {
-        if (S.ui.hideHidden && !keep.has(path) && groupHiddenAt(path)) {
+        if (S.ui.hideHidden && groupHiddenAt(path)) {
           T.hiddenRows++;
           return false;
         }
@@ -343,8 +343,7 @@
     if (kind === 'menu') return `<span class="thumb kind-menu ${cls}">${icon('layers', 15)}</span>`;
     if (ent.ptype === 'container') return `<span class="thumb kind-virtual is-virtual ${cls}">${icon('dashed', 15)}</span>`;
     if (ent.ptype === 'size') return `<span class="thumb kind-container is-virtual ${cls}">${icon('package', 15)}</span>`;
-    const name = nameOf('product', ent);
-    return `<span class="thumb thumb-initials${ent.ptype === 'linked' ? ' is-linked' : ''} ${cls}">${esc(initials(name))}</span>`;
+    return `<span class="thumb thumb-product${ent.ptype === 'linked' ? ' is-linked' : ''} ${cls}">${icon('utensils', 15)}</span>`;
   }
 
   function typeHelp(kind, ent) {
@@ -504,7 +503,7 @@
   function renderCanvas() {
     const menu = activeMenu();
     const c = ctx.counts;
-    const selected = S.ui.selected === menu.id;
+    const selected = S.ui.selected === menu.id && !T.cleared;
     const changes = ctx.compare.count;
     const rows = visibleRows(menu);
     const hiddenTip = !S.ui.hideHidden ? 'Hide hidden items' : T.hiddenRows ? `Show ${plural(T.hiddenRows, 'hidden item', 'hidden items')}` : 'Show hidden items';
