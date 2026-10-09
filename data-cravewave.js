@@ -486,6 +486,14 @@ window.POS_DATASETS.cravewave = {
       {"pos":"673963020","products":[{"pos":"673963019"},{"pos":"673963034","hidden":true},{"pos":"673963052","hidden":true},{"pos":"673963067"},{"pos":"673963079"},{"pos":"673963098"},{"container":"Cinnamon Pull-Apart","sizes":["673963034","673963052"]}]},
     ],
   },
+  built: {
+    suggested: [
+      {"product":"673961441","name":"Add a dessert","description":"Finish with something sweet.","options":["673963019","673963079"]},
+    ],
+    customProducts: [
+      {"category":"673961443","posParent":"673961441","name":"Margherita Lunch Deal","description":"Our 10\" Classic Margherita at a lunch price. Weekdays until 3 PM."},
+    ],
+  },
   products: {
     "673961441": {"groups":["673961445","673961463","673961465","673961467","673961469","673961471"],"description":"A timeless Italian favorite featuring a rich tomato sauce base, topped with melted fresh mozzarella and finished with fragrant, whole basil leaves on a perfectly baked crust.","allergens":["milk","wheat"],"caloriesFrom":1122,"servingFrom":1,"servingTo":3,"maxQty":2,"qtyScope":"cart","nutrition":{"active":true,"protein":40,"carbs":189,"fat":21,"sugar":10,"fiber":22},"sections":[["Base",["673961445","673961463","673961465"]],["Sauce",["673961467"]],["Cheese",["673961469"]],["Extras",["673961471"]]]},
     "673961447": {"description":"A rich and savory blend of ripe tomatoes, garlic, and Italian herbs, slow-cooked to perfection for the ultimate pizza base.","caloriesFrom":37,"nutrition":{"active":true,"protein":1,"carbs":7,"fat":1,"sugar":4,"fiber":1}},

@@ -823,6 +823,26 @@
         if (item.hidden) S.data.placements[childPath(catPath, 'product', ent.id)] = { hidden: true };
       }
     }
+
+    const built = src.built || {};
+    for (const s of built.suggested || []) {
+      const g = newGroup({ gtype: 'standalone', name: s.name, description: s.description || '', min: 0, max: null, children: s.options.map((pid) => productFor(pid).id) });
+      E.group[g.id] = g;
+      productFor(s.product).children.push(g.id);
+    }
+    for (const c of built.customProducts || []) {
+      const parent = productFor(c.posParent);
+      const p = newProduct({
+        ptype: 'linked',
+        posParentExt: c.posParent,
+        name: c.name,
+        description: c.description || parent.description,
+        allergens: [...(parent.allergens || [])],
+        children: parent.children.filter((gid) => E.group[gid].gtype === 'pos' && (S.data.pos.items[c.posParent].children || []).includes(E.group[gid].externalId)),
+      });
+      E.product[p.id] = p;
+      E.category[extId('category', c.category)].children.push(p.id);
+    }
   }
 
   function seedExample() {
