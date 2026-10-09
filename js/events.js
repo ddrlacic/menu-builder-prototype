@@ -396,6 +396,12 @@
     product: 'Drop on its POS category, a group, or a menu-only category',
     group: 'Drop on a product that has this group on POS',
   };
+  const MOVE_HINT = {
+    category: 'Drop between categories to change the order',
+    product: 'Drop between products to change the order, or on a category or group to move it',
+    group: 'Drop between groups to change the order, or on a product to move it',
+  };
+  const baseHint = (d) => (d.origin === 'canvas' ? MOVE_HINT : DRAG_HINT)[d.kind];
 
   function autoPlaceHint(d) {
     if (d.kind === 'menu') return `Drop to add all categories from ${d.name}`;
@@ -442,7 +448,7 @@
     ghost.innerHTML = `<span class="kind-glyph kind-${T.drag.kind}">${icon(KIND_ICON[T.drag.kind], 13)}</span>${esc(T.drag.name)}`;
     e.dataTransfer.setDragImage(ghost, 16, 18);
     document.body.dataset.dragKind = T.drag.kind;
-    setHint(DRAG_HINT[T.drag.kind]);
+    setHint(baseHint(T.drag));
     $('#drag-hint').dataset.show = 'true';
   });
 
@@ -485,7 +491,7 @@
       if (!pos) {
         delete row.dataset.drop;
         T.dropTarget = null;
-        setHint(DRAG_HINT[d.kind]);
+        setHint(baseHint(d));
         return;
       }
       const target = { path: row.dataset.path, pos };
@@ -501,7 +507,7 @@
       e.dataTransfer.dropEffect = d.origin === 'pos' ? 'copy' : 'move';
       row.dataset.drop = pos;
       T.dropTarget = target;
-      setHint(DRAG_HINT[d.kind]);
+      setHint(baseHint(d));
       return;
     }
     if (T.markedRow) {
@@ -515,7 +521,7 @@
       e.dataTransfer.dropEffect = d.origin === 'pos' ? 'copy' : 'move';
       canvasEl.classList.add('drop-end');
       T.dropTarget = { auto: true };
-      setHint(autoPlaceHint(d));
+      setHint(d.origin === 'canvas' ? baseHint(d) : autoPlaceHint(d));
     } else {
       canvasEl.classList.remove('drop-end');
       T.dropTarget = null;
@@ -525,7 +531,7 @@
   canvasEl.addEventListener('dragleave', (e) => {
     if (!canvasEl.contains(e.relatedTarget)) {
       clearDropMark();
-      if (T.drag) setHint(DRAG_HINT[T.drag.kind]);
+      if (T.drag) setHint(baseHint(T.drag));
     }
   });
 
@@ -535,7 +541,7 @@
     if (!d) return;
     e.preventDefault();
     endDrag();
-    if (t) performDrop(d, t);
+    if (t) confirmDrop(d, t);
   });
 
   document.addEventListener('dragover', (e) => {

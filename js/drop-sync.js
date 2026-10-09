@@ -35,10 +35,12 @@
     let reused = false;
     let linked = null;
     let alsoIn = null;
+    let movedTo = null;
     commit(() => {
       const parent = entity(pInfo.kind, pInfo.id);
       if (pInfo.kind === 'menu' && d.origin === 'pos') linked = linkMenuToPosCategory(parent, d.posId);
       const parentName = nameOf(pInfo.kind, parent);
+      let moved = false;
       let id;
       if (d.origin === 'pos') {
         const res = importPos(d.posId);
@@ -59,6 +61,7 @@
           const from = listJoin(inheritedAt(d.path).map((g) => nameOf('group', g)));
           throw new Abort(`${from} adds this group to every option. Remove it on the Options tab of ${from}.`);
         }
+        moved = oldParent !== parent;
         oldParent.children.splice(oldIndex, 1);
       }
       parent.children.splice(Math.min(index, parent.children.length), 0, id);
@@ -78,12 +81,16 @@
         if (ent.source === 'pos' && !ent.originCategoryExt) ent.originCategoryExt = d.chainCat;
       }
       newPath = childPath(parentPath, d.kind, id);
-      if (d.origin === 'canvas' && newPath !== d.path) rekeyPlacements(d.path, newPath);
+      if (moved) {
+        rekeyPlacements(d.path, newPath);
+        movedTo = parentName;
+      }
       if (pInfo.kind === 'product' && parent.ptype === 'size') alsoIn = keepChoiceInMenu(parentPath, id);
       S.ui.expanded[parentPath] = true;
       S.ui.selected = newPath;
       flash(newPath);
     });
+    if (newPath && movedTo) toast(`${d.name} moved to ${movedTo}`, 'success', { action: { label: 'Undo', onClick: undo } });
     if (newPath && linked) toast(`Linked to POS menu ${linked.name}`);
     if (newPath && alsoIn) toast(alsoInText(nameOf('product', entity('product', parsePath(newPath).id)), alsoIn));
     if (newPath && reused) {
@@ -91,6 +98,24 @@
       if (uses > 1) toast(`Reusing ${nameOf(d.kind, entity(d.kind, parsePath(newPath).id))}. Edits apply in all ${uses} places`, 'info');
     }
     return { newPath, alsoIn };
+  }
+
+  function confirmDrop(d, t) {
+    if (d.origin !== 'canvas' || t.auto || isPendingLink(d.path)) return performDrop(d, t);
+    const { parentPath } = resolveDrop(d, t);
+    const from = parsePath(parsePath(d.path).parentPath);
+    const to = parsePath(parentPath);
+    if (from.kind === 'menu' || (from.kind === to.kind && from.id === to.id) || dropError(parentPath, d)) return performDrop(d, t);
+    const uses = (ctx.usage.get(`${from.kind}:${from.id}`) || []).length;
+    if (uses <= 1) return performDrop(d, t);
+    openModal({
+      title: `Move ${d.name}?`,
+      body: `<p>${esc(nameOf(from.kind, entity(from.kind, from.id)))} is used in ${uses} places, so ${esc(d.name)} is removed from all of them. Nothing changes on POS.</p>`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        { label: `Move ${KIND_LABEL[d.kind].toLowerCase()}`, kind: 'primary', onClick: () => { closeModal(); performDrop(d, t); } },
+      ],
+    });
   }
 
   function autoPlace(d) {

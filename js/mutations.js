@@ -788,6 +788,14 @@
   }
 
   function rekeyPlacements(oldPath, newPath) {
+    const scoped = [];
+    walkSubtree(newPath, (k, id, ent, p) => {
+      const from = productScopePath(oldPath + p.slice(newPath.length));
+      const to = productScopePath(p);
+      if (from !== to && from.startsWith('@>') && to.startsWith('@>') && S.data.placements[from]) scoped.push([from, to, S.data.placements[from]]);
+    });
+    scoped.forEach(([from]) => delete S.data.placements[from]);
+    scoped.forEach(([, to, pl]) => (S.data.placements[to] = { ...placement(to), ...pl }));
     for (const k of Object.keys(S.data.placements)) {
       if (k === oldPath || k.startsWith(`${oldPath}>`)) {
         S.data.placements[newPath + k.slice(oldPath.length)] = S.data.placements[k];
