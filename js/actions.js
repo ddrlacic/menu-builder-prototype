@@ -851,6 +851,13 @@
         renderCompare();
         break;
       }
+      case 'cmp-toggle-group': {
+        const keys = ctx.compare.missing.filter((m) => m.group === el.dataset.group).map((m) => m.key);
+        const allOn = keys.every((k) => T.cmp.sel.has(k));
+        keys.forEach((k) => (allOn ? T.cmp.sel.delete(k) : T.cmp.sel.add(k)));
+        renderCompare();
+        break;
+      }
       case 'cmp-all': {
         const keys = ctx.compare.missing.map((m) => m.key);
         const allOn = keys.every((k) => T.cmp.sel.has(k));

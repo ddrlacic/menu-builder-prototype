@@ -313,7 +313,7 @@
       for (const cid of posChildren(ent.externalId)) {
         if (!posItemById(cid) || childOnCanvas(kind, path, ent, cid)) continue;
         let m = missing.get(cid);
-        if (!m) missing.set(cid, (m = { key: cid, kind: childKind(kind, ent), posId: cid, paths: [], parents: [], seen: new Set(), ignored: !!S.data.ignored[ignoreKey(menu, cid)] }));
+        if (!m) missing.set(cid, (m = { key: cid, kind: childKind(kind, ent), posId: cid, group: `${kind}:${id}`, paths: [], parents: [], seen: new Set(), ignored: !!S.data.ignored[ignoreKey(menu, cid)] }));
         if (m.seen.has(`${kind}:${id}`)) continue;
         m.seen.add(`${kind}:${id}`);
         m.paths.push(path);

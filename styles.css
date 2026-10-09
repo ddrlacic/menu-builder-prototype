@@ -4306,6 +4306,25 @@ button.check:active {
   border-top: 1px solid var(--line);
 }
 
+.cmp-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cmp-group-head {
+  width: 100%;
+  min-height: 40px;
+  text-align: left;
+  background: var(--sunken);
+}
+
+.cmp-count {
+  padding-right: 4px;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
 .cmp-main {
   flex: 1;
   min-width: 0;

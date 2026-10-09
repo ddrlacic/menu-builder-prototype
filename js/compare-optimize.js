@@ -14,13 +14,15 @@
     const data = ctx.compare;
     const { tab, sel } = T.cmp;
     for (const k of [...sel]) if (!data.missing.some((m) => m.key === k)) sel.delete(k);
-    const posRow = (m, control) => {
+    const posRow = (m, control, grouped) => {
       const it = posItemById(m.posId);
-      const where = m.parents.length > 1 ? `${m.parents[0]} and ${m.parents.length - 1} more` : m.parents[0];
+      const ps = grouped ? m.parents.slice(1) : m.parents;
+      const where = ps.length > 1 ? `${ps[0]} and ${ps.length - 1} more` : ps[0];
+      const place = ps.length ? `<span${ps.length > 1 ? ` title="${esc(listJoin(ps))}"` : ''}>${grouped ? 'Also in' : 'In'} ${esc(where)}</span> · ` : '';
       return `<div class="cmp-row">
         ${control}
         <span class="kind-glyph kind-${it.type}">${icon(KIND_ICON[it.type], 13)}</span>
-        <span class="cmp-main"><span class="cmp-name">${esc(it.name)}</span><span class="cmp-meta"><span${m.parents.length > 1 ? ` title="${esc(listJoin(m.parents))}"` : ''}>In ${esc(where)}</span> · <span class="mono">${esc(m.posId)}</span></span></span>
+        <span class="cmp-main"><span class="cmp-name">${esc(it.name)}</span><span class="cmp-meta">${place}<span class="mono">${esc(m.posId)}</span></span></span>
       </div>`;
     };
     const tabs = [
@@ -39,16 +41,34 @@
       if (!data.missing.length) body += empty('Nothing new on POS');
       else {
         const allOn = data.missing.every((m) => sel.has(m.key));
+        const box = (st) => `<span class="check${st === 'off' ? '' : ' is-on'}" aria-hidden="true">${st === 'on' ? icon('check', 12) : st === 'mixed' ? icon('minus', 12) : ''}</span>`;
         body += `<section class="cmp-section">
           <header class="cmp-head"><p class="section-desc">On POS under items in this menu, but not added yet.</p>
             <button type="button" class="btn ghost sm" data-action="cmp-all">${allOn ? 'Clear selection' : 'Select all'}</button></header>
-          <div class="cmp-list">${data.missing
-            .map((m) =>
-              posRow(
-                m,
-                `<button type="button" class="check${sel.has(m.key) ? ' is-on' : ''}" role="checkbox" aria-checked="${sel.has(m.key)}" aria-label="Select ${esc(posItemById(m.posId).name)}" data-action="cmp-toggle" data-key="${esc(m.key)}">${sel.has(m.key) ? icon('check', 12) : ''}</button>`,
-              ),
-            )
+          <div class="cmp-groups">${compareGroups(data.missing)
+            .map((g) => {
+              const n = g.items.filter((m) => sel.has(m.key)).length;
+              const st = n === 0 ? 'off' : n === g.items.length ? 'on' : 'mixed';
+              const pi = parsePath(g.path);
+              const where = pi.kind === 'category' ? '' : crumbText(parsePath(g.path).parentPath);
+              return `<div class="cmp-list">
+                <button type="button" class="cmp-row cmp-group-head" role="checkbox" aria-checked="${st === 'mixed' ? 'mixed' : st === 'on'}" data-action="cmp-toggle-group" data-group="${esc(g.key)}">
+                  ${box(st)}
+                  <span class="kind-glyph kind-${pi.kind}">${icon(KIND_ICON[pi.kind], 13)}</span>
+                  <span class="cmp-main"><span class="cmp-name">${esc(g.name)}</span>${where ? `<span class="cmp-meta">${esc(where)}</span>` : ''}</span>
+                  <span class="cmp-count tnum">${g.items.length}</span>
+                </button>
+                ${g.items
+                  .map((m) =>
+                    posRow(
+                      m,
+                      `<button type="button" class="check${sel.has(m.key) ? ' is-on' : ''}" role="checkbox" aria-checked="${sel.has(m.key)}" aria-label="Select ${esc(posItemById(m.posId).name)}" data-action="cmp-toggle" data-key="${esc(m.key)}">${sel.has(m.key) ? icon('check', 12) : ''}</button>`,
+                      true,
+                    ),
+                  )
+                  .join('')}
+              </div>`;
+            })
             .join('')}</div>
         </section>`;
       }
@@ -99,6 +119,16 @@
            <button type="button" class="btn secondary" data-action="cmp-ignore" ${sel.size ? '' : 'disabled'}>Ignore selected</button>
            <button type="button" class="btn primary" data-action="cmp-add" ${sel.size ? '' : 'disabled'}>Add selected</button>`
         : `<button type="button" class="btn secondary" data-modal-close>Done</button>`;
+  }
+
+  function compareGroups(list) {
+    const groups = new Map();
+    for (const m of list) {
+      let g = groups.get(m.group);
+      if (!g) groups.set(m.group, (g = { key: m.group, path: m.paths[0], name: m.parents[0], items: [] }));
+      g.items.push(m);
+    }
+    return [...groups.values()];
   }
 
   function compareAdd() {
