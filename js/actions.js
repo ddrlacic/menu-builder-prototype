@@ -122,6 +122,37 @@
         });
         render();
         break;
+      case 'toggle-hidden':
+        S.ui.hideHidden = !S.ui.hideHidden;
+        render();
+        break;
+      case 'sel-clear':
+        select(S.ui.selected, { focusRow: true });
+        break;
+      case 'bulk-show':
+      case 'bulk-hide':
+        bulkSetHidden(a === 'bulk-hide');
+        break;
+      case 'bulk-image':
+        uploadRowImage(T.sel.slice());
+        break;
+      case 'row-image':
+        e.stopPropagation();
+        uploadRowImage(T.sel.length > 1 && T.sel.includes(path) ? T.sel.slice() : [path]);
+        break;
+      case 'bulk-stores':
+        openBulkStores(el.dataset.mode);
+        break;
+      case 'bulk-stock':
+        if (T.popover && T.popover.anchor === el) closePopover();
+        else bulkStockMenu(el);
+        break;
+      case 'bulk-remove':
+        bulkRemove();
+        break;
+      case 'bulk-delete':
+        bulkDelete();
+        break;
       case 'create-category':
         createVirtualCategory();
         break;
@@ -753,13 +784,11 @@
       case 'cat-delete': {
         const cat = entity('category', el.dataset.id);
         const ms = menusWithCategory(cat.id);
-        if (ms.some((m) => m.status === 'publishing')) break;
+        if (categoryDeleteBlock(cat)) break;
         const remove = () => {
           closeModal();
           commit(() => {
-            S.data.menus.forEach((m) => (m.children = m.children.filter((c) => c !== cat.id)));
-            for (const k of Object.keys(S.data.placements)) if (k.split('>')[1] === `c:${cat.id}`) delete S.data.placements[k];
-            delete S.data.entities.category[cat.id];
+            deleteCategoryNow(cat);
             S.ui.selected = activeMenu().id;
           });
           toast('Category deleted');
@@ -970,6 +999,8 @@
     }
     const row = e.target.closest('.row');
     if (row) {
+      if (e.shiftKey) return selectRange(row.dataset.path);
+      if (e.metaKey || e.ctrlKey) return toggleInSelection(row.dataset.path);
       if (e.altKey && row.hasAttribute('aria-expanded')) {
         const twisty = row.querySelector('[data-action="toggle"]');
         if (twisty) handleAction(twisty, e);

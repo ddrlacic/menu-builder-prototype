@@ -26,72 +26,76 @@
     return { parentPath, index };
   }
 
+  function dropInto(d, parentPath, index) {
+    const pInfo = parsePath(parentPath);
+    const parent = entity(pInfo.kind, pInfo.id);
+    const out = { newPath: null, index, reused: false, linked: null, alsoIn: null, movedTo: null };
+    if (pInfo.kind === 'menu' && d.origin === 'pos') out.linked = linkMenuToPosCategory(parent, d.posId);
+    const parentName = nameOf(pInfo.kind, parent);
+    let moved = false;
+    let id;
+    if (d.origin === 'pos') {
+      const res = importPos(d.posId);
+      id = res.id;
+      out.reused = res.stats.reused > 0 && res.stats.created === 0;
+      if (parent.children.includes(id)) throw new Abort(`${nameOf(d.kind, entity(d.kind, id))} is already in ${parentName}`);
+    } else {
+      const src = parsePath(d.path);
+      id = src.id;
+      const op = parsePath(src.parentPath);
+      const oldParent = entity(op.kind, op.id);
+      const oldIndex = oldParent.children.indexOf(id);
+      if (oldParent === parent) {
+        if (oldIndex < index) index--;
+      } else if (parent.children.includes(id)) {
+        throw new Abort(`${nameOf(d.kind, entity(d.kind, id))} is already in ${parentName}`);
+      } else if (inheritedAt(d.path).length) {
+        const from = listJoin(inheritedAt(d.path).map((g) => nameOf('group', g)));
+        throw new Abort(`${from} adds this group to every option. Remove it on the Options tab of ${from}.`);
+      }
+      moved = oldParent !== parent;
+      oldParent.children.splice(oldIndex, 1);
+    }
+    out.index = Math.min(index, parent.children.length);
+    parent.children.splice(out.index, 0, id);
+    if (d.origin === 'pos') stageLink(pInfo.kind, pInfo.id, d.kind, id);
+    else if (S.data.pendingLinks[linkKeyOf(d.path)]) {
+      delete S.data.pendingLinks[linkKeyOf(d.path)];
+      stageLink(pInfo.kind, pInfo.id, d.kind, id);
+    }
+    if (pInfo.kind !== 'menu') {
+      const ck = childKind(pInfo.kind, parent);
+      if (reaches(ck, id, pInfo.kind, pInfo.id)) {
+        throw new Abort(`${nameOf(d.kind, entity(d.kind, id))} already contains ${parentName}, so it cannot go inside it`);
+      }
+    }
+    if (d.kind === 'product' && d.chainCat) {
+      const ent = entity('product', id);
+      if (ent.source === 'pos' && !ent.originCategoryExt) ent.originCategoryExt = d.chainCat;
+    }
+    out.newPath = childPath(parentPath, d.kind, id);
+    if (moved) {
+      rekeyPlacements(d.path, out.newPath);
+      out.movedTo = parentName;
+      if (pInfo.kind === 'category' && d.ptype === 'size') keepChoicesInCategory(entity('product', id), parent);
+    }
+    if (pInfo.kind === 'product' && parent.ptype === 'size') out.alsoIn = keepChoiceInMenu(parentPath, id);
+    S.ui.expanded[parentPath] = true;
+    return out;
+  }
+
   function performDrop(d, t) {
     if (t.auto) return autoPlace(d);
-    let { parentPath, index } = resolveDrop(d, t);
+    const { parentPath, index } = resolveDrop(d, t);
     const err = dropError(parentPath, d);
     if (err) return toast(err, 'error');
-    const pInfo = parsePath(parentPath);
-    let newPath = null;
-    let reused = false;
-    let linked = null;
-    let alsoIn = null;
-    let movedTo = null;
+    let r = {};
     commit(() => {
-      const parent = entity(pInfo.kind, pInfo.id);
-      if (pInfo.kind === 'menu' && d.origin === 'pos') linked = linkMenuToPosCategory(parent, d.posId);
-      const parentName = nameOf(pInfo.kind, parent);
-      let moved = false;
-      let id;
-      if (d.origin === 'pos') {
-        const res = importPos(d.posId);
-        id = res.id;
-        reused = res.stats.reused > 0 && res.stats.created === 0;
-        if (parent.children.includes(id)) throw new Abort(`${nameOf(d.kind, entity(d.kind, id))} is already in ${parentName}`);
-      } else {
-        const src = parsePath(d.path);
-        id = src.id;
-        const op = parsePath(src.parentPath);
-        const oldParent = entity(op.kind, op.id);
-        const oldIndex = oldParent.children.indexOf(id);
-        if (oldParent === parent) {
-          if (oldIndex < index) index--;
-        } else if (parent.children.includes(id)) {
-          throw new Abort(`${nameOf(d.kind, entity(d.kind, id))} is already in ${parentName}`);
-        } else if (inheritedAt(d.path).length) {
-          const from = listJoin(inheritedAt(d.path).map((g) => nameOf('group', g)));
-          throw new Abort(`${from} adds this group to every option. Remove it on the Options tab of ${from}.`);
-        }
-        moved = oldParent !== parent;
-        oldParent.children.splice(oldIndex, 1);
-      }
-      parent.children.splice(Math.min(index, parent.children.length), 0, id);
-      if (d.origin === 'pos') stageLink(pInfo.kind, pInfo.id, d.kind, id);
-      else if (S.data.pendingLinks[linkKeyOf(d.path)]) {
-        delete S.data.pendingLinks[linkKeyOf(d.path)];
-        stageLink(pInfo.kind, pInfo.id, d.kind, id);
-      }
-      if (pInfo.kind !== 'menu') {
-        const ck = childKind(pInfo.kind, parent);
-        if (reaches(ck, id, pInfo.kind, pInfo.id)) {
-          throw new Abort(`${nameOf(d.kind, entity(d.kind, id))} already contains ${parentName}, so it cannot go inside it`);
-        }
-      }
-      if (d.kind === 'product' && d.chainCat) {
-        const ent = entity('product', id);
-        if (ent.source === 'pos' && !ent.originCategoryExt) ent.originCategoryExt = d.chainCat;
-      }
-      newPath = childPath(parentPath, d.kind, id);
-      if (moved) {
-        rekeyPlacements(d.path, newPath);
-        movedTo = parentName;
-        if (pInfo.kind === 'category' && d.ptype === 'size') keepChoicesInCategory(entity('product', id), parent);
-      }
-      if (pInfo.kind === 'product' && parent.ptype === 'size') alsoIn = keepChoiceInMenu(parentPath, id);
-      S.ui.expanded[parentPath] = true;
-      S.ui.selected = newPath;
-      flash(newPath);
+      r = dropInto(d, parentPath, index);
+      S.ui.selected = r.newPath;
+      flash(r.newPath);
     });
+    const { newPath, movedTo, linked, alsoIn, reused } = r;
     if (newPath && movedTo) toast(`${d.name} moved to ${movedTo}`, 'success', { action: { label: 'Undo', onClick: undo } });
     if (newPath && linked) toast(`Linked to POS menu ${linked.name}`);
     if (newPath && alsoIn) toast(alsoInText(nameOf('product', entity('product', parsePath(newPath).id)), alsoIn));
@@ -116,6 +120,60 @@
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },
         { label: `Move ${KIND_LABEL[d.kind].toLowerCase()}`, kind: 'primary', onClick: () => { closeModal(); performDrop(d, t); } },
+      ],
+    });
+  }
+
+  function multiDragDescs(paths) {
+    return paths.filter((p) => !paths.some((o) => o !== p && p.startsWith(`${o}>`))).map(dragDescFromPath);
+  }
+
+  const multiDropError = (parentPath, ds) => ds.map((d) => dropError(parentPath, d)).find(Boolean) || null;
+
+  function performMultiDrop(ds, t) {
+    const { parentPath, index } = resolveDrop(ds[0], t.auto ? { path: activeMenu().id, pos: 'inside' } : t);
+    const err = multiDropError(parentPath, ds);
+    if (err) return toast(err, 'error');
+    const pi = parsePath(parentPath);
+    const paths = [];
+    let moved = 0;
+    const ok = commit(() => {
+      let at = index;
+      ds.forEach((d) => {
+        const r = dropInto(d, parentPath, at);
+        at = r.index + 1;
+        paths.push(r.newPath);
+        if (r.movedTo) moved++;
+      });
+      paths.forEach(flash);
+      T.sel = paths;
+      S.ui.selected = paths[paths.length - 1];
+    });
+    const [one, many] = BULK_NOUN[ds[0].kind];
+    if (ok && moved) toast(`${plural(moved, one, many)} moved to ${nameOf(pi.kind, entity(pi.kind, pi.id))}`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function confirmMultiDrop(ds, t) {
+    const { parentPath } = resolveDrop(ds[0], t.auto ? { path: activeMenu().id, pos: 'inside' } : t);
+    const to = parsePath(parentPath);
+    const shared = [
+      ...new Set(
+        ds
+          .filter((d) => !isPendingLink(d.path))
+          .map((d) => parsePath(parsePath(d.path).parentPath))
+          .filter((f) => f.kind !== 'menu' && !(f.kind === to.kind && f.id === to.id) && (ctx.usage.get(`${f.kind}:${f.id}`) || []).length > 1)
+          .map((f) => nameOf(f.kind, entity(f.kind, f.id))),
+      ),
+    ];
+    if (!shared.length || multiDropError(parentPath, ds)) return performMultiDrop(ds, t);
+    const [, many] = BULK_NOUN[ds[0].kind];
+    const one = shared.length === 1;
+    openModal({
+      title: `Move ${plural(ds.length, BULK_NOUN[ds[0].kind][0], many)}?`,
+      body: `<p>${esc(listJoin(shared))} ${one ? 'is' : 'are'} used in more than one place, so ${many} in ${one ? 'it' : 'them'} are removed everywhere ${one ? 'it’s' : 'they’re'} used. Nothing changes on POS.</p>`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        { label: `Move ${many}`, kind: 'primary', onClick: () => { closeModal(); performMultiDrop(ds, t); } },
       ],
     });
   }

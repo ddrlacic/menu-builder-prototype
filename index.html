@@ -30,7 +30,7 @@
         <section class="canvas" id="canvas" aria-label="Menu">
           <div class="canvas-head" id="canvas-head"></div>
           <div class="canvas-scroll" id="canvas-scroll">
-            <div id="canvas-tree" class="tree" role="tree" aria-label="Menu structure"></div>
+            <div id="canvas-tree" class="tree" role="tree" aria-label="Menu structure" aria-multiselectable="true"></div>
             <div class="drop-end-line" aria-hidden="true"></div>
           </div>
           <footer class="canvas-foot">
@@ -38,7 +38,7 @@
             <span class="legend"><span class="kind-glyph kind-product"></span>Product</span>
             <span class="legend"><span class="kind-glyph kind-group"></span>Product group</span>
             <span class="foot-spacer"></span>
-            <span class="foot-keys"><kbd>↑</kbd><kbd>↓</kbd> Move <kbd>←</kbd><kbd>→</kbd> Collapse <kbd>⌫</kbd> Remove <kbd>⌘Z</kbd> Undo</span>
+            <span class="foot-keys"><kbd>↑</kbd><kbd>↓</kbd> Move <kbd>←</kbd><kbd>→</kbd> Collapse <kbd>⇧</kbd> or <kbd>⌘</kbd> Select more <kbd>⌫</kbd> Remove <kbd>⌘Z</kbd> Undo</span>
             <span class="foot-save">Changes save automatically in this browser</span>
           </footer>
           <div class="drag-hint" id="drag-hint" data-show="false" aria-live="polite"></div>
@@ -56,6 +56,7 @@
     <div id="modal-root"></div>
     <div id="toast-root" aria-live="polite"></div>
     <div id="drag-ghost" aria-hidden="true"></div>
+    <input type="file" id="row-image-input" accept="image/jpeg,image/png,image/gif" hidden>
 
     <script src="data.js"></script>
     <script src="data-cravewave.js"></script>

@@ -135,6 +135,10 @@
       moveChild(t.dataset.path, to - 1);
     } else if (t.matches('input[type="file"][data-image]')) {
       readImage(t.files[0], t.dataset.image);
+    } else if (t.id === 'row-image-input' && t.files[0] && T.rowImage) {
+      const paths = T.rowImage;
+      T.rowImage = null;
+      loadImage(t.files[0], 480, (url) => applyImage(paths, url));
     }
   });
 
@@ -455,6 +459,10 @@
         chainCat: posRow.dataset.chainCat || null,
         posPath: posRow.dataset.posPath ? posRow.dataset.posPath.split('/') : [],
       };
+    } else if (row && T.sel.length > 1 && T.sel.includes(row.dataset.path)) {
+      const multi = multiDragDescs(T.sel);
+      T.drag = { ...dragDescFromPath(row.dataset.path), multi, name: plural(multi.length, ...BULK_NOUN[row.dataset.kind]) };
+      $$('#canvas-tree .row.is-selected').forEach((r) => r.classList.add('is-dragging'));
     } else if (row) {
       T.drag = dragDescFromPath(row.dataset.path);
       row.classList.add('is-dragging');
@@ -474,7 +482,7 @@
 
   function dropPositionFor(row, e, d) {
     const path = row.dataset.path;
-    if (d.origin === 'canvas' && (path === d.path || path.startsWith(`${d.path}>`))) return null;
+    if (d.origin === 'canvas' && (d.multi || [d]).some((x) => path === x.path || path.startsWith(`${x.path}>`))) return null;
     const kind = row.dataset.kind;
     const inside = row.dataset.childKind === d.kind;
     if (kind !== d.kind) return inside ? 'inside' : null;
@@ -515,7 +523,7 @@
       const link = d.origin === 'canvas' && e.altKey;
       const target = { path: row.dataset.path, pos, link };
       const { parentPath } = resolveDrop(d, target);
-      const err = link ? linkError(d, parentPath) : dropError(parentPath, d);
+      const err = d.multi ? (link ? 'Drag one row at a time to add it to another place' : multiDropError(parentPath, d.multi)) : link ? linkError(d, parentPath) : dropError(parentPath, d);
       if (err) {
         row.dataset.drop = 'invalid';
         T.dropTarget = null;
@@ -562,6 +570,7 @@
     e.preventDefault();
     endDrag();
     if (!t) return;
+    if (d.multi) return confirmMultiDrop(d.multi, t);
     if (t.link) {
       const { parentPath, index } = resolveDrop(d, t);
       return linkExisting(parentPath, d.kind, d.id, index);
@@ -569,23 +578,54 @@
     confirmDrop(d, t);
   });
 
+  const imageRowOf = (e) => !T.drag && e.target.closest && e.target.closest('#canvas-tree .row[data-image-ok]');
+  const rowImagePaths = (path) => (T.sel.length > 1 && T.sel.includes(path) ? T.sel.slice() : [path]);
+  function markImageRow(row) {
+    if (T.imageOverRow === row) return;
+    if (T.imageOverRow) T.imageOverRow.classList.remove('is-image-over');
+    T.imageOverRow = row;
+    if (!row) return;
+    const paths = rowImagePaths(row.dataset.path);
+    $$('#canvas-tree .row').forEach((r) => r.classList.toggle('is-image-over', paths.includes(r.dataset.path)));
+  }
+  const clearImageRows = () => {
+    T.imageOverRow = null;
+    $$('#canvas-tree .row.is-image-over').forEach((r) => r.classList.remove('is-image-over'));
+  };
+
   document.addEventListener('dragover', (e) => {
+    if (!e.dataTransfer.types.includes('Files')) return;
     const zone = e.target.closest && e.target.closest('[data-image-drop]');
-    if (zone && !T.drag && e.dataTransfer.types.includes('Files')) {
+    if (zone && !T.drag) {
       e.preventDefault();
       zone.classList.add('is-over');
     }
+    const row = imageRowOf(e);
+    if (row) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      markImageRow(row);
+    } else if (T.imageOverRow) clearImageRows();
   });
   document.addEventListener('dragleave', (e) => {
     const zone = e.target.closest && e.target.closest('[data-image-drop]');
     if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('is-over');
+    if (T.imageOverRow && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('#canvas-tree .row[data-image-ok]'))) clearImageRows();
   });
   document.addEventListener('drop', (e) => {
     const zone = e.target.closest && e.target.closest('[data-image-drop]');
     if (zone && !T.drag && e.dataTransfer.files.length) {
       e.preventDefault();
       readImage(e.dataTransfer.files[0], zone.dataset.imageDrop);
+      return;
     }
+    const row = imageRowOf(e);
+    if (row && e.dataTransfer.files.length) {
+      e.preventDefault();
+      const paths = rowImagePaths(row.dataset.path);
+      clearImageRows();
+      loadImage(e.dataTransfer.files[0], 480, (url) => applyImage(paths, url));
+    } else if (T.imageOverRow) clearImageRows();
   });
 
   /* keyboard */
@@ -599,6 +639,11 @@
       e.preventDefault();
       select(r.dataset.path, { focusRow: true });
     };
+    if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      extendSelection(e.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
     switch (e.key) {
       case 'ArrowDown':
         go(rows[i + 1] || (i < 0 ? rows[0] : null));
@@ -630,7 +675,10 @@
       }
       case 'Backspace':
       case 'Delete':
-        if (cur) {
+        if (T.sel.length > 1) {
+          e.preventDefault();
+          bulkRemove();
+        } else if (cur) {
           e.preventDefault();
           confirmRemove(cur.dataset.path);
         }
@@ -668,6 +716,7 @@
       }
       if (T.modal) return closeModal();
       if (typing) e.target.blur();
+      else if (T.sel.length > 1) select(S.ui.selected, { focusRow: true });
       return;
     }
     if (T.popover && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
@@ -694,6 +743,11 @@
     if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'b' && !T.modal) {
       e.preventDefault();
       togglePosPanel();
+      return;
+    }
+    if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'a' && !T.modal && !typing && e.target.closest && e.target.closest('#canvas-tree')) {
+      e.preventDefault();
+      selectAllOfKind();
       return;
     }
     if (T.modal || typing || mod) return;

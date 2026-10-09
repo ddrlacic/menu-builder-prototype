@@ -46,6 +46,8 @@
     $('#canvas').classList.remove('is-no-menu');
     document.body.classList.toggle('is-importing', T.importing);
     if (!S.ui.selected || !pathExists(S.ui.selected) || parsePath(S.ui.selected).menuId !== menu.id) S.ui.selected = menu.id;
+    T.sel = T.sel.filter((p) => parsePath(p).menuId === menu.id && pathExists(p));
+    if (T.sel.length < 2 || !T.sel.includes(S.ui.selected)) T.sel = [];
     ctx = derivedCtx();
     renderTopbar();
     renderPos();
@@ -274,6 +276,7 @@
   function visibleRows(menu) {
     const q = S.ui.canvasQuery.trim().toLowerCase();
     const rows = [];
+    T.hiddenRows = 0;
     if (q) {
       const keep = new Set();
       const hits = new Set();
@@ -292,7 +295,12 @@
         return true;
       });
     } else {
+      const keep = new Set([S.ui.selected, ...T.sel].flatMap((p) => [p, ...ancestorsOf(p)]));
       walkMenu(menu, (kind, id, ent, path, depth) => {
+        if (S.ui.hideHidden && !keep.has(path) && groupHiddenAt(path)) {
+          T.hiddenRows++;
+          return false;
+        }
         const expanded = isExpanded(path, depth);
         rows.push({ kind, id, ent, path, depth, expanded });
         return expanded;
@@ -369,7 +377,7 @@
     const { kind, id, ent, path, depth } = r;
     const info = parsePath(path);
     const parentKind = parsePath(info.parentPath).kind;
-    const selected = S.ui.selected === path;
+    const selected = isSelected(path);
     const hasChildren = ent.children.length > 0 || !!r.halfKids;
     const pl = placement(path);
     const uses = (ctx.usage.get(`${kind}:${id}`) || []).length;
@@ -472,10 +480,16 @@
     const flashCls = T.flashPaths.has(path) || (ent.externalId && T.flashExt.has(ent.externalId)) ? ' is-flash' : '';
     const addTitle = kind === 'category' ? 'Add product' : kind === 'product' ? (ent.ptype === 'size' ? 'Add choice' : 'Add group') : 'Add option';
     const removeTitle = from ? `Added by ${from}. Remove it on the Options tab of ${from}` : `Remove from ${parentName}`;
-    return `<div class="row${selected ? ' is-selected' : ''}${hiddenHere ? ' is-muted' : ''}${r.hit ? ' is-hit' : ''}${r.nestedHalf ? ' is-half' : ''}${flashCls}" role="treeitem" aria-level="${depth}" aria-selected="${selected}" ${hasChildren ? `aria-expanded="${r.expanded}"` : ''} tabindex="${selected ? 0 : -1}" draggable="${r.nestedHalf ? 'false' : 'true'}"${r.nestedHalf ? ` data-half-of="${esc(r.half.wholePath)}"` : ''} data-path="${esc(path)}" data-kind="${kind}" data-child-kind="${childKind(kind, ent)}" data-parent-kind="${parentKind}" data-name="${esc(name)}" style="--depth:${depth - 1}">
+    const imageOk = (kind === 'product' || kind === 'category') && !stagedRoot;
+    const inMulti = T.sel.length > 1 && T.sel.includes(path);
+    const uploadTitle = inMulti ? `Upload image for ${plural(T.sel.length, ...BULK_NOUN[kind])}` : 'Upload image';
+    const thumbHtml = imageOk
+      ? `<span class="thumb-wrap">${thumb(kind, ent)}<button type="button" class="thumb-upload" data-action="row-image" data-path="${esc(path)}" tabindex="-1" aria-label="${esc(uploadTitle)}" title="${esc(uploadTitle)}">${icon('upload', 14)}</button></span>`
+      : thumb(kind, ent);
+    return `<div class="row${selected ? ' is-selected' : ''}${hiddenHere ? ' is-muted' : ''}${r.hit ? ' is-hit' : ''}${r.nestedHalf ? ' is-half' : ''}${flashCls}" role="treeitem" aria-level="${depth}" aria-selected="${selected}" ${hasChildren ? `aria-expanded="${r.expanded}"` : ''} tabindex="${S.ui.selected === path ? 0 : -1}" draggable="${r.nestedHalf ? 'false' : 'true'}"${r.nestedHalf ? ` data-half-of="${esc(r.half.wholePath)}"` : ''}${imageOk ? ' data-image-ok' : ''} data-path="${esc(path)}" data-kind="${kind}" data-child-kind="${childKind(kind, ent)}" data-parent-kind="${parentKind}" data-name="${esc(name)}" style="--depth:${depth - 1}">
       <span class="row-indent" aria-hidden="true"></span>
       ${hasChildren ? `<button class="twisty" data-action="toggle" data-path="${esc(path)}" tabindex="-1" aria-label="${r.expanded ? 'Collapse' : 'Expand'}">${icon('chevRight', 14)}</button>` : '<span class="twisty-spacer"></span>'}
-      ${thumb(kind, ent)}
+      ${thumbHtml}
       <span class="row-main"><span class="row-title">${esc(name)}</span>${meta ? `<span class="row-meta">${meta}</span>` : ''}</span>
       ${suggestion}${issueDot}
       ${badges.length ? `<span class="row-badges">${badges.join('')}</span>` : ''}
@@ -492,6 +506,8 @@
     const c = ctx.counts;
     const selected = S.ui.selected === menu.id;
     const changes = ctx.compare.count;
+    const rows = visibleRows(menu);
+    const hiddenTip = !S.ui.hideHidden ? 'Hide hidden items' : T.hiddenRows ? `Show ${plural(T.hiddenRows, 'hidden item', 'hidden items')}` : 'Show hidden items';
     $('#canvas-head').innerHTML = `
       ${posShowButton()}
       <button class="menu-card${selected ? ' is-selected' : ''}" data-action="select-menu">
@@ -507,6 +523,7 @@
         </label>
         <button class="icon-btn" data-action="expand-all" aria-label="Expand all" title="Expand all">${icon('expand', 16)}</button>
         <button class="icon-btn" data-action="collapse-all" aria-label="Collapse all" title="Collapse all">${icon('collapse', 16)}</button>
+        <button class="icon-btn${S.ui.hideHidden ? ' is-on' : ''}" data-action="toggle-hidden" aria-pressed="${!S.ui.hideHidden}" aria-label="Show hidden items" title="${hiddenTip}">${icon(S.ui.hideHidden ? 'eyeOff' : 'eye', 16)}</button>
         </div>
         <div class="tools-actions">
         <button class="btn secondary" data-action="compare">${icon('diff', 15)}Compare to POS${changes ? `<span class="btn-count tnum">${changes}</span>` : ''}</button>
@@ -529,7 +546,6 @@
         </div>`;
       return;
     }
-    const rows = visibleRows(menu);
     const note = T.importing
       ? '<div class="callout tone-info tree-note"><span class="spinner"></span><div>Importing POS items. Editing is paused until it finishes. Large menus can take a few minutes.</div></div>'
       : '';

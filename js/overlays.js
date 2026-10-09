@@ -219,7 +219,7 @@
         : `<div class="empty-small"><strong>${esc(T.picker.noMatch[0])}</strong><span>${esc(T.picker.noMatch[1])}</span></div>`;
   }
 
-  function openListPicker({ title, intro, groups, empty, noun, placeholder = `Search ${noun[1]}`, onAdd }) {
+  function openListPicker({ title, intro, groups, empty, noun, placeholder = `Search ${noun[1]}`, onAdd, cta = null, onSave = null }) {
     groups = groups.filter((g) => g.items.length);
     const total = new Set(groups.flatMap((g) => g.items.map((it) => it.id))).size;
     openModal({
@@ -231,7 +231,7 @@
         <div id="lp-list"></div>`,
       foot: '<div class="modal-foot" id="lp-foot"></div>',
     });
-    T.lp = { groups, empty, noun, onAdd, sel: new Set(), open: new Set(groups.length === 1 || total <= 40 ? groups.map((g) => g.id) : []), query: '', onlySelected: false };
+    T.lp = { groups, empty, noun, onAdd, cta, onSave, sel: new Set(), open: new Set(groups.length === 1 || total <= 40 ? groups.map((g) => g.id) : []), query: '', onlySelected: false };
     renderListPicker();
     $('#lp-search').focus();
   }
@@ -295,7 +295,7 @@
     const n = o.sel.size;
     $('#lp-foot').innerHTML = `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="lp-only"${o.groups.length ? '' : ' disabled'}>${box(o.onlySelected ? 'on' : 'off')}Show only selected</button>
       <button type="button" class="btn secondary" data-modal-close>Cancel</button>
-      <button type="button" class="btn primary" data-action="lp-add"${n ? '' : ' disabled'}>${n ? `Add ${plural(n, o.noun[0], o.noun[1])}` : `Add ${esc(o.noun[1])}`}</button>`;
+      <button type="button" class="btn primary" data-action="lp-add"${n ? '' : ' disabled'}>${esc(o.cta ? o.cta(n) : n ? `Add ${plural(n, o.noun[0], o.noun[1])}` : `Add ${o.noun[1]}`)}</button>`;
   }
 
   function setListPicker(ids, on) {
@@ -308,6 +308,7 @@
     const order = [...new Set(o.groups.flatMap((g) => g.items.map((it) => it.id)))].filter((id) => o.sel.has(id));
     if (!order.length) return;
     closeModal();
+    if (o.onSave) return o.onSave(order);
     commit(() => o.onAdd(order));
     toast(`${plural(order.length, o.noun[0], o.noun[1])} added`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
@@ -473,6 +474,13 @@
     openPopover(anchor, items, opts);
   }
 
+  function bulkStockMenu(anchor) {
+    openPopover(anchor, [
+      { heading: 'Set stock at stores' },
+      ...STOCK_OPTIONS.map(([value, label]) => ({ label, onClick: () => openBulkStores('stock', value) })),
+    ], { align: 'start' });
+  }
+
   function appMenu(anchor) {
     openPopover(anchor, [
       {
@@ -535,7 +543,7 @@
     window.open(url, '_blank', 'noopener');
   }
 
-  function readImage(file, bind) {
+  function loadImage(file, maxSide, done) {
     if (!file || !IMAGE_TYPES.includes(file.type)) {
       toast('Could not add the image. Use a JPG, PNG, or GIF file.', 'error');
       return;
@@ -548,14 +556,18 @@
     reader.onload = () => {
       const img = new Image();
       img.onload = () => {
-        const scale = Math.min(1, (/\|bannerImage$/.test(bind) ? 1200 : 480) / Math.max(img.width, img.height));
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
         const c = document.createElement('canvas');
         c.width = Math.round(img.width * scale);
         c.height = Math.round(img.height * scale);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        commit(() => setBind(bind, c.toDataURL('image/jpeg', 0.82)));
+        done(c.toDataURL('image/jpeg', 0.82));
       };
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
+  }
+
+  function readImage(file, bind) {
+    loadImage(file, /\|bannerImage$/.test(bind) ? 1200 : 480, (url) => commit(() => setBind(bind, url)));
   }

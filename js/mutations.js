@@ -4,8 +4,63 @@
 
   function select(path, { focusRow = false } = {}) {
     S.ui.selected = path;
+    T.sel = [];
+    T.selAnchor = path;
     if (focusRow) T.focusRow = path;
     render();
+  }
+
+  const BULK_NOUN = { category: ['category', 'categories'], product: ['product', 'products'], group: ['group', 'groups'] };
+  const isSelected = (path) => S.ui.selected === path || T.sel.includes(path);
+  const treePaths = () => $$('#canvas-tree .row').map((r) => r.dataset.path);
+
+  function setSelection(paths, primary, anchor = T.selAnchor) {
+    T.sel = paths.length > 1 ? paths : [];
+    S.ui.selected = primary;
+    T.selAnchor = anchor;
+    T.focusRow = primary;
+    render();
+  }
+
+  function toggleInSelection(path) {
+    const kind = parsePath(path).kind;
+    const base = T.sel.length ? T.sel : parsePath(S.ui.selected).kind === 'menu' ? [] : [S.ui.selected];
+    if (!base.length || parsePath(base[0]).kind !== kind) return select(path, { focusRow: true });
+    const next = base.includes(path) ? base.filter((p) => p !== path) : [...base, path];
+    if (!next.length) return;
+    setSelection(next, next.includes(path) ? path : next[next.length - 1], path);
+  }
+
+  function selectRange(path) {
+    const anchor = T.selAnchor || S.ui.selected;
+    const kind = parsePath(path).kind;
+    const paths = treePaths();
+    let a = paths.indexOf(anchor);
+    let b = paths.indexOf(path);
+    if (a < 0 || b < 0 || parsePath(anchor).kind !== kind) return select(path, { focusRow: true });
+    if (a > b) [a, b] = [b, a];
+    setSelection(paths.slice(a, b + 1).filter((p) => parsePath(p).kind === kind), path, anchor);
+  }
+
+  function extendSelection(dir) {
+    const kind = parsePath(S.ui.selected).kind;
+    if (kind === 'menu') return;
+    const paths = treePaths();
+    for (let i = paths.indexOf(S.ui.selected) + dir; i >= 0 && i < paths.length; i += dir) if (parsePath(paths[i]).kind === kind) return selectRange(paths[i]);
+  }
+
+  function selectAllOfKind() {
+    const kind = parsePath(S.ui.selected).kind;
+    if (kind === 'menu') return;
+    setSelection(treePaths().filter((p) => parsePath(p).kind === kind), S.ui.selected);
+  }
+
+  function selectionInfo() {
+    const paths = T.sel.length ? T.sel : [S.ui.selected];
+    const kind = parsePath(paths[0]).kind;
+    const ents = [...new Set(paths.map((p) => parsePath(p).id))].map((id) => entity(kind, id)).filter(Boolean);
+    const [one, many] = BULK_NOUN[kind] || ['item', 'items'];
+    return { paths, kind, ents, one, many, noun: (n) => plural(n, one, many) };
   }
 
   function expandTo(path) {
@@ -727,20 +782,23 @@
     return '';
   }
 
+  function deleteGroupNow(g) {
+    groupMenus(g).forEach((m) => m.status === 'published' && (m.status = 'changed'));
+    groupParents(g.id).forEach((p) => (p.children = p.children.filter((c) => c !== g.id)));
+    for (const p of Object.values(S.data.entities.product)) for (const k of Object.keys(p.halfWhole || {})) if (k.startsWith(`${g.id}:`)) delete p.halfWhole[k];
+    for (const k of Object.keys(S.data.placements)) if (k.split('>').includes(`g:${g.id}`)) delete S.data.placements[k];
+    delete S.data.entities.group[g.id];
+  }
+
   function confirmDeleteGroup(g, path) {
     if (groupDeleteBlock(g)) return;
     const name = nameOf('group', g);
     const parents = groupParents(g.id);
-    const menus = groupMenus(g);
     const remove = () => {
       closeModal();
       commit(() => {
-        parents.forEach((p) => (p.children = p.children.filter((c) => c !== g.id)));
-        for (const p of Object.values(S.data.entities.product)) for (const k of Object.keys(p.halfWhole || {})) if (k.startsWith(`${g.id}:`)) delete p.halfWhole[k];
-        for (const k of Object.keys(S.data.placements)) if (k.split('>').includes(`g:${g.id}`)) delete S.data.placements[k];
-        delete S.data.entities.group[g.id];
+        deleteGroupNow(g);
         S.ui.selected = parsePath(path).parentPath;
-        menus.forEach((m) => m.status === 'published' && (m.status = 'changed'));
       });
       toast('Group deleted');
     };
@@ -784,28 +842,38 @@
     return '';
   }
 
+  function deleteProductNow(p) {
+    productMenus(p).forEach((m) => m.status === 'published' && (m.status = 'changed'));
+    productParents(p).forEach(({ ent }) => (ent.children = ent.children.filter((c) => c !== p.id)));
+    for (const x of Object.values(S.data.entities.product)) {
+      x.upsell.products = x.upsell.products.filter((id) => id !== p.id);
+      x.crossSell = x.crossSell.filter((id) => id !== p.id);
+      for (const [k, ids] of Object.entries(x.substitutes)) x.substitutes[k] = ids.filter((id) => id !== p.id);
+    }
+    ringsUpAs(p).forEach((x) => (x.posParentExt = null));
+    for (const k of Object.keys(S.data.placements)) if (k.split('>').includes(`p:${p.id}`)) delete S.data.placements[k];
+    delete S.data.entities.product[p.id];
+    const at = S.ui.selected.split('>').indexOf(`p:${p.id}`);
+    if (at > 0) S.ui.selected = S.ui.selected.split('>').slice(0, at).join('>');
+  }
+
+  const categoryDeleteBlock = (cat) =>
+    S.data.menus.some((m) => m.children.includes(cat.id) && m.status === 'publishing') ? 'You can delete the category once publishing finishes.' : '';
+
+  function deleteCategoryNow(cat) {
+    S.data.menus.forEach((m) => (m.children = m.children.filter((c) => c !== cat.id)));
+    for (const k of Object.keys(S.data.placements)) if (k.split('>')[1] === `c:${cat.id}`) delete S.data.placements[k];
+    delete S.data.entities.category[cat.id];
+  }
+
   function confirmDeleteProduct(p) {
     if (productDeleteBlock(p)) return;
     const name = nameOf('product', p);
     const parents = productParents(p);
     const linked = ringsUpAs(p);
-    const menus = productMenus(p);
     const remove = () => {
       closeModal();
-      commit(() => {
-        parents.forEach(({ ent }) => (ent.children = ent.children.filter((c) => c !== p.id)));
-        for (const x of Object.values(S.data.entities.product)) {
-          x.upsell.products = x.upsell.products.filter((id) => id !== p.id);
-          x.crossSell = x.crossSell.filter((id) => id !== p.id);
-          for (const [k, ids] of Object.entries(x.substitutes)) x.substitutes[k] = ids.filter((id) => id !== p.id);
-        }
-        linked.forEach((x) => (x.posParentExt = null));
-        for (const k of Object.keys(S.data.placements)) if (k.split('>').includes(`p:${p.id}`)) delete S.data.placements[k];
-        delete S.data.entities.product[p.id];
-        const at = S.ui.selected.split('>').indexOf(`p:${p.id}`);
-        if (at > 0) S.ui.selected = S.ui.selected.split('>').slice(0, at).join('>');
-        menus.forEach((m) => m.status === 'published' && (m.status = 'changed'));
-      });
+      commit(() => deleteProductNow(p));
       toast('Product deleted');
     };
     if (!parents.length) {
@@ -931,33 +999,40 @@
     const info = parsePath(path);
     const pInfo = parsePath(info.parentPath);
     const parent = entity(pInfo.kind, pInfo.id);
-    const choiceProducts = info.kind === 'product' && pInfo.kind === 'category' ? choiceProductsHolding(parent, info.id) : [];
-    const ok = commit(() => {
-      parent.children = parent.children.filter((c) => c !== info.id);
-      delete S.data.pendingLinks[linkKeyOf(path)];
-      if (pInfo.kind === 'product' && parent.ptype === 'size') {
-        for (const catPath of choiceProductCategoryPaths(info.parentPath)) {
-          const copy = childPath(catPath, 'product', info.id);
-          const cat = entity('category', parsePath(catPath).id);
-          if (!S.data.pendingLinks[linkKeyOf(copy)] || choiceProductsHolding(cat, info.id).length) continue;
-          cat.children = cat.children.filter((c) => c !== info.id);
-          delete S.data.pendingLinks[linkKeyOf(copy)];
-          for (const k of Object.keys(S.data.placements)) if (k === copy || k.startsWith(`${copy}>`)) delete S.data.placements[k];
-        }
-      }
-      const segs = choiceProducts.map((p) => `>p:${p.id}>p:${info.id}`);
-      for (const k of Object.keys(S.data.placements)) {
-        if (k === path || k.startsWith(`${path}>`) || segs.some((s) => k.endsWith(s) || k.includes(`${s}>`))) delete S.data.placements[k];
-      }
-      choiceProducts.forEach((p) => (p.children = p.children.filter((c) => c !== info.id)));
-      if (S.ui.selected === path || S.ui.selected.startsWith(`${path}>`) || segs.some((s) => S.ui.selected.endsWith(s) || S.ui.selected.includes(`${s}>`)))
-        S.ui.selected = info.parentPath;
-    }, { menu: menuById(info.menuId) });
+    let choiceProducts = [];
+    const ok = commit(() => (choiceProducts = unlinkPath(path)), { menu: menuById(info.menuId) });
     if (!ok || quiet) return;
     const text = choiceProducts.length
       ? `${nameOf('product', entity('product', info.id))} removed from ${nameOf('category', parent)} and ${choiceProducts.map((p) => nameOf('product', p)).join(' and ')}`
       : `${KIND_LABEL[info.kind]} removed`;
     toast(text, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function unlinkPath(path) {
+    const info = parsePath(path);
+    const pInfo = parsePath(info.parentPath);
+    const parent = entity(pInfo.kind, pInfo.id);
+    const choiceProducts = info.kind === 'product' && pInfo.kind === 'category' ? choiceProductsHolding(parent, info.id) : [];
+    parent.children = parent.children.filter((c) => c !== info.id);
+    delete S.data.pendingLinks[linkKeyOf(path)];
+    if (pInfo.kind === 'product' && parent.ptype === 'size') {
+      for (const catPath of choiceProductCategoryPaths(info.parentPath)) {
+        const copy = childPath(catPath, 'product', info.id);
+        const cat = entity('category', parsePath(catPath).id);
+        if (!S.data.pendingLinks[linkKeyOf(copy)] || choiceProductsHolding(cat, info.id).length) continue;
+        cat.children = cat.children.filter((c) => c !== info.id);
+        delete S.data.pendingLinks[linkKeyOf(copy)];
+        for (const k of Object.keys(S.data.placements)) if (k === copy || k.startsWith(`${copy}>`)) delete S.data.placements[k];
+      }
+    }
+    const segs = choiceProducts.map((p) => `>p:${p.id}>p:${info.id}`);
+    for (const k of Object.keys(S.data.placements)) {
+      if (k === path || k.startsWith(`${path}>`) || segs.some((s) => k.endsWith(s) || k.includes(`${s}>`))) delete S.data.placements[k];
+    }
+    choiceProducts.forEach((p) => (p.children = p.children.filter((c) => c !== info.id)));
+    if (S.ui.selected === path || S.ui.selected.startsWith(`${path}>`) || segs.some((s) => S.ui.selected.endsWith(s) || S.ui.selected.includes(`${s}>`)))
+      S.ui.selected = info.parentPath;
+    return choiceProducts;
   }
 
   function moveChild(path, to) {
@@ -1041,6 +1116,262 @@
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },
         { label: `Remove ${KIND_LABEL[info.kind].toLowerCase()}`, kind: 'danger', onClick: () => { closeModal(); removeLink(path); } },
+      ],
+    });
+  }
+
+  /* ---------- bulk ---------- */
+
+  const DELETE_MAX = 100;
+  const parentPathOf = (path) => parsePath(path).parentPath;
+  const pathName = (path) => {
+    const info = parsePath(path);
+    return nameOf(info.kind, entity(info.kind, info.id));
+  };
+  const parentKey = (path) => {
+    const pi = parsePath(parentPathOf(path));
+    return `${pi.kind}:${pi.id}`;
+  };
+  const sharedParent = (paths) => (new Set(paths.map(parentKey)).size === 1 ? pathName(parentPathOf(paths[0])) : '');
+
+  function canHideHere(path) {
+    const info = parsePath(path);
+    if (info.kind === 'category') return false;
+    if (info.kind === 'product') return !hiddenInProduct(path);
+    const g = entity('group', info.id);
+    return g.children.length > 0 && !(rulesOf(g).min > 0);
+  }
+  const canShowHere = (path) => parsePath(path).kind !== 'category' && !hiddenInProduct(path);
+
+  function bulkSetHidden(hide) {
+    const { paths, noun } = selectionInfo();
+    const list = paths.filter((p) => !pendingRoot(p) && groupHiddenAt(p) !== hide && (hide ? canHideHere(p) : canShowHere(p)));
+    if (!list.length) return;
+    const where = sharedParent(list);
+    const ok = commit(() => list.forEach((p) => setBind(`pl|${p}|hidden`, hide)));
+    if (ok) toast(`${noun(list.length)} ${hide ? 'hidden' : 'shown'}${where ? ` in ${where}` : ''}`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function removableRows(paths) {
+    const seen = new Set();
+    return paths.filter((p) => {
+      const k = linkKeyOf(p);
+      if (inheritedAt(p).length || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+
+  function bulkRemove() {
+    const { paths, kind, noun, many } = selectionInfo();
+    const list = removableRows(paths).sort((a, b) => b.split('>').length - a.split('>').length);
+    if (!list.length) return;
+    const n = list.length;
+    const run = () => {
+      closeModal();
+      const ok = commit(() => list.forEach(unlinkPath));
+      if (ok) toast(`${noun(n)} removed`, 'success', { action: { label: 'Undo', onClick: undo } });
+    };
+    const cancel = { label: 'Cancel', kind: 'secondary', onClick: closeModal };
+    if (kind === 'category') {
+      const m = activeMenu();
+      const menuName = nameOf('menu', m);
+      const only = list.filter((p) => !S.data.menus.some((x) => x.id !== m.id && x.children.includes(parsePath(p).id))).length;
+      const who = only === n ? (n === 1 ? 'It is' : 'They are') : `${only} of them are`;
+      return openModal({
+        title: `Remove ${noun(n)} from ${menuName}?`,
+        body: `<p>${m.publishedStoreIds.length ? `Customers stop seeing them in ${esc(menuName)} right away. ` : ''}Nothing changes on POS.</p>
+          ${only ? callout('warning', `${who} not in any other menu, so customers will not see ${only === 1 ? 'it' : 'them'} anywhere.`) : ''}`,
+        actions: [cancel, { label: 'Remove categories', kind: 'danger', onClick: run }],
+      });
+    }
+    const shared = [
+      ...new Set(
+        list
+          .filter((p) => !isPendingLink(p))
+          .map((p) => parsePath(parentPathOf(p)))
+          .filter((pi) => pi.kind !== 'menu' && (ctx.usage.get(`${pi.kind}:${pi.id}`) || []).length > 1)
+          .map((pi) => nameOf(pi.kind, entity(pi.kind, pi.id))),
+      ),
+    ];
+    if (!shared.length) return run();
+    const one = shared.length === 1;
+    openModal({
+      title: `Remove ${noun(n)}?`,
+      body: `<p>${esc(listJoin(shared))} ${one ? 'is' : 'are'} used in more than one place, so ${many} in ${one ? 'it' : 'them'} are removed everywhere ${one ? 'it’s' : 'they’re'} used. Nothing changes on POS.</p>`,
+      actions: [cancel, { label: `Remove ${many}`, kind: 'danger', onClick: run }],
+    });
+  }
+
+  const deleteBlockOf = (kind, e) => (kind === 'product' ? productDeleteBlock(e) : kind === 'group' ? groupDeleteBlock(e) : categoryDeleteBlock(e));
+
+  function bulkDeleteState() {
+    const info = selectionInfo();
+    const live = info.ents.filter((e) => !e.pending);
+    const blocked = live.filter((e) => deleteBlockOf(info.kind, e));
+    return { ...info, ok: live.filter((e) => !blocked.includes(e)), blocked };
+  }
+
+  function bulkDelete() {
+    const { kind, ok, noun } = bulkDeleteState();
+    if (!ok.length || ok.length > DELETE_MAX) return;
+    const n = ok.length;
+    const linked = kind === 'product' ? [...new Set(ok.flatMap(ringsUpAs))].filter((x) => !ok.includes(x)) : [];
+    const lines = {
+      product: [
+        'These products will be removed from all stores, online ordering channels, external channels, and associated order types',
+        'These products will be removed from all product groups, categories and menus',
+        'These products will be removed from all discounts',
+        ok.some((p) => p.ptype === 'size') ? 'Choices and product groups within these products will not be deleted' : 'Product groups within these products will not be deleted',
+        linked.length ? `${listJoin(linked.map((x) => nameOf('product', x)))} ${linked.length > 1 ? 'ring' : 'rings'} up as one of these products and will lose that link` : '',
+        'If you have active advanced orders that contain these products, you will not be able to delete them. Please cancel all outstanding orders before proceeding.',
+      ],
+      group: [
+        'These product groups will be removed from all stores, online ordering channels, external channels, and associated order types',
+        'These product groups will be removed from all products',
+        'Products within these product groups will not be deleted',
+      ],
+      category: [
+        'These categories will be removed from all stores, online ordering channels, external channels, and associated order types',
+        'These categories will be removed from all menus',
+        'Products within these categories will not be deleted',
+      ],
+    }[kind].filter(Boolean);
+    const first = T.sel[0] || S.ui.selected;
+    const remove = () => {
+      closeModal();
+      const done = commit(() => {
+        ok.forEach((e) => (kind === 'product' ? deleteProductNow(e) : kind === 'group' ? deleteGroupNow(e) : deleteCategoryNow(e)));
+        S.ui.selected = parentPathOf(first);
+      });
+      if (done) toast(`${noun(n)} deleted`);
+    };
+    openModal({
+      title: `Delete ${noun(n)}?`,
+      size: 'lg',
+      body: `<h3 class="delete-warning-title">This action cannot be undone. Proceed with caution.</h3>
+        <ul class="delete-warning-list">${lines.map((t) => `<li>${icon('alertCircle', 18)}<span>${esc(t)}</span></li>`).join('')}</ul>
+        <button type="button" class="check-toggle delete-confirm-check" role="checkbox" aria-checked="false" data-action="delete-confirm-toggle">
+          <span class="check" aria-hidden="true"></span>Yes, I understand
+        </button>`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        { label: 'Delete forever', kind: 'danger', disabled: true, onClick: remove },
+      ],
+    });
+  }
+
+  const storesOf = (kind, e) => (kind === 'category' ? categoryStores(e) : productStores(e));
+
+  function openBulkStores(mode, stock = '') {
+    const { kind, ents, noun, many } = selectionInfo();
+    const live = ents.filter((e) => !e.pending);
+    const n = live.length;
+    const on = new Set(live.flatMap((e) => storesOf(kind, e).map((s) => s.id)));
+    if (!on.size) return toast('No stores yet. Add stores on the menu’s Stores tab', 'info');
+    const hiddenAt = (e, sid) => (kind === 'category' ? isHiddenAt(e, sid) : productHiddenAt(e, sid));
+    const status = (sid) => {
+      const k = live.filter((e) => (mode === 'stock' ? productOutAt(e, sid) : hiddenAt(e, sid))).length;
+      const word = mode === 'stock' ? 'Out of stock' : 'Hidden';
+      return !k ? '' : k === n ? word : `${word} for ${k} of ${n}`;
+    };
+    const label = (STOCK_OPTIONS.find((o) => o[0] === stock) || ['', ''])[1];
+    const [title, intro, cta] = {
+      hide: ['Hide at stores', `Customers at the stores you select do not see these ${many}${kind === 'category' ? ' or their products' : ''}. Applies in every menu.`, 'Hide at'],
+      show: ['Show at stores', `Customers at the stores you select see these ${many} again. Applies in every menu.`, 'Show at'],
+      stock: ['Set stock at stores', `${noun(n)} ${stock ? `are ${lcFirst(label)}` : 'are back in stock'} at the stores you select. Applies in every menu.`, 'Set stock at'],
+    }[mode];
+    openListPicker({
+      title,
+      intro,
+      groups: C.menuStoreGroups
+        .map((g) => ({
+          id: g.id,
+          name: g.name,
+          items: groupStores(g.id)
+            .filter((s) => on.has(s.id))
+            .map((s) => ({ id: s.id, name: s.name, alt: status(s.id), meta: s.city })),
+        }))
+        .filter((g) => g.items.length),
+      empty: 'No stores yet',
+      noun: ['store', 'stores'],
+      placeholder: 'Search by store or city',
+      cta: (c) => `${cta} ${c ? plural(c, 'store', 'stores') : 'stores'}`,
+      onSave: (ids) => applyBulkStores(kind, live, mode, stock, ids, noun(n)),
+    });
+  }
+
+  function applyBulkStores(kind, ents, mode, stock, ids, who) {
+    const ok = commit(() =>
+      ents.forEach((e) => {
+        const mine = new Set(storesOf(kind, e).map((s) => s.id));
+        if (!e.stores) e.stores = {};
+        ids.forEach((sid) => {
+          if (!mine.has(sid)) return;
+          if (kind === 'category') {
+            if (mode === 'hide') e.stores[sid] = 'disabled';
+            else delete e.stores[sid];
+            return;
+          }
+          if (mode === 'stock' && productPosStockAt(e, sid)) return;
+          const cur = { ...(e.stores[sid] || {}) };
+          if (mode === 'hide') cur.hidden = true;
+          else if (mode === 'show') delete cur.hidden;
+          else if (stock) cur.stock = stock;
+          else delete cur.stock;
+          if (Object.keys(cur).length) e.stores[sid] = cur;
+          else delete e.stores[sid];
+        });
+      }),
+    );
+    if (!ok) return;
+    const where = storesWho(ids);
+    const what = mode === 'hide' ? 'hidden' : mode === 'show' ? 'shown' : stock ? 'out of stock' : 'back in stock';
+    toast(`${who} ${what} at ${where}`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function imageTargets(paths) {
+    const out = [];
+    paths.forEach((p) => {
+      const info = parsePath(p);
+      const e = entity(info.kind, info.id);
+      if (!e || pendingRoot(p) || (info.kind !== 'product' && info.kind !== 'category') || out.includes(e)) return;
+      out.push(e);
+    });
+    return out;
+  }
+
+  function uploadRowImage(paths) {
+    T.rowImage = paths;
+    const input = $('#row-image-input');
+    input.value = '';
+    input.click();
+  }
+
+  function applyImage(paths, url) {
+    const targets = imageTargets(paths);
+    if (!targets.length) return;
+    const [one, many] = BULK_NOUN[parsePath(paths[0]).kind];
+    const n = targets.length;
+    const had = targets.filter((e) => e.image);
+    const others = targets.filter((e) => !e.image);
+    const set = (list) => {
+      closeModal();
+      if (!commit(() => list.forEach((e) => (e.image = url)))) return;
+      const msg = n === 1 ? (had.length ? 'Image successfully replaced' : 'Image successfully added') : `Image successfully added to ${plural(list.length, one, many)}`;
+      toast(msg, 'success', { action: { label: 'Undo', onClick: undo } });
+    };
+    if (n === 1 || !had.length) return set(targets);
+    const them = had.length === 1 ? 'it' : 'them';
+    openModal({
+      title: 'Replace images?',
+      body: `<p>${had.length === n ? `All ${n} ${many} already have an image.` : `${had.length} of ${n} ${many} already ${had.length === 1 ? 'has' : 'have'} an image.`} ${
+        others.length ? `Replace ${them}, or add this image only to the other ${others.length}.` : `This image replaces ${them}.`
+      }</p>`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        ...(others.length ? [{ label: `Add to other ${others.length}`, kind: 'secondary', onClick: () => set(others) }] : []),
+        { label: 'Replace images', kind: 'primary', onClick: () => set(targets) },
       ],
     });
   }

@@ -375,7 +375,102 @@
     return tabs;
   }
 
+  function renderBulkInspector() {
+    const { paths, kind, ents, one, many, noun } = selectionInfo();
+    const n = paths.length;
+    const names = paths.map(pathName);
+    const shown = names.slice(0, 3);
+    $('#inspector-head').innerHTML = `
+      <div class="insp-head">
+        <span class="thumb thumb-lg bulk-count kind-${kind} tnum" aria-hidden="true">${n}</span>
+        <div class="insp-titles">
+          <div class="insp-kicker"><span class="kind-chip kind-${kind}">${esc(capitalize(many))}</span></div>
+          <h2 class="insp-title">${esc(noun(n))} selected</h2>
+          <p class="insp-alt" title="${esc(names.join(', '))}">${esc(listJoin(n > 3 ? [...shown, `${n - 3} more`] : shown))}</p>
+        </div>
+      </div>
+      <div class="bulk-tools">
+        <span class="field-help">⌘-click to add or remove one. Shift-click to select a range.</span>
+        <button type="button" class="btn ghost sm" data-action="sel-clear" title="Clear selection" data-tip-kbd="Esc">Clear selection</button>
+      </div>`;
+    $('#inspector-tabs').innerHTML = '';
+
+    const live = paths.filter((p) => !pendingRoot(p));
+    const liveEnts = ents.filter((e) => !e.pending);
+    const pending = n - live.length;
+    let html = pending ? callout('info', `${plural(pending, 'item is', 'items are')} not imported yet. Only Remove applies to ${pending === 1 ? 'it' : 'them'} until you import.`) : '';
+
+    if (kind !== 'category' && live.length) {
+      const where = sharedParent(live);
+      const hidden = live.filter(groupHiddenAt);
+      const canShow = hidden.filter(canShowHere).length;
+      const canHide = live.filter((p) => !groupHiddenAt(p) && canHideHere(p)).length;
+      const notes = [];
+      const scoped = live.filter((p) => kind === 'product' && hiddenInProduct(p)).length;
+      if (scoped) notes.push(`${plural(scoped, 'option is', 'options are')} hidden only in one product. Change ${scoped === 1 ? 'it' : 'them'} on the Options tab of ${scoped === 1 ? 'its group' : 'their groups'}.`);
+      if (kind === 'group') {
+        const required = live.filter((p) => !groupHiddenAt(p) && entity('group', parsePath(p).id).children.length && rulesOf(entity('group', parsePath(p).id)).min > 0).length;
+        const empty = live.filter((p) => !entity('group', parsePath(p).id).children.length).length;
+        if (required) notes.push(`${plural(required, 'required group', 'required groups')} cannot be hidden. Set the minimum to 0 first.`);
+        if (empty) notes.push(`${plural(empty, 'group has', 'groups have')} no options to hide.`);
+      }
+      html += section(
+        where ? `In ${where}` : 'In each place',
+        `<p class="store-summary tnum">${hidden.length ? `${hidden.length} of ${live.length} hidden` : `All ${live.length} shown`}</p>
+        <div class="hint-actions">
+          <button type="button" class="btn secondary sm" data-action="bulk-show" ${canShow ? '' : 'disabled'}>${icon('eye', 14)}Show ${many}</button>
+          <button type="button" class="btn secondary sm" data-action="bulk-hide" ${canHide ? '' : 'disabled'}>${icon('eyeOff', 14)}Hide ${many}</button>
+        </div>
+        ${notes.map((t) => `<p class="field-help">${esc(t)}</p>`).join('')}`,
+        { desc: where ? 'Hide them here without removing them. Other places stay as they are.' : 'Hides or shows each one where it’s selected, without removing it. Other places stay as they are.' },
+      );
+    }
+
+    if (kind !== 'group' && liveEnts.length) {
+      const withImage = liveEnts.filter((e) => e.image).length;
+      html += section(
+        'Image',
+        `<p class="store-summary tnum">${withImage ? `${withImage} of ${liveEnts.length} have an image` : 'No images yet'}</p>
+        <div class="hint-actions"><button type="button" class="btn secondary sm" data-action="bulk-image">${icon('upload', 14)}Upload image</button></div>
+        <p class="field-help">JPG, PNG, or GIF up to 1 MB. Each ${one} gets the same image.</p>`,
+      );
+      html += section(
+        'Stores',
+        `<div class="hint-actions">
+          <button type="button" class="btn secondary sm" data-action="bulk-stores" data-mode="hide">${icon('eyeOff', 14)}Hide at stores</button>
+          <button type="button" class="btn secondary sm" data-action="bulk-stores" data-mode="show">${icon('eye', 14)}Show at stores</button>
+          ${kind === 'product' ? `<button type="button" class="btn secondary sm" data-action="bulk-stock" aria-haspopup="menu">${icon('package', 14)}Set stock</button>` : ''}
+        </div>`,
+        { desc: 'Applies in every menu.' },
+      );
+    }
+
+    const removable = removableRows(paths);
+    const inherited = paths.filter((p) => inheritedAt(p).length).length;
+    const removeLabel = kind === 'category' ? 'Remove from menu' : sharedParent(removable.length ? removable : paths) ? `Remove from ${sharedParent(removable.length ? removable : paths)}` : `Remove ${many}`;
+    const del = bulkDeleteState();
+    const tooMany = del.ok.length > DELETE_MAX;
+    const delHelp = tooMany
+      ? `Delete up to ${DELETE_MAX} at a time.`
+      : del.blocked.length === 1
+        ? `${nameOf(kind, del.blocked[0])} is skipped. ${deleteBlockOf(kind, del.blocked[0])}`
+        : del.blocked.length
+          ? `${plural(del.blocked.length, one, many)} are skipped. ${nameOf(kind, del.blocked[0])}: ${deleteBlockOf(kind, del.blocked[0])}`
+          : 'Deletes them everywhere they’re used. This cannot be undone.';
+    html += section(
+      '',
+      `<div class="hint-actions">
+        <button type="button" class="btn secondary" data-action="bulk-remove" ${removable.length ? '' : 'disabled'}>${icon('x', 15)}${esc(removeLabel)}</button>
+        <button type="button" class="btn secondary tone-danger" data-action="bulk-delete" ${del.ok.length && !tooMany ? '' : 'disabled'}>${icon('trash', 15)}Delete ${esc(noun(del.ok.length))}</button>
+      </div>
+      ${inherited ? `<p class="field-help">${plural(inherited, `${one} is`, `${many} are`)} added by another group and cannot be removed here.</p>` : ''}
+      <p class="field-help">${esc(delHelp)}</p>`,
+    );
+    $('#inspector-body').innerHTML = html;
+  }
+
   function renderInspector() {
+    if (T.sel.length > 1) return renderBulkInspector();
     const path = S.ui.selected;
     const info = parsePath(path);
     const ent = entity(info.kind, info.id);

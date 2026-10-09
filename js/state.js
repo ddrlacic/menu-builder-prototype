@@ -45,6 +45,11 @@
     menuQuery: '',
     showSelectedMenus: false,
     rangeOpen: new Set(),
+    sel: [],
+    selAnchor: null,
+    rowImage: null,
+    imageOverRow: null,
+    hiddenRows: 0,
   };
   let ctx = null;
 
@@ -1004,6 +1009,7 @@
       halfHintDismissed: {},
       showPosIds: false,
       posCollapsed: false,
+      hideHidden: false,
     };
   }
 
@@ -1177,13 +1183,13 @@
   function persistNow() {
     clearTimeout(persistTimer);
     try {
-      const { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed, showPosIds, posCollapsed } = S.ui;
+      const { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed, showPosIds, posCollapsed, hideHidden } = S.ui;
       localStorage.setItem(
         storageKey(),
         JSON.stringify({
           version: 2,
           data: S.data,
-          ui: { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed, showPosIds, posCollapsed },
+          ui: { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed, showPosIds, posCollapsed, hideHidden },
         }),
       );
     } catch (_) {
@@ -1201,7 +1207,7 @@
     closeModal(true);
     useDataset(ds);
     Object.assign(hist, { past: [], future: [], key: null, at: 0 });
-    Object.assign(T, { posSearchExpanded: {}, openCard: null, storeKey: null, focusRow: null });
+    Object.assign(T, { posSearchExpanded: {}, openCard: null, storeKey: null, focusRow: null, sel: [], selAnchor: null });
     T.flashPaths.clear();
     T.flashExt.clear();
     const { posCollapsed } = S.ui;
