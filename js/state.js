@@ -740,6 +740,7 @@
     if (!S.data.pos.syncedAt) S.data.pos.syncedAt = Date.now() - 1000 * 60 * 18;
     if (src.menu) seedImported(src);
     else seedExample();
+    if (src.built) seedBuiltDemo(src);
     S.data.menus.forEach((m) => {
       if (!m.image) m.image = posImageOf(m);
     });
@@ -823,25 +824,36 @@
         if (item.hidden) S.data.placements[childPath(catPath, 'product', ent.id)] = { hidden: true };
       }
     }
+  }
 
+  function seedBuiltDemo(src) {
+    S.data.builtDemo = true;
+    const E = S.data.entities;
     const built = src.built || {};
+    const prod = (ext) => findByExt('product', ext);
     for (const s of built.suggested || []) {
-      const g = newGroup({ gtype: 'standalone', name: s.name, description: s.description || '', min: 0, max: null, children: s.options.map((pid) => productFor(pid).id) });
+      const host = prod(s.product);
+      const options = s.options.map(prod).filter(Boolean);
+      if (!host || !options.length) continue;
+      const g = newGroup({ gtype: 'standalone', name: s.name, description: s.description || '', min: 0, max: null, children: options.map((x) => x.id) });
       E.group[g.id] = g;
-      productFor(s.product).children.push(g.id);
+      host.children.push(g.id);
     }
     for (const c of built.customProducts || []) {
-      const parent = productFor(c.posParent);
+      const parent = prod(c.posParent);
+      const cat = findByExt('category', c.category);
+      if (!parent || !cat) continue;
+      const onPos = S.data.pos.items[c.posParent].children || [];
       const p = newProduct({
         ptype: 'linked',
         posParentExt: c.posParent,
         name: c.name,
         description: c.description || parent.description,
         allergens: [...(parent.allergens || [])],
-        children: parent.children.filter((gid) => E.group[gid].gtype === 'pos' && (S.data.pos.items[c.posParent].children || []).includes(E.group[gid].externalId)),
+        children: parent.children.filter((gid) => E.group[gid] && E.group[gid].gtype === 'pos' && onPos.includes(E.group[gid].externalId)),
       });
       E.product[p.id] = p;
-      E.category[extId('category', c.category)].children.push(p.id);
+      cat.children.push(p.id);
     }
   }
 
@@ -990,6 +1002,7 @@
           Object.values(S.data.entities.product).forEach(migrateProduct);
           if (!S.data.storeStatusDemo) seedStoreStatusDemo(S.data.menus[0]);
           if (!S.data.posStockDemo) seedPosStockDemo(S.data.menus[0]);
+          if (!S.data.builtDemo && DATASETS[dataset].built) seedBuiltDemo(DATASETS[dataset]);
           const fixPath = migrateChoiceProducts();
           for (const [k, pl] of Object.entries(S.data.placements)) {
             if (!/^[^>]+>c:[^>]+$/.test(k)) continue;
