@@ -62,6 +62,11 @@
         oldParent.children.splice(oldIndex, 1);
       }
       parent.children.splice(Math.min(index, parent.children.length), 0, id);
+      if (d.origin === 'pos') stageLink(pInfo.kind, pInfo.id, d.kind, id);
+      else if (S.data.pendingLinks[linkKeyOf(d.path)]) {
+        delete S.data.pendingLinks[linkKeyOf(d.path)];
+        stageLink(pInfo.kind, pInfo.id, d.kind, id);
+      }
       if (pInfo.kind !== 'menu') {
         const ck = childKind(pInfo.kind, parent);
         if (reaches(ck, id, pInfo.kind, pInfo.id)) {
@@ -132,6 +137,7 @@
             throw new Abort(`${nameOf(topKind, entity(topKind, childId))} already contains ${nameOf(kind, ent)}, so it cannot go inside it`);
           }
           ent.children.push(childId);
+          stageLink(kind, ent.id, topKind, childId);
         }
         topKind = kind;
         childId = ent.id;
@@ -142,6 +148,7 @@
         throw new Abort(`${nameOf(topKind, entity(topKind, childId))} already contains ${nameOf(info.kind, anchor)}, so it cannot go inside it`);
       }
       anchor.children.push(childId);
+      stageLink(info.kind, info.id, topKind, childId);
       newPath = path;
       for (let i = depth; i < chain.length; i++) {
         const ni = parsePath(newPath);
@@ -174,6 +181,7 @@
         const res = importPos(r);
         if (!res) continue;
         menu.children.push(res.id);
+        stageLink('menu', menu.id, 'category', res.id);
         const p = childPath(menu.id, 'category', res.id);
         if (!firstPath) firstPath = p;
         flash(p);
@@ -229,8 +237,72 @@
     }
   }
 
+  const IMPORT_MS = 2400;
+
+  function importStaged() {
+    if (T.importing || !pendingRows().length) return;
+    closePopover();
+    T.importing = true;
+    render();
+    setTimeout(() => {
+      T.importing = false;
+      const reached = new Set();
+      S.data.menus.forEach((m) => walkMenu(m, (k, id) => void reached.add(`${k}:${id}`)));
+      for (const [kind, map] of Object.entries(S.data.entities))
+        for (const [id, e] of Object.entries(map)) if (e.pending && !reached.has(`${kind}:${id}`)) delete map[id];
+      clearPending();
+      Object.assign(hist, { past: [], future: [], key: null, at: 0 });
+      dataVersion++;
+      render();
+      toast('POS items successfully imported');
+    }, IMPORT_MS);
+  }
+
+  function discardStaged() {
+    const rows = pendingRows();
+    if (!rows.length) return;
+    openModal({
+      title: 'Discard items not imported?',
+      body: `<p>${plural(rows.length, 'item comes', 'items come')} off the menu. Items already imported stay as they are.</p>`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        {
+          label: 'Discard items',
+          kind: 'danger',
+          onClick: () => {
+            closeModal();
+            const ok = commit(() => {
+              for (const path of rows) {
+                const info = parsePath(path);
+                const p = parsePath(info.parentPath);
+                const parent = entity(p.kind, p.id);
+                parent.children = parent.children.filter((c) => c !== info.id);
+                delete S.data.pendingLinks[linkKeyOf(path)];
+                for (const k of Object.keys(S.data.placements)) if (k === path || k.startsWith(`${path}>`)) delete S.data.placements[k];
+              }
+            });
+            if (ok) toast(`${plural(rows.length, 'item', 'items')} discarded`, 'success', { action: { label: 'Undo', onClick: undo } });
+          },
+        },
+      ],
+    });
+  }
+
   function publish() {
     const m = activeMenu();
+    if (T.importing) return;
+    const staged = pendingRows().length;
+    if (staged) {
+      openModal({
+        title: 'Import items first',
+        body: `<p>${plural(staged, 'item is', 'items are')} not imported yet. Import them first, or they will not be published.</p>`,
+        actions: [
+          { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+          { label: 'Import items', kind: 'primary', onClick: () => { closeModal(); importStaged(); } },
+        ],
+      });
+      return;
+    }
     if (ctx.issues.errors) {
       toast(`Couldn’t publish ${m.name}. Fix ${plural(ctx.issues.errors, 'error', 'errors')} first`, 'error');
       openIssues($('[data-action="issues"]'));

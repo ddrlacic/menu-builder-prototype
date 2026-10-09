@@ -44,6 +44,7 @@
       return;
     }
     $('#canvas').classList.remove('is-no-menu');
+    document.body.classList.toggle('is-importing', T.importing);
     if (!S.ui.selected || !pathExists(S.ui.selected) || parsePath(S.ui.selected).menuId !== menu.id) S.ui.selected = menu.id;
     ctx = derivedCtx();
     renderTopbar();
@@ -151,8 +152,15 @@
         </button>
         <span class="status-pill tone-${statusTone}">${statusTone === 'progress' ? '<span class="spinner"></span>' : ''}${statusLabel}</span>
         <button class="icon-btn" data-action="app-more" aria-label="More options" title="More options">${icon('more', 16)}</button>
-        <button class="btn primary" data-action="publish" ${menu.status === 'publishing' ? 'disabled' : ''}>${icon('send', 15)}Publish menu</button>
+        ${importButton()}
+        <button class="btn primary" data-action="publish" ${menu.status === 'publishing' || T.importing ? 'disabled' : ''}>${icon('send', 15)}Publish menu</button>
       </div>`;
+  }
+
+  function importButton() {
+    if (T.importing) return '<button class="btn secondary" disabled><span class="spinner"></span>Importing</button>';
+    const n = ctx.pending.length;
+    return `<button class="btn secondary" data-action="import" ${n ? `title="${plural(n, 'item', 'items')} not imported yet"` : 'disabled'}>${icon('download', 15)}Import${n ? `<span class="btn-count tnum">${n}</span>` : ''}</button>`;
   }
 
   function posSubText() {
@@ -388,7 +396,7 @@
             }).length
           : 0;
       const extra =
-        (ent.gtype === 'linked' ? ` · From ${posLabel(ent.posGroupExt)}` : ent.gtype === 'standalone' ? ' · Each one added as its own item' : '') +
+        (ent.gtype === 'linked' ? ` · Based on ${posLabel(ent.posGroupExt)}` : ent.gtype === 'standalone' ? ' · Each one added as its own item' : '') +
         (withHalves ? ` · ${withHalves} with halves` : '');
       meta = `<span class="type-tag type-${rules.type}">${C.groupTypes[rules.type].label}</span>${esc(ent.isSubstitutionContainer ? 'Substitutes only · Hidden in Web App' : groupRuleShort(rules) + extra)}`;
     }
@@ -396,21 +404,26 @@
     if (posId) meta = `${meta ? `${meta}<span aria-hidden="true">·</span>` : ''}<span class="tnum">${esc(posId)}</span>`;
 
     const issueDot = issueTone ? `<span class="issue-dot tone-${issueTone}" title="${esc(issues.map((i) => i.text).join('\n'))}"></span>` : '';
-    const suggestion =
-      kind === 'category' && suggestedSizeSets(ent).length
+    const stagedRoot = pendingRoot(path);
+    const staged = stagedRoot === path;
+    const parentName = nameOf(parentKind, entity(parentKind, parsePath(info.parentPath).id));
+    const suggestion = stagedRoot
+      ? ''
+      : kind === 'category' && suggestedSizeSets(ent).length
         ? `<button class="badge badge-action" data-action="group-sizes" data-path="${esc(path)}" title="Group size variants into one product">${icon('sparkles', 12)}Group sizes</button>`
         : kind === 'group' && suggestedHalves(ent).length
           ? `<button class="badge badge-action" data-action="group-halves" data-id="${esc(id)}" title="Match left and right halves to their toppings">${icon('sparkles', 12)}Group halves</button>`
           : '';
     const badges = [];
+    if (staged) badges.push(`<span class="badge tone-staged" title="${ent.pending ? 'Import to edit its settings' : `Import to add it to ${esc(parentName)}`}">Not imported</span>`);
     if (isMissingOnPos(ent)) badges.push(`<span class="badge tone-error">Deleted on POS</span>`);
     else if (removedFromPos(path)) badges.push(`<span class="badge tone-warning">Removed on POS</span>`);
     const hiddenHere = groupHiddenAt(path);
     if (hiddenHere) badges.push(`<span class="badge" title="Hidden in this placement">${icon('eyeOff', 12)}Hidden</span>`);
     if (ownerGroup && name !== nameOf('product', ent)) badges.push(`<span class="badge" title="Product name: ${esc(nameOf('product', ent))}">Renamed</span>`);
     if (kind === 'group' && (sectionHost(path) || {}).own) badges.push(`<span class="badge" title="Option sections set for this product">Own sections</span>`);
+    const from = kind === 'group' ? listJoin(inheritedAt(path).map((g) => nameOf('group', g))) : '';
     if (kind === 'group') {
-      const from = listJoin(inheritedAt(path).map((g) => nameOf('group', g)));
       if (from) badges.push(`<span class="badge" title="${esc(from)} adds it to every option">From ${esc(from)}</span>`);
       const to = posParentAt(path);
       if (to) badges.push(`<span class="badge" title="Picks go to POS as modifiers of ${esc(nameOf('product', to))}">${icon('link', 12)}With ${esc(nameOf('product', to))}</span>`);
@@ -449,7 +462,7 @@
 
     const flashCls = T.flashPaths.has(path) || (ent.externalId && T.flashExt.has(ent.externalId)) ? ' is-flash' : '';
     const addTitle = kind === 'category' ? 'Add product' : kind === 'product' ? (ent.ptype === 'size' ? 'Add choice' : 'Add group') : 'Add option';
-    const removeTitle = `Remove from ${nameOf(parentKind, entity(parentKind, parsePath(info.parentPath).id))}`;
+    const removeTitle = from ? `Added by ${from}. Remove it on the Options tab of ${from}` : `Remove from ${parentName}`;
     return `<div class="row${selected ? ' is-selected' : ''}${hiddenHere ? ' is-muted' : ''}${r.hit ? ' is-hit' : ''}${r.nestedHalf ? ' is-half' : ''}${flashCls}" role="treeitem" aria-level="${depth}" aria-selected="${selected}" ${hasChildren ? `aria-expanded="${r.expanded}"` : ''} tabindex="${selected ? 0 : -1}" draggable="${r.nestedHalf ? 'false' : 'true'}"${r.nestedHalf ? ` data-half-of="${esc(r.half.wholePath)}"` : ''} data-path="${esc(path)}" data-kind="${kind}" data-child-kind="${childKind(kind, ent)}" data-parent-kind="${parentKind}" data-name="${esc(name)}" style="--depth:${depth - 1}">
       <span class="row-indent" aria-hidden="true"></span>
       ${hasChildren ? `<button class="twisty" data-action="toggle" data-path="${esc(path)}" tabindex="-1" aria-label="${r.expanded ? 'Collapse' : 'Expand'}">${icon('chevRight', 14)}</button>` : '<span class="twisty-spacer"></span>'}
@@ -460,7 +473,7 @@
       ${posLink}
       <span class="row-actions">
         <button class="icon-btn sm" data-action="add" data-path="${esc(path)}" aria-label="${addTitle}" title="${addTitle}">${icon('plus', 15)}</button>
-        <button class="icon-btn sm" data-action="remove-row" data-path="${esc(path)}" aria-label="${esc(removeTitle)}" title="${esc(removeTitle)}" data-tip-kbd="⌫">${icon('trash', 15)}</button>
+        <button class="icon-btn sm" data-action="remove-row" data-path="${esc(path)}" aria-label="${esc(removeTitle)}" title="${esc(removeTitle)}"${from ? ' aria-disabled="true"' : ' data-tip-kbd="⌫"'}>${icon('trash', 15)}</button>
       </span>
     </div>`;
   }
@@ -507,7 +520,12 @@
       return;
     }
     const rows = visibleRows(menu);
-    tree.innerHTML = rows.length
-      ? rows.map(rowHtml).join('')
-      : `<div class="empty-small"><strong>Nothing matches “${esc(S.ui.canvasQuery)}”</strong><span>Try a different name or POS ID.</span></div>`;
+    const note = T.importing
+      ? '<div class="callout tone-info tree-note"><span class="spinner"></span><div>Importing POS items. Editing is paused until it finishes. Large menus can take a few minutes.</div></div>'
+      : '';
+    tree.innerHTML =
+      note +
+      (rows.length
+        ? rows.map(rowHtml).join('')
+        : `<div class="empty-small"><strong>Nothing matches “${esc(S.ui.canvasQuery)}”</strong><span>Try a different name or POS ID.</span></div>`);
   }

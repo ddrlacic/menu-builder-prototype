@@ -141,6 +141,35 @@
 
   const crumbText = (path) => crumbs(path).map((c) => c.name).join(' › ');
 
+  function linkKeyOf(path) {
+    const info = parsePath(path);
+    const p = parsePath(info.parentPath);
+    return `${p.kind}:${p.id}>${info.kind}:${info.id}`;
+  }
+
+  function isPendingLink(path) {
+    const info = parsePath(path);
+    if (!info.parentPath) return false;
+    const p = parsePath(info.parentPath);
+    const ent = entity(info.kind, info.id);
+    const parent = entity(p.kind, p.id);
+    return !!((ent && ent.pending) || (parent && parent.pending) || S.data.pendingLinks[linkKeyOf(path)]);
+  }
+
+  const pendingRoot = (path) => [...ancestorsOf(path), path].find(isPendingLink) || null;
+
+  function pendingRows() {
+    const out = [];
+    S.data.menus.forEach((m) =>
+      walkMenu(m, (k, id, ent, path) => {
+        if (!isPendingLink(path)) return true;
+        out.push(path);
+        return false;
+      }),
+    );
+    return out;
+  }
+
   function rootProductIndex(segs) {
     let root = -1;
     for (let i = 2; i < segs.length; i++) if (segs[i].startsWith('p:') && !segs[i - 1].startsWith('g:')) root = i;

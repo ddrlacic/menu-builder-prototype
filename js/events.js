@@ -405,7 +405,17 @@
     return `Drop to add it under ${posLabel(chain[chain.length - 2])}`;
   }
 
+  window.addEventListener('beforeunload', (e) => {
+    if (!S.data || !pendingRows().length) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
+
   document.addEventListener('dragstart', (e) => {
+    if (T.importing) {
+      e.preventDefault();
+      return;
+    }
     const posRow = e.target.closest && e.target.closest('.pos-row');
     const row = e.target.closest && e.target.closest('.row');
     if (posRow) {

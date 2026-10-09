@@ -26,6 +26,7 @@
     flashExt: new Set(),
     posSearchExpanded: {},
     posLoading: null,
+    importing: false,
     posScrollTo: null,
     inspScrollTo: null,
     focusName: false,
@@ -683,6 +684,7 @@
     const kind = item.type;
     const base = {
       source: 'pos',
+      pending: true,
       externalId: posId,
       name: item.name,
       reviewed: { name: item.name, price: isNum(item.price) ? item.price : null },
@@ -705,6 +707,15 @@
     return ent;
   }
 
+  function stageLink(parentKind, parentId, childKind, childId) {
+    S.data.pendingLinks[`${parentKind}:${parentId}>${childKind}:${childId}`] = true;
+  }
+
+  function clearPending() {
+    for (const map of Object.values(S.data.entities)) for (const e of Object.values(map)) delete e.pending;
+    S.data.pendingLinks = {};
+  }
+
   /* ---------- seed and persistence ---------- */
 
   function useDataset(ds) {
@@ -721,6 +732,7 @@
       entities: { category: {}, product: {}, group: {} },
       menus: [],
       placements: {},
+      pendingLinks: {},
       ignored: {},
       oneGroupPerStore: true,
       ownTimesDemo: true,
@@ -734,6 +746,7 @@
     seedOwnTimes(S.data.menus[0]);
     seedStoreStatusDemo(S.data.menus[0]);
     seedPosStockDemo(S.data.menus[0]);
+    clearPending();
   }
 
   function migratePosImages() {
@@ -947,6 +960,7 @@
         const parsed = JSON.parse(raw);
         if (parsed && parsed.version === 2) {
           S.data = parsed.data;
+          if (!S.data.pendingLinks) S.data.pendingLinks = {};
           migratePosImages();
           migrateAirportStores();
           S.data.menus.forEach(migrateMenu);
@@ -1144,6 +1158,11 @@
   /* ---------- history ---------- */
 
   function commit(fn, { key = null, menu = null } = {}) {
+    if (T.importing) {
+      toast('Editing is paused until the import finishes', 'info');
+      render();
+      return false;
+    }
     const snapshot = JSON.stringify(S.data);
     try {
       fn();
@@ -1174,7 +1193,7 @@
   }
 
   function undo() {
-    if (!hist.past.length) return;
+    if (!hist.past.length || T.importing) return;
     hist.future.push(JSON.stringify(S.data));
     S.data = JSON.parse(hist.past.pop());
     hist.key = null;
@@ -1182,7 +1201,7 @@
   }
 
   function redo() {
-    if (!hist.future.length) return;
+    if (!hist.future.length || T.importing) return;
     hist.past.push(JSON.stringify(S.data));
     S.data = JSON.parse(hist.future.pop());
     hist.key = null;

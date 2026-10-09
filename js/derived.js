@@ -31,6 +31,7 @@
     });
     return {
       usage,
+      pending: pendingRows(),
       inMenuExt,
       counts: { category: counts.category.size, product: counts.product.size, group: counts.group.size },
       issues: computeIssues(menu),

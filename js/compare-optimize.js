@@ -100,6 +100,7 @@
         const res = importPos(m.posId);
         if (!parent.children.includes(res.id)) {
           parent.children.push(res.id);
+          stageLink(pi.kind, pi.id, m.kind, res.id);
           added++;
           S.ui.expanded[m.path] = true;
           flash(childPath(m.path, m.kind, res.id));

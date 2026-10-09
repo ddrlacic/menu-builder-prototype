@@ -91,6 +91,9 @@
       case 'publish':
         publish();
         break;
+      case 'import':
+        importStaged();
+        break;
       case 'sync-pos':
         syncPos();
         break;
@@ -158,7 +161,7 @@
         else rowMenu(el, path, a);
         break;
       case 'remove-row':
-        confirmRemove(path);
+        if (el.getAttribute('aria-disabled') !== 'true') confirmRemove(path);
         break;
       case 'goto': {
         const { menuId } = parsePath(path);

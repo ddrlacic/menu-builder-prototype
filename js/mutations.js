@@ -319,6 +319,7 @@
           id: `${m.id}:${c.id}`,
           name: menus.length > 1 ? `${nameOf('category', c)} · ${nameOf('menu', m)}` : nameOf('category', c),
           items: c.children
+            .filter((pid) => !pendingRoot(childPath(childPath(m.id, 'category', c.id), 'product', pid)))
             .map((pid) => entity('product', pid))
             .filter((x) => x && x.id !== p.id && ['pos', 'linked'].includes(x.ptype) && !chosen.has(x.id))
             .map((x) => pickItem(x)),
@@ -760,6 +761,7 @@
         const res = importPos(gid);
         if (res) {
           p.children.push(res.id);
+          stageLink('product', p.id, 'group', res.id);
           added++;
         }
       }
@@ -776,7 +778,10 @@
     const g = entity('group', parsePath(groupPath).id);
     commit(() => {
       const res = importPos(posId);
-      if (!g.children.includes(res.id)) g.children.push(res.id);
+      if (!g.children.includes(res.id)) {
+        g.children.push(res.id);
+        stageLink('group', g.id, 'product', res.id);
+      }
       S.ui.expanded[groupPath] = true;
       flash(childPath(groupPath, 'product', res.id));
     });
@@ -809,6 +814,7 @@
     const choiceProducts = info.kind === 'product' && pInfo.kind === 'category' ? choiceProductsHolding(parent, info.id) : [];
     const ok = commit(() => {
       parent.children = parent.children.filter((c) => c !== info.id);
+      delete S.data.pendingLinks[linkKeyOf(path)];
       const segs = choiceProducts.map((p) => `>p:${p.id}>p:${info.id}`);
       for (const k of Object.keys(S.data.placements)) {
         if (k === path || k.startsWith(`${path}>`) || segs.some((s) => k.endsWith(s) || k.includes(`${s}>`))) delete S.data.placements[k];
@@ -890,7 +896,7 @@
   function confirmRemove(path) {
     const info = parsePath(path);
     if (info.kind === 'menu') return;
-    if (inheritedAt(path).length) return removeLink(path);
+    if (inheritedAt(path).length || isPendingLink(path)) return removeLink(path);
     if (info.kind === 'category') return confirmRemoveCategory(entity('category', info.id), menuById(info.menuId));
     const pInfo = parsePath(info.parentPath);
     const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));

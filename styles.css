@@ -483,8 +483,13 @@ mark {
   border-radius: var(--radius-sm);
 }
 
-.icon-btn:disabled {
+.icon-btn:disabled,
+.icon-btn[aria-disabled='true'] {
   opacity: 0.35;
+}
+
+.icon-btn[aria-disabled='true'] {
+  cursor: default;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -508,7 +513,7 @@ mark {
   .btn.secondary.tone-danger:hover:not(:disabled) {
     background: var(--danger-soft);
   }
-  .icon-btn:hover:not(:disabled) {
+  .icon-btn:hover:not(:disabled, [aria-disabled='true']) {
     background: var(--hover);
     color: var(--ink);
   }
@@ -1249,6 +1254,34 @@ mark {
 .badge.tone-virtual {
   background: var(--vir-soft);
   color: var(--vir);
+}
+
+.badge.tone-staged {
+  background: transparent;
+  color: var(--accent-ink);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.tree-note {
+  margin: 0 0 8px;
+  align-items: center;
+}
+
+.tree-note + .row::before {
+  display: none;
+}
+
+.is-importing #canvas-tree .row,
+.is-importing #pos-tree {
+  opacity: 0.6;
+}
+
+.staged-places {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .badge-action {

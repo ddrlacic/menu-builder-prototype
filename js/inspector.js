@@ -316,6 +316,41 @@
     );
   };
 
+  function stagedBody(kind, ent, path, root) {
+    const importBtn = `<button type="button" class="btn primary" data-action="import" ${T.importing ? 'disabled' : ''}>${T.importing ? '<span class="spinner"></span>Importing' : `${icon('download', 15)}Import`}</button>`;
+    const imported = (ctx.usage.get(`${kind}:${ent.id}`) || []).filter((u) => !pendingRoot(u));
+    const places = imported.length
+      ? `<p class="field-help">Edit its settings where it’s already imported:</p>
+        <ul class="staged-places">${imported
+          .map((u) => `<li><button type="button" class="crumb-link" data-action="goto" data-path="${esc(u)}">${esc(crumbText(u))}</button></li>`)
+          .join('')}</ul>`
+      : '';
+    if (root !== path) {
+      const ri = parsePath(root);
+      const rootName = nameOf(ri.kind, entity(ri.kind, ri.id));
+      return section(
+        '',
+        `${callout('info', `Not imported yet. It comes in with <button type="button" class="crumb-link" data-action="goto" data-path="${esc(root)}">${esc(rootName)}</button>. Its settings open after you import.`)}
+        ${places}<div>${importBtn}</div>`,
+      );
+    }
+    if (!ent.pending) {
+      const pInfo = parsePath(parsePath(path).parentPath);
+      const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));
+      return (
+        section('', `${callout('info', `Not in ${esc(parentName)} yet. Import to add it here.`)}${places}<div>${importBtn}</div>`) +
+        sourceSection(kind, ent, path) +
+        removeSection(path, kind, ent)
+      );
+    }
+    return (
+      section('', `${callout('info', 'Not imported yet. Name and description go in with the import. The other settings open after you import.')}<div>${importBtn}</div>`) +
+      section('General', nameBlock(kind, ent) + descriptionField(`e|${kind}|${ent.id}|description`, ent.description, 'staged-desc')) +
+      sourceSection(kind, ent, path) +
+      removeSection(path, kind, ent)
+    );
+  }
+
   function tabsFor(kind, ent) {
     if (kind === 'menu') return [['general', 'General'], ['ordering', 'Ordering'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
     if (kind === 'category') return [['general', 'General'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
@@ -379,6 +414,13 @@
           : ''
       }
       ${issues.length ? `<div class="insp-issues">${issues.map((i) => callout(i.level, esc(i.text))).join('')}</div>` : ''}`;
+
+    const root = kind === 'menu' ? null : pendingRoot(path);
+    if (root) {
+      $('#inspector-tabs').innerHTML = '';
+      $('#inspector-body').innerHTML = stagedBody(kind, ent, path, root);
+      return;
+    }
 
     $('#inspector-tabs').innerHTML = `<div class="tabs" role="tablist">${tabs
       .map(([id, label]) => `<button type="button" role="tab" class="tab" aria-selected="${id === tab}" data-action="tab" data-kind="${kind}" data-tab="${id}">${label}</button>`)

@@ -381,13 +381,15 @@
     const ent = entity(info.kind, info.id);
     const pInfo = parsePath(info.parentPath);
     const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));
+    const staged = !!pendingRoot(path);
+    const built = (it) => (staged ? { ...it, disabled: true, submenu: false, hint: 'Available after you import' } : it);
     if (which === 'add') {
-      const customProduct = {
+      const customProduct = built({
         label: 'Custom product',
         hint: 'Your name, image, and options for a POS product. POS gets the original',
         icon: 'link',
         onClick: () => openLinkedProductPicker(path),
-      };
+      });
       if (info.kind === 'category') {
         const items = [
           { heading: 'Add from POS' },
@@ -399,9 +401,9 @@
           },
           { heading: 'Create' },
           customProduct,
-          { label: 'Choice product', hint: 'Customers pick one product, like a size. Only that product goes to POS', icon: 'package', onClick: () => createChoiceProduct(path) },
+          built({ label: 'Choice product', hint: 'Customers pick one product, like a size. Only that product goes to POS', icon: 'package', onClick: () => createChoiceProduct(path) }),
         ];
-        if (detectSizeSets(ent).length) items.push('-', { label: 'Group sizes', hint: 'Turn size variants into one choice product', icon: 'sparkles', onClick: () => openOptimize(path) });
+        if (!staged && detectSizeSets(ent).length) items.push('-', { label: 'Group sizes', hint: 'Turn size variants into one choice product', icon: 'sparkles', onClick: () => openOptimize(path) });
         return openPopover(anchor, items);
       }
       if (info.kind === 'product' && ent.ptype === 'size') return openPosProductPicker(path);
@@ -413,14 +415,14 @@
         if (ent.ptype === 'linked') items.push({ label: 'All POS groups', hint: `Every group of ${posLabel(ent.posParentExt)}`, icon: 'plus', onClick: () => addParentGroups(path) });
         items.push(
           { heading: 'Create' },
-          {
+          built({
             label: 'Custom group',
             hint: 'Your own name and rules for a POS group. POS gets the original group',
             icon: 'link',
             submenu: true,
             onClick: () => linkedGroupMenu(anchor, path),
-          },
-          { label: 'Suggested products', hint: 'Products customers can add to this item. Each one goes on the order as its own item', icon: 'dashed', onClick: () => createVirtualGroup(path, 'upsell') },
+          }),
+          built({ label: 'Suggested products', hint: 'Products customers can add to this item. Each one goes on the order as its own item', icon: 'dashed', onClick: () => createVirtualGroup(path, 'upsell') }),
         );
         return openPopover(anchor, items);
       }
@@ -436,19 +438,21 @@
         { heading: 'Add from POS' },
         { label: 'POS option', hint: `From ${posLabel(posIdOf('group', ent))} on POS`, icon: 'utensils', onClick: () => openPosProductPicker(path) },
         { heading: 'Create' },
-        {
+        built({
           label: 'Option folder',
           hint: 'An option that opens more options. POS gets only what customers pick inside',
           icon: 'dashed',
           onClick: () => createVirtualContainer(path),
-        },
+        }),
       ]);
     }
     const items = [];
-    if (info.kind === 'category' && detectSizeSets(ent).length) items.push({ label: 'Group sizes', icon: 'sparkles', onClick: () => openOptimize(path) });
-    if (info.kind === 'category' && suggestedSizeSets(ent).length) items.push({ label: 'Dismiss suggestion', icon: 'x', onClick: () => dismissSizeHint(path) });
-    if (info.kind === 'group' && halfSuggestions(ent).length) items.push({ label: 'Group halves', icon: 'sparkles', onClick: () => openHalfMatch(ent.id) });
-    if (info.kind === 'group' && suggestedHalves(ent).length) items.push({ label: 'Dismiss suggestion', icon: 'x', onClick: () => dismissHalfHint(ent.id) });
+    if (!staged) {
+      if (info.kind === 'category' && detectSizeSets(ent).length) items.push({ label: 'Group sizes', icon: 'sparkles', onClick: () => openOptimize(path) });
+      if (info.kind === 'category' && suggestedSizeSets(ent).length) items.push({ label: 'Dismiss suggestion', icon: 'x', onClick: () => dismissSizeHint(path) });
+      if (info.kind === 'group' && halfSuggestions(ent).length) items.push({ label: 'Group halves', icon: 'sparkles', onClick: () => openHalfMatch(ent.id) });
+      if (info.kind === 'group' && suggestedHalves(ent).length) items.push({ label: 'Dismiss suggestion', icon: 'x', onClick: () => dismissHalfHint(ent.id) });
+    }
     if (ent.children.length)
       items.push({
         label: 'Expand all inside',
@@ -477,6 +481,7 @@
         },
       },
       '-',
+      { label: 'Discard items not imported', icon: 'x', disabled: !ctx.pending.length || T.importing, onClick: discardStaged },
       { label: 'Export menu as JSON', icon: 'download', onClick: exportMenu },
       '-',
       {
