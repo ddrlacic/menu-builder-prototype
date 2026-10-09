@@ -230,9 +230,8 @@
 
   function existingMenuItems(parentPath, wrap = (it) => it) {
     const ex = existingFor(parentPath);
-    if (!ex) return [];
-    const item = { label: ex.label, hint: ex.hint, icon: 'copy', onClick: () => openExistingPicker(parentPath) };
-    return [{ heading: 'Add existing' }, wrap(ex.ents.length ? item : { ...item, disabled: true, hint: 'Nothing you made fits here yet' })];
+    if (!ex || !ex.ents.length) return [];
+    return [{ heading: 'Add existing' }, wrap({ label: ex.label, hint: ex.hint, icon: 'copy', onClick: () => openExistingPicker(parentPath) })];
   }
 
   function openExistingPicker(parentPath) {
