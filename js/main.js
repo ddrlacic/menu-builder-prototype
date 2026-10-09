@@ -2,6 +2,7 @@
 
   /* ---------- init ---------- */
 
+  $('#shortcuts-btn').insertAdjacentHTML('afterbegin', icon('keyboard', 15));
   useDataset(START_DATASET);
   load();
   render();

@@ -2,12 +2,15 @@
 
   /* ---------- overlays ---------- */
 
-  function openPopover(anchor, items, { align = 'end', className = '', at = null } = {}) {
+  function openPopover(anchor, items, { align = 'end', className = '', at = null, label = '' } = {}) {
     closePopover();
     const el = document.createElement('div');
+    const html = typeof items === 'string';
     el.className = `popover ${className}`;
-    el.setAttribute('role', 'menu');
-    el.innerHTML = items
+    el.setAttribute('role', html ? 'dialog' : 'menu');
+    if (label) el.setAttribute('aria-label', label);
+    if (html) el.tabIndex = -1;
+    el.innerHTML = html ? items : items
       .map((it, i) => {
         if (it === '-') return '<div class="pop-sep" role="separator"></div>';
         if (it.heading) return `<div class="pop-heading">${esc(it.heading)}</div>`;
@@ -43,8 +46,48 @@
     anchor.setAttribute('aria-expanded', 'true');
     T.popover = { el, anchor };
     requestAnimationFrame(() => (el.dataset.open = 'true'));
-    const first = el.querySelector('.pop-item:not([disabled])');
+    const first = html ? el : el.querySelector('.pop-item:not([disabled])');
     if (first) first.focus({ preventScroll: true });
+  }
+
+  const SHORTCUTS = [
+    ['Select', [
+      ['Select a row', ['Click']],
+      ['Add or remove a row', ['⌘', 'Click']],
+      ['Select a range', ['⇧', 'Click']],
+      ['Extend the selection', ['⇧', '↑'], ['⇧', '↓']],
+      ['Select all of the same kind', ['⌘', 'A']],
+      ['Go back to one row', ['Esc']],
+    ]],
+    ['Move around', [
+      ['Previous or next row', ['↑'], ['↓']],
+      ['Expand or collapse', ['→'], ['←']],
+      ['Expand or collapse everything inside', ['⌥', 'Click']],
+      ['Search POS items', ['/']],
+    ]],
+    ['Edit', [
+      ['Rename', ['Enter']],
+      ['Remove from its parent', ['⌫']],
+      ['Add to another place too', ['⌥', 'Drag']],
+      ['More actions', ['Right-click']],
+      ['Undo', ['⌘', 'Z']],
+      ['Redo', ['⇧', '⌘', 'Z']],
+    ]],
+    ['View', [
+      ['Show or hide POS items', ['⌘', 'B']],
+      ['Keyboard shortcuts', ['?']],
+    ]],
+  ];
+
+  function toggleShortcuts() {
+    const anchor = $('#shortcuts-btn');
+    if (T.popover && T.popover.anchor === anchor) return closePopover();
+    const keys = (combos) => combos.map((c) => c.map((k) => `<kbd>${esc(k)}</kbd>`).join('')).join('<span>or</span>');
+    openPopover(
+      anchor,
+      SHORTCUTS.map(([title, rows]) => `<div class="pop-heading">${esc(title)}</div>${rows.map(([label, ...combos]) => `<div class="sc-row"><span>${esc(label)}</span><span class="sc-keys">${keys(combos)}</span></div>`).join('')}`).join(''),
+      { align: 'start', className: 'shortcuts', label: 'Keyboard shortcuts' },
+    );
   }
 
   function closePopover() {

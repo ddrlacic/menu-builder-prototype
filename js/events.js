@@ -755,6 +755,11 @@
       return;
     }
     if (T.modal || typing || mod) return;
+    if (e.key === '?') {
+      e.preventDefault();
+      toggleShortcuts();
+      return;
+    }
     if (e.key === '/') {
       e.preventDefault();
       focusPosSearch();

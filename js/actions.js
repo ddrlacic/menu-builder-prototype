@@ -122,6 +122,9 @@
         });
         render();
         break;
+      case 'shortcuts':
+        toggleShortcuts();
+        break;
       case 'toggle-hidden':
         S.ui.hideHidden = !S.ui.hideHidden;
         render();
