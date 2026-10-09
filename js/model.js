@@ -267,21 +267,35 @@
   }
 
   function groupTypeOf(g) {
-    if (g.gtype === 'pos') return (posItem(g) || {}).groupType || (g.posRules || {}).groupType || 1;
+    if (g.gtype === 'pos') return (g.posRules || {}).groupType || (posItem(g) || {}).groupType || 1;
     if (g.gtype === 'linked') return (posItemById(g.posGroupExt) || {}).groupType || 1;
     return g.type || 1;
   }
 
   function posRulesOf(g) {
-    const src = posItem(g) || {};
-    const r = g.posRules || {};
-    const pick = (a, b) => (a !== undefined ? a : b);
+    const r = g.posRules || posItem(g) || {};
     return {
-      min: ruleValue('min', pick(src.min, r.min)),
-      max: ruleValue('max', pick(src.max, r.max)),
-      maxSingle: ruleValue('maxSingle', pick(src.maxSingle, r.maxSingle)),
-      freeCount: ruleValue('freeCount', pick(src.free, r.free)),
+      min: ruleValue('min', r.min),
+      max: ruleValue('max', r.max),
+      maxSingle: ruleValue('maxSingle', r.maxSingle),
+      freeCount: ruleValue('freeCount', r.free),
     };
+  }
+
+  function posRulesNow(g) {
+    const src = posItem(g);
+    if (!src) return null;
+    return { groupType: src.groupType || 1, min: ruleValue('min', src.min), max: ruleValue('max', src.max) };
+  }
+
+  function rulesDifferFromPos(g) {
+    if (g.gtype !== 'pos') return false;
+    const now = posRulesNow(g);
+    if (!now) return ruleOverridden(g);
+    if (groupTypeOf(g) !== now.groupType) return true;
+    if (groupTypeOf(g) !== 1) return false;
+    const r = rulesOf(g);
+    return r.min !== now.min || r.max !== now.max || ruleOverridden(g);
   }
 
   function rulesOf(g) {
@@ -840,6 +854,10 @@
     const pi = parsePath(parentPath);
     const parent = entity(pi.kind, pi.id);
     if (childKind(pi.kind, parent) !== d.kind) return 'This item cannot go here';
+    if (d.origin === 'canvas' && d.path && parent.children.includes(d.id)) {
+      const from = parsePath(parsePath(d.path).parentPath);
+      if (from.kind === pi.kind && from.id === pi.id) return null;
+    }
     const pName = nameOf(pi.kind, parent);
     const standaloneError = () =>
       d.posId && !posCategoriesOf(d.posId).length ? `${d.name} is sold only as an option on POS, so it has no price of its own` : null;

@@ -259,7 +259,7 @@
       if (kind === 'product' && ent.originCategoryExt) rows.push(['POS category', esc(posLabel(ent.originCategoryExt))]);
       return section(
         'POS',
-        `${isMissingOnPos(ent) ? callout('warning', 'Deleted on POS. Customers cannot order it. Remove it from the menu, or add it back on POS.') : ''}
+        `${isMissingOnPos(ent) ? callout('warning', `Deleted on POS.${kind === 'product' ? ' Customers cannot order it.' : ''} Remove it from the menu, or add it back on POS.`) : ''}
         ${removedFromPos(path) ? callout('warning', 'Still on POS, but no longer under the same parent there. Remove it here, or check POS.') : ''}
         ${posKv(rows)}`,
       );

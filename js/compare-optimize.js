@@ -3,8 +3,8 @@
   /* ---------- compare to POS ---------- */
 
   function openCompare() {
-    T.cmp = { tab: 'pos', sel: new Set() };
     openModal({ title: 'Compare to POS', body: '<div id="cmp"></div>', size: 'lg', foot: '<div class="modal-foot" id="cmp-foot"></div>' });
+    T.cmp = { tab: 'pos', sel: new Set() };
     renderCompare();
   }
 
@@ -15,10 +15,11 @@
     for (const k of [...sel]) if (!data.missing.some((m) => m.key === k)) sel.delete(k);
     const posRow = (m, control) => {
       const it = posItemById(m.posId);
+      const where = m.parents.length > 1 ? `${m.parents[0]} and ${m.parents.length - 1} more` : m.parents[0];
       return `<div class="cmp-row">
         ${control}
         <span class="kind-glyph kind-${it.type}">${icon(KIND_ICON[it.type], 13)}</span>
-        <span class="cmp-main"><span class="cmp-name">${esc(it.name)}</span><span class="cmp-meta">In ${esc(m.parentName)} · <span class="mono">${esc(m.posId)}</span></span></span>
+        <span class="cmp-main"><span class="cmp-name">${esc(it.name)}</span><span class="cmp-meta"><span${m.parents.length > 1 ? ` title="${esc(listJoin(m.parents))}"` : ''}>In ${esc(where)}</span> · <span class="mono">${esc(m.posId)}</span></span></span>
       </div>`;
     };
     let body = `<div class="segmented cmp-tabs" role="tablist">
@@ -49,11 +50,13 @@
         body += `<section class="cmp-section">
           <header class="cmp-head"><h3 class="section-title">Changed on POS<span class="tnum"> · ${data.changed.length}</span></h3>
             <button type="button" class="btn ghost sm" data-action="cmp-review">Mark as reviewed</button></header>
-          <p class="section-desc">Already in the menu. Prices update automatically. Names update unless you set your own.</p>
+          <p class="section-desc">Already in the menu. Nothing changes here until you use the POS name or rules.</p>
           <div class="cmp-list">${data.changed
             .map(
               (c) => `<div class="cmp-row"><span class="kind-glyph kind-${c.kind}">${icon(KIND_ICON[c.kind], 13)}</span>
                 <span class="cmp-main"><span class="cmp-name">${esc(nameOf(c.kind, c.ent))}</span><span class="cmp-meta tnum">${c.diffs.map(esc).join(' · ')}</span></span>
+                ${c.name && c.ent.name !== posItem(c.ent).name ? `<button type="button" class="btn secondary sm" data-action="cmp-use-name" data-path="${esc(c.path)}">Use POS name</button>` : ''}
+                ${c.rules && rulesDifferFromPos(c.ent) ? `<button type="button" class="btn secondary sm" data-action="cmp-use-rules" data-path="${esc(c.path)}">Use POS rules</button>` : ''}
                 <button type="button" class="btn ghost sm" data-action="cmp-goto" data-path="${esc(c.path)}">Show</button></div>`,
             )
             .join('')}</div>
@@ -62,13 +65,15 @@
       if (data.gone.length) {
         body += `<section class="cmp-section">
           <header class="cmp-head"><h3 class="section-title">No longer on POS<span class="tnum"> · ${data.gone.length}</span></h3></header>
-          <p class="section-desc">Customers cannot order these. Remove them, or check POS.</p>
+          <p class="section-desc">Products and options deleted on POS are hidden from customers. Remove them from the menu, or add them back on POS.</p>
           <div class="cmp-list">${data.gone
-            .map(
-              (g) => `<div class="cmp-row"><span class="kind-glyph kind-${g.kind}">${icon(KIND_ICON[g.kind], 13)}</span>
-                <span class="cmp-main"><span class="cmp-name">${esc(nameOf(g.kind, g.ent))}</span><span class="cmp-meta">${esc(g.label)} · ${esc(crumbText(parsePath(g.path).parentPath))}</span></span>
-                <button type="button" class="btn secondary sm tone-danger" data-action="cmp-remove" data-path="${esc(g.path)}">Remove</button></div>`,
-            )
+            .map((g) => {
+              const crumbs = g.paths.map((p) => crumbText(parsePath(p).parentPath));
+              const where = crumbs.length > 1 ? `${crumbs[0]} and ${crumbs.length - 1} more` : crumbs[0];
+              return `<div class="cmp-row"><span class="kind-glyph kind-${g.kind}">${icon(KIND_ICON[g.kind], 13)}</span>
+                <span class="cmp-main"><span class="cmp-name">${esc(nameOf(g.kind, g.ent))}</span><span class="cmp-meta"${crumbs.length > 1 ? ` title="${esc(crumbs.join('\n'))}"` : ''}>${esc(g.label)} · ${esc(where)}</span></span>
+                <button type="button" class="btn secondary sm tone-danger" data-action="cmp-remove" data-key="${esc(g.key)}">Remove</button></div>`;
+            })
             .join('')}</div>
         </section>`;
       }
@@ -90,26 +95,52 @@
 
   function compareAdd() {
     const picks = ctx.compare.missing.filter((m) => T.cmp.sel.has(m.key));
-    let added = 0;
+    const added = [];
+    let places = 0;
     commit(() => {
       for (const m of picks) {
-        const pi = parsePath(m.path);
-        const parent = entity(pi.kind, pi.id);
         const it = posItemById(m.posId);
-        if (dropError(m.path, { kind: m.kind, source: 'pos', posId: m.posId, name: it.name })) continue;
-        const res = importPos(m.posId);
-        if (!parent.children.includes(res.id)) {
+        let placed = false;
+        for (const path of m.paths) {
+          const pi = parsePath(path);
+          const parent = entity(pi.kind, pi.id);
+          if (dropError(path, { kind: m.kind, source: 'pos', posId: m.posId, name: it.name })) continue;
+          const res = importPos(m.posId);
+          if (parent.children.includes(res.id)) continue;
           parent.children.push(res.id);
           stageLink(pi.kind, pi.id, m.kind, res.id);
-          added++;
-          S.ui.expanded[m.path] = true;
-          flash(childPath(m.path, m.kind, res.id));
+          placed = true;
+          places++;
+          S.ui.expanded[path] = true;
+          flash(childPath(path, m.kind, res.id));
         }
+        if (placed) added.push(it.name);
       }
     });
     T.cmp.sel.clear();
     renderCompare();
-    toast(`${plural(added, 'item', 'items')} added from POS`);
+    toast(added.length === 1 && places > 1 ? `${added[0]} added to ${places} places` : `${plural(added.length, 'item', 'items')} added from POS`);
+  }
+
+  function usePosName(path) {
+    const info = parsePath(path);
+    const ent = entity(info.kind, info.id);
+    const it = posItem(ent);
+    if (!it) return;
+    commit(() => {
+      ent.name = it.name;
+      ent.reviewed = { ...ent.reviewed, name: it.name };
+    });
+  }
+
+  function usePosRules(g) {
+    const now = posRulesNow(g);
+    if (!now) return commit(() => (g.ruleOverrides = {}));
+    return commit(() => {
+      g.posRules = { ...(g.posRules || {}), groupType: now.groupType, min: now.min, max: now.max };
+      g.ruleOverrides = {};
+      if (g.reviewed) g.reviewed = { ...g.reviewed, rules: { ...now } };
+    });
   }
 
   /* ---------- optimize ---------- */

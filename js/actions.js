@@ -550,8 +550,7 @@
         break;
       case 'rules-reset': {
         const g = entity('group', parsePath(S.ui.selected).id);
-        commit(() => (g.ruleOverrides = {}));
-        toast('Rules reset to POS', 'success', { action: { label: 'Undo', onClick: undo } });
+        if (usePosRules(g)) toast('Rules reset to POS', 'success', { action: { label: 'Undo', onClick: undo } });
         break;
       }
       case 'pre-pick': {
@@ -864,27 +863,32 @@
         break;
       case 'cmp-ignore': {
         const n = T.cmp.sel.size;
-        commit(() => T.cmp.sel.forEach((k) => (S.data.ignored[k] = true)));
+        commit(() => T.cmp.sel.forEach((k) => (S.data.ignored[ignoreKey(activeMenu(), k)] = true)));
         T.cmp.sel.clear();
         renderCompare();
         toast(`${plural(n, 'item', 'items')} ignored`, 'info');
         break;
       }
       case 'cmp-unignore':
-        commit(() => delete S.data.ignored[el.dataset.key]);
+        commit(() => delete S.data.ignored[ignoreKey(activeMenu(), el.dataset.key)]);
         break;
       case 'cmp-review':
-        commit(() =>
-          ctx.compare.changed.forEach((c) => {
-            const it = posItem(c.ent);
-            c.ent.reviewed = { name: it.name, price: isNum(it.price) ? it.price : null };
-          }),
-        );
+        commit(() => ctx.compare.changed.forEach((c) => (c.ent.reviewed = posSnapshot(posItem(c.ent)))));
         break;
-      case 'cmp-remove':
-        removeLink(path, { quiet: true });
+      case 'cmp-use-name':
+        usePosName(path);
         renderCompare();
         break;
+      case 'cmp-use-rules':
+        usePosRules(entity('group', parsePath(path).id));
+        renderCompare();
+        break;
+      case 'cmp-remove': {
+        const g = ctx.compare.gone.find((x) => x.key === el.dataset.key);
+        if (g) g.paths.forEach((p) => removeLink(p, { quiet: true }));
+        renderCompare();
+        break;
+      }
       case 'cmp-goto':
         closeModal();
         expandTo(path);

@@ -234,34 +234,42 @@
     loadPos('sync', applyPosSync);
   }
 
-  function applyPosSync() {
+  function applySyncDemo(demo) {
     const items = S.data.pos.items;
-    const first = !S.data.pos.syncCount && !!items['pos-truffle'];
+    const touched = new Set();
+    for (const [id, name] of Object.entries(demo.rename || {})) if (items[id]) (items[id].name = name), touched.add(id);
+    for (const [id, price] of Object.entries(demo.price || {})) if (items[id]) (items[id].price = price), touched.add(id);
+    for (const [id, r] of Object.entries(demo.rules || {})) if (items[id]) Object.assign(items[id], r), touched.add(id);
+    for (const [id, item] of Object.entries(demo.add || {})) (items[id] = JSON.parse(JSON.stringify(item))), touched.add(id);
+    for (const [parent, child] of demo.addTo || []) if (items[parent] && !items[parent].children.includes(child)) items[parent].children.push(child), touched.add(child);
+    for (const [parent, child] of demo.removeFrom || []) if (items[parent]) (items[parent].children = items[parent].children.filter((c) => c !== child)), touched.add(child);
+    for (const id of demo.delete || []) {
+      if (!items[id]) continue;
+      delete items[id];
+      for (const it of Object.values(items)) if (it.children) it.children = it.children.filter((c) => c !== id);
+      touched.add(id);
+    }
+    Object.assign(S.data.pos.priceGaps, demo.priceGaps || {});
+    return touched;
+  }
+
+  function applyPosSync() {
+    const demo = !S.data.pos.syncCount && DATASETS[dataset].syncDemo;
+    const before = ctx.compare.count;
+    let touched = new Set();
     commit(() => {
-      if (first) {
-        items['pos-truffle'].price = 19;
-        items['pos-smash'] = {
-          type: 'product',
-          name: 'Double Smash Burger',
-          price: 15,
-          description: 'Two crispy-edged patties, onions, and pickles.',
-          children: ['pos-g-temp', 'pos-g-side'],
-        };
-        items['pos-cat-burgers'].children.push('pos-smash');
-        S.data.pos.priceGaps['pos-smash'] = { from: 312, reason: 'Not rolled out yet' };
-        items['pos-g-addons'].children = items['pos-g-addons'].children.filter((c) => c !== 'pos-m-avocado');
-      }
+      if (demo) touched = applySyncDemo(demo);
       S.data.pos.syncCount = (S.data.pos.syncCount || 0) + 1;
       S.data.pos.syncedAt = Date.now();
     });
-    if (first) {
-      T.flashExt = new Set(['pos-truffle', 'pos-smash', 'pos-m-avocado']);
+    const added = ctx.compare.count - before;
+    if (touched.size) {
+      T.flashExt = touched;
       render();
       setTimeout(() => T.flashExt.clear(), 1600);
-      toast('POS synced. 3 changes to review', 'info', { action: { label: 'Review', onClick: openCompare } });
-    } else {
-      toast('POS synced. No changes', 'info');
     }
+    if (added > 0) toast(`POS synced. ${plural(added, 'change', 'changes')} to review`, 'info', { action: { label: 'Review', onClick: openCompare } });
+    else toast('POS synced. No changes', 'info');
   }
 
   const IMPORT_MS = 2400;

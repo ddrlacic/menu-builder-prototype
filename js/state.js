@@ -334,6 +334,20 @@
     g.metadata = migrateMetadata(g.metadata);
     delete g.stores;
     migrateSyncName(g);
+    const it = g.source === 'pos' && posItem(g);
+    if (!it) return;
+    if (g.gtype === 'pos' && !g.posRules)
+      g.posRules = { groupType: it.groupType || 1, min: it.min || 0, max: isNum(it.max) ? it.max : null, maxSingle: it.maxSingle || 1, free: it.free || 0 };
+    if (g.reviewed && !g.reviewed.rules) g.reviewed.rules = posSnapshot(it).rules;
+  }
+
+  function migrateIgnored() {
+    for (const k of Object.keys(S.data.ignored || {})) {
+      if (!k.includes('/')) continue;
+      const posId = k.split('/').pop();
+      S.data.menus.forEach((m) => (S.data.ignored[ignoreKey(m, posId)] = true));
+      delete S.data.ignored[k];
+    }
   }
 
   function migrateChoiceProducts() {
@@ -436,6 +450,7 @@
   const posItem = (ent) => (ent && ent.externalId ? posItemById(ent.externalId) : null);
   const posChildren = (id) => (posItemById(id) || {}).children || [];
   const isMissingOnPos = (ent) => ent.source === 'pos' && !posItem(ent);
+  const ignoreKey = (menu, posId) => `${menu.posExt || menu.id}|${posId}`;
   const isVirtual = (ent) => !!ent && ent.source === 'virtual';
   const isCustomVersion = (ent) => isVirtual(ent) && (ent.ptype === 'linked' || ent.gtype === 'linked');
   const storeGroup = () => C.storeGroups.find((g) => g.id === S.ui.storeGroupId) || C.storeGroups[0];
@@ -679,6 +694,12 @@
     return { kind, id: ent.id, stats };
   }
 
+  function posSnapshot(item) {
+    const snap = { name: item.name, price: isNum(item.price) ? item.price : null };
+    if (item.type === 'group') snap.rules = { groupType: item.groupType || 1, min: ruleValue('min', item.min), max: ruleValue('max', item.max) };
+    return snap;
+  }
+
   function newPosEntity(posId) {
     const item = posItemById(posId);
     const kind = item.type;
@@ -687,7 +708,7 @@
       pending: true,
       externalId: posId,
       name: item.name,
-      reviewed: { name: item.name, price: isNum(item.price) ? item.price : null },
+      reviewed: posSnapshot(item),
       description: item.description || '',
     };
     let ent;
@@ -1017,6 +1038,7 @@
           migrateGroupHidden();
           migrateCodesHere();
           migrateChoicesInMenus();
+          migrateIgnored();
           S.data.menus.forEach((m) => (m.pricedKeys = !m.publishedAt ? [] : m.pricedKeys || menuPriceKeys(m)));
           normalizeAll();
           S.ui = { ...defaultUi(), ...parsed.ui, posQuery: '', canvasQuery: '' };

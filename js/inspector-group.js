@@ -186,10 +186,12 @@
       );
     }
     const fromPos = g.gtype === 'pos';
-    const posR = fromPos ? posRulesOf(g) : null;
+    const now = fromPos ? posRulesNow(g) : null;
+    const posR = fromPos ? { ...posRulesOf(g), ...(now ? { min: now.min, max: now.max } : {}) } : null;
     const errs = ruleErrors(g);
     const bindOf = (k) => (fromPos ? gb(`ruleOverrides.${k}`) : gb(k));
     const posText = (k) => (k === 'max' && posR.max == null ? 'no limit' : posR[k]);
+    const differs = (k) => hasOwn(g.ruleOverrides, k) || (now && (k === 'min' || k === 'max') && rules[k] !== now[k]);
     const cells = [
       ['Minimum', 'min', 'g-min', '0 makes the group optional.'],
       ['Maximum', 'max', 'g-max', 'Leave it empty for no limit.'],
@@ -200,13 +202,13 @@
       .map(([l, k, id, help]) =>
         field(l, inputNum(bindOf(k), rawRule(g, k), { int: true, id, placeholder: k === 'max' ? 'No limit' : '' }), {
           id,
-          help: fromPos && hasOwn(g.ruleOverrides, k) ? `POS: ${posText(k)}. ${help}` : help,
+          help: fromPos && differs(k) ? `POS: ${posText(k)}. ${help}` : help,
           error: errs[k],
         }),
       )
       .join('');
     const note = fromPos
-      ? ruleOverridden(g)
+      ? rulesDifferFromPos(g)
         ? `<p class="field-help">Changed from the POS rules. <button type="button" class="link-btn" data-action="rules-reset">Reset to POS rules</button></p>`
         : '<p class="field-help">Same as the POS rules. A change applies to every product that uses this group.</p>'
       : g.gtype === 'linked'

@@ -4,7 +4,7 @@
   const SUG = window.MENU_SUGGESTIONS;
   const STORAGE_KEY = 'menu-builder-prototype-v3';
   const START_DATASET = 'cravewave';
-  const DATASETS = { example: { pos: window.POS_SEED, products: window.EXAMPLE_PRODUCTS }, ...(window.POS_DATASETS || {}) };
+  const DATASETS = { example: { pos: window.POS_SEED, products: window.EXAMPLE_PRODUCTS, syncDemo: window.EXAMPLE_SYNC_DEMO }, ...(window.POS_DATASETS || {}) };
   const BASE_MODIFIER_CODES = C.modifierCodes;
   const CHILD_KIND = { menu: 'category', category: 'product', product: 'group', group: 'product' };
   const childKind = (kind, ent) => (kind === 'product' && ent && ent.ptype === 'size' ? 'product' : CHILD_KIND[kind]);

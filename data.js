@@ -176,6 +176,23 @@ window.EXAMPLE_PRODUCTS = {
   'pos-wrap-platter': { allergens: ['wheat'] },
 };
 
+window.EXAMPLE_SYNC_DEMO = {
+  price: { 'pos-truffle': 19 },
+  rules: { 'pos-g-addons': { max: 5 } },
+  add: {
+    'pos-smash': {
+      type: 'product',
+      name: 'Double Smash Burger',
+      price: 15,
+      description: 'Two crispy-edged patties, onions, and pickles.',
+      children: ['pos-g-temp', 'pos-g-side'],
+    },
+  },
+  addTo: [['pos-cat-burgers', 'pos-smash']],
+  removeFrom: [['pos-g-addons', 'pos-m-avocado']],
+  priceGaps: { 'pos-smash': { from: 312, reason: 'Not rolled out yet' } },
+};
+
 window.MENU_SUGGESTIONS = {
   names: {
     'pos-fries': 'French Fries',

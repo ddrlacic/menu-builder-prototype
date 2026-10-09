@@ -494,6 +494,13 @@ window.POS_DATASETS.cravewave = {
       {"category":"673961443","posParent":"673961441","name":"Margherita Lunch Deal","description":"Our 10\" Classic Margherita at a lunch price. Weekdays until 3 PM."},
     ],
   },
+  syncDemo: {
+    rename: {"673962572":"Garden Side Salad"},
+    rules: {"673962400":{"max":2}},
+    add: {"cw-mozzarella-sticks":{"type":"product","name":"Mozzarella Sticks","price":7.99,"description":"Breaded mozzarella, fried golden.","children":["673962400"]}},
+    addTo: [["673962384","cw-mozzarella-sticks"]],
+    delete: ["673963604"],
+  },
   products: {
     "673961441": {"groups":["673961445","673961463","673961465","673961467","673961469","673961471"],"description":"A timeless Italian favorite featuring a rich tomato sauce base, topped with melted fresh mozzarella and finished with fragrant, whole basil leaves on a perfectly baked crust.","allergens":["milk","wheat"],"caloriesFrom":1122,"servingFrom":1,"servingTo":3,"maxQty":2,"qtyScope":"cart","nutrition":{"active":true,"protein":40,"carbs":189,"fat":21,"sugar":10,"fiber":22},"sections":[["Base",["673961445","673961463","673961465"]],["Sauce",["673961467"]],["Cheese",["673961469"]],["Extras",["673961471"]]]},
     "673961447": {"description":"A rich and savory blend of ripe tomatoes, garlic, and Italian herbs, slow-cooked to perfection for the ultimate pizza base.","caloriesFrom":37,"nutrition":{"active":true,"protein":1,"carbs":7,"fat":1,"sugar":4,"fiber":1}},

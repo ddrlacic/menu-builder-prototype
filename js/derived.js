@@ -67,7 +67,7 @@
     walkMenu(menu, (kind, id, ent, path) => {
       const key = `${kind}:${id}`;
       const name = nameOf(kind, ent);
-      if (isMissingOnPos(ent)) add(path, 'warning', `${name} was deleted on POS. Customers cannot order it`, key);
+      if (isMissingOnPos(ent)) add(path, 'warning', `${name} was deleted on POS${kind === 'product' ? '. Customers cannot order it' : ''}`, key);
       else if (removedFromPos(path)) {
         const pi = parsePath(parsePath(path).parentPath);
         add(path, 'warning', `${name} is no longer under ${nameOf(pi.kind, entity(pi.kind, pi.id))} on POS`, `${pi.kind}:${pi.id}>${key}`);
@@ -259,33 +259,61 @@
     return found;
   }
 
+  function posChanges(kind, ent, it) {
+    const was = ent.reviewed;
+    const diffs = [];
+    const name = was.name !== it.name;
+    if (name) diffs.push(`Name: ${was.name} → ${it.name}`);
+    let rules = false;
+    const now = kind === 'group' && ent.gtype === 'pos' && was.rules && posRulesNow(ent);
+    if (now) {
+      const lim = (v) => (v == null ? 'no limit' : v);
+      const before = diffs.length;
+      if (was.rules.groupType !== now.groupType) diffs.push(`Type: ${C.groupTypes[was.rules.groupType].label} → ${C.groupTypes[now.groupType].label}`);
+      if (was.rules.min !== now.min) diffs.push(`Minimum: ${was.rules.min} → ${now.min}`);
+      if (was.rules.max !== now.max) diffs.push(`Maximum: ${lim(was.rules.max)} → ${lim(now.max)}`);
+      rules = diffs.length > before;
+    }
+    return { diffs, name, rules };
+  }
+
   function compareData(menu) {
     const missing = new Map();
     const changed = new Map();
     const gone = [];
     const goneSeen = new Set();
+    const deleted = new Map();
     walkMenu(menu, (kind, id, ent, path) => {
-      const missingNow = isMissingOnPos(ent);
       const pi = parsePath(parsePath(path).parentPath);
       const linkKey = `${pi.kind}:${pi.id}>${kind}:${id}`;
-      if ((missingNow || removedFromPos(path)) && !goneSeen.has(linkKey)) {
+      if (!goneSeen.has(linkKey) && isMissingOnPos(ent)) {
         goneSeen.add(linkKey);
-        gone.push({ path, kind, ent, label: missingNow ? 'Deleted on POS' : `Removed from ${nameOf(pi.kind, entity(pi.kind, pi.id))} on POS` });
+        let g = deleted.get(`${kind}:${id}`);
+        if (!g) {
+          g = { key: `${kind}:${id}`, kind, ent, label: 'Deleted on POS', paths: [] };
+          deleted.set(g.key, g);
+          gone.push(g);
+        }
+        g.paths.push(path);
+      } else if (!goneSeen.has(linkKey) && removedFromPos(path)) {
+        goneSeen.add(linkKey);
+        gone.push({ key: linkKey, kind, ent, label: `Removed from ${nameOf(pi.kind, entity(pi.kind, pi.id))} on POS`, paths: [path] });
       }
       if (ent.source !== 'pos') return;
       const it = posItem(ent);
       if (!it) return;
       if (ent.reviewed && !changed.has(ent.id)) {
-        const diffs = [];
-        if (ent.reviewed.name !== it.name) diffs.push(`Name: ${ent.reviewed.name} → ${it.name}`);
-        if (kind === 'product' && isNum(it.price) && ent.reviewed.price !== it.price)
-          diffs.push('Price changed on POS');
-        if (diffs.length) changed.set(ent.id, { kind, ent, path, diffs });
+        const c = posChanges(kind, ent, it);
+        if (c.diffs.length) changed.set(ent.id, { kind, ent, path, ...c });
       }
       for (const cid of posChildren(ent.externalId)) {
-        const key = `${ent.externalId}/${cid}`;
-        if (missing.has(key) || !posItemById(cid) || childOnCanvas(kind, path, ent, cid)) continue;
-        missing.set(key, { key, path, kind: childKind(kind, ent), posId: cid, parentName: nameOf(kind, ent), ignored: !!S.data.ignored[key] });
+        if (!posItemById(cid) || childOnCanvas(kind, path, ent, cid)) continue;
+        let m = missing.get(cid);
+        if (!m) missing.set(cid, (m = { key: cid, kind: childKind(kind, ent), posId: cid, paths: [], parents: [], seen: new Set(), ignored: !!S.data.ignored[ignoreKey(menu, cid)] }));
+        if (m.seen.has(`${kind}:${id}`)) continue;
+        m.seen.add(`${kind}:${id}`);
+        m.paths.push(path);
+        m.parents.push(nameOf(kind, ent));
       }
     });
     const all = [...missing.values()];
