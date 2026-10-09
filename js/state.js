@@ -950,6 +950,7 @@
       sizeHintDismissed: {},
       halfHintDismissed: {},
       showPosIds: false,
+      posCollapsed: false,
     };
   }
 
@@ -1121,13 +1122,13 @@
   function persistNow() {
     clearTimeout(persistTimer);
     try {
-      const { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed, showPosIds } = S.ui;
+      const { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed, showPosIds, posCollapsed } = S.ui;
       localStorage.setItem(
         storageKey(),
         JSON.stringify({
           version: 2,
           data: S.data,
-          ui: { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed, showPosIds },
+          ui: { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed, showPosIds, posCollapsed },
         }),
       );
     } catch (_) {
@@ -1148,8 +1149,9 @@
     Object.assign(T, { posSearchExpanded: {}, openCard: null, storeKey: null, focusRow: null });
     T.flashPaths.clear();
     T.flashExt.clear();
+    const { posCollapsed } = S.ui;
     load();
-    S.ui.storeGroupId = storeGroupId;
+    Object.assign(S.ui, { storeGroupId, posCollapsed });
     $('#pos-search').value = '';
     render();
     persistNow();

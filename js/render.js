@@ -164,23 +164,31 @@
   }
 
   function posSubText() {
-    return `Synced ${relTime(S.data.pos.syncedAt)}.`;
+    return `Synced ${relTime(S.data.pos.syncedAt)}`;
   }
 
   function renderPos() {
     const pos = S.data.pos;
     const pm = posMenu();
     const loading = T.posLoading;
+    $('.workspace').classList.toggle('is-pos-collapsed', !!S.ui.posCollapsed);
+    $('#pos-rail').innerHTML = `
+      <button class="icon-btn" data-action="pos-panel" data-focus-key="pos-show" title="Show POS items" data-tip-kbd="⌘B">${icon('panelOpen', 16)}</button>
+      <button class="icon-btn" data-action="pos-search-open" title="Search POS items" data-tip-kbd="/">${icon('search', 16)}</button>
+      <div class="pos-rail-label" data-action="pos-panel" aria-hidden="true">${loading ? '<span class="spinner"></span>' : ''}POS items</div>`;
     $('#pos-head').innerHTML = `
       <div class="panel-title-row">
         <h2 class="panel-title">POS items</h2>
-        <button class="btn ghost sm" data-action="sync-pos" ${loading ? 'disabled' : ''}>${loading === 'sync' ? '<span class="spinner"></span>Syncing' : `${icon('refresh', 14)}Sync POS`}</button>
+        <div class="panel-title-actions">
+          <button class="btn ghost sm" data-action="sync-pos" ${loading || T.importing ? 'disabled' : ''}>${loading === 'sync' ? '<span class="spinner"></span>Syncing' : `${icon('refresh', 14)}Sync POS`}</button>
+          <button class="icon-btn sm" data-action="pos-panel" data-focus-key="pos-hide" title="Hide POS items" data-tip-kbd="⌘B">${icon('panelClose', 16)}</button>
+        </div>
       </div>
       <p class="panel-sub">${esc(posSubText())}</p>
       <div class="pos-store">
         <label class="sr-only" for="store-group">POS store group</label>
         <div class="select-wrap">
-          <select id="store-group" class="input" data-focus-key="store-group" ${loading ? 'disabled' : ''}>${storeGroups()
+          <select id="store-group" class="input" data-focus-key="store-group" ${loading || T.importing ? 'disabled' : ''}>${storeGroups()
             .map((g) => `<option value="${g.id}"${g.id === storeGroup().id ? ' selected' : ''}>${esc(g.name)} · ${esc(g.pos)}</option>`)
             .join('')}</select>${icon('chevDown', 14)}
         </div>

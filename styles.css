@@ -176,9 +176,15 @@ mark {
 }
 
 .workspace {
+  --pos-w: 300px;
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr) 400px;
+  grid-template-columns: var(--pos-w) minmax(0, 1fr) 400px;
   min-height: 0;
+  transition: grid-template-columns 200ms var(--ease-out);
+}
+
+.workspace.is-pos-collapsed {
+  --pos-w: 44px;
 }
 
 .panel {
@@ -190,6 +196,51 @@ mark {
 
 .pos {
   border-right: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.pos > :not(.pos-rail) {
+  min-width: 259px;
+}
+
+.pos-rail {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  padding: 10px 0;
+}
+
+.is-pos-collapsed .pos-rail {
+  display: flex;
+}
+
+.is-pos-collapsed .pos > :not(.pos-rail) {
+  display: none;
+}
+
+.pos-rail-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 0;
+  writing-mode: vertical-rl;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms var(--ease-out), color 120ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pos-rail-label:hover {
+    background: var(--hover);
+    color: var(--ink);
+  }
 }
 
 .inspector {
@@ -198,7 +249,8 @@ mark {
 
 @media (max-width: 1280px) {
   .workspace {
-    grid-template-columns: 260px minmax(0, 1fr) 360px;
+    --pos-w: 260px;
+    grid-template-columns: var(--pos-w) minmax(0, 1fr) 360px;
   }
 }
 
@@ -579,6 +631,13 @@ mark {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.panel-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: -6px;
 }
 
 .panel-title {

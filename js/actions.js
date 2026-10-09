@@ -106,6 +106,12 @@
         e.stopPropagation();
         togglePosRow(el.closest('.pos-row'));
         break;
+      case 'pos-panel':
+        togglePosPanel();
+        break;
+      case 'pos-search-open':
+        focusPosSearch();
+        break;
       case 'select-menu':
         select(activeMenu().id);
         break;

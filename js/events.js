@@ -7,6 +7,20 @@
     if (state === S.ui.posExpanded) schedulePersist();
   }
 
+  function togglePosPanel(open = !!S.ui.posCollapsed) {
+    hideTip();
+    const hadFocus = !!document.activeElement.closest('.pos');
+    S.ui.posCollapsed = !open;
+    renderPos();
+    schedulePersist();
+    if (hadFocus) $(open ? '[data-focus-key="pos-hide"]' : '[data-focus-key="pos-show"]').focus();
+  }
+
+  function focusPosSearch() {
+    if (S.ui.posCollapsed) togglePosPanel(true);
+    $('#pos-search').focus();
+  }
+
   document.addEventListener('dblclick', (e) => {
     const row = e.target.closest('.row');
     if (!row || e.target.closest('[data-action]')) return;
@@ -106,15 +120,9 @@
   document.addEventListener('change', (e) => {
     const t = e.target;
     if (t.id === 'store-group') {
-      const next = datasetOf(t.value);
-      if (next === dataset) {
-        S.ui.storeGroupId = t.value;
-        loadPos('store-group', render);
-      } else {
-        persistNow();
-        S.ui.storeGroupId = t.value;
-        loadPos('store-group', () => switchDataset(next, t.value));
-      }
+      const id = t.value;
+      t.value = S.ui.storeGroupId;
+      confirmSwitchStoreGroup(id);
     } else if (t.matches('select[data-bind], input[type="time"][data-bind], input[type="datetime-local"][data-bind]')) {
       commit(() => setBind(t.dataset.bind, t.value));
     } else if (t.matches('[data-pos-set]')) {
@@ -666,10 +674,15 @@
       redo();
       return;
     }
+    if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'b' && !T.modal) {
+      e.preventDefault();
+      togglePosPanel();
+      return;
+    }
     if (T.modal || typing || mod) return;
     if (e.key === '/') {
       e.preventDefault();
-      $('#pos-search').focus();
+      focusPosSearch();
       return;
     }
     if (e.target.closest && e.target.closest('#canvas-tree')) treeKeys(e);

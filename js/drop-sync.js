@@ -264,7 +264,7 @@
 
   const IMPORT_MS = 2400;
 
-  function importStaged() {
+  function importStaged(done) {
     if (T.importing || !pendingRows().length) return;
     closePopover();
     T.importing = true;
@@ -280,7 +280,21 @@
       dataVersion++;
       render();
       toast('POS items successfully imported');
+      if (done) done();
     }, IMPORT_MS);
+  }
+
+  function removeStaged(rows) {
+    return commit(() => {
+      for (const path of rows) {
+        const info = parsePath(path);
+        const p = parsePath(info.parentPath);
+        const parent = entity(p.kind, p.id);
+        parent.children = parent.children.filter((c) => c !== info.id);
+        delete S.data.pendingLinks[linkKeyOf(path)];
+        for (const k of Object.keys(S.data.placements)) if (k === path || k.startsWith(`${path}>`)) delete S.data.placements[k];
+      }
+    });
   }
 
   function discardStaged() {
@@ -296,17 +310,49 @@
           kind: 'danger',
           onClick: () => {
             closeModal();
-            const ok = commit(() => {
-              for (const path of rows) {
-                const info = parsePath(path);
-                const p = parsePath(info.parentPath);
-                const parent = entity(p.kind, p.id);
-                parent.children = parent.children.filter((c) => c !== info.id);
-                delete S.data.pendingLinks[linkKeyOf(path)];
-                for (const k of Object.keys(S.data.placements)) if (k === path || k.startsWith(`${path}>`)) delete S.data.placements[k];
-              }
-            });
-            if (ok) toast(`${plural(rows.length, 'item', 'items')} discarded`, 'success', { action: { label: 'Undo', onClick: undo } });
+            if (removeStaged(rows)) toast(`${plural(rows.length, 'item', 'items')} discarded`, 'success', { action: { label: 'Undo', onClick: undo } });
+          },
+        },
+      ],
+    });
+  }
+
+  function switchStoreGroup(id) {
+    const next = datasetOf(id);
+    if (next === dataset) {
+      S.ui.storeGroupId = id;
+      loadPos('store-group', render);
+    } else {
+      persistNow();
+      S.ui.storeGroupId = id;
+      loadPos('store-group', () => switchDataset(next, id));
+    }
+  }
+
+  function confirmSwitchStoreGroup(id) {
+    const rows = pendingRows();
+    if (!rows.length) return switchStoreGroup(id);
+    openModal({
+      title: 'Switch store group?',
+      body: `<p>${plural(rows.length, 'item is', 'items are')} not imported yet. Import them first, or they’re discarded.</p>`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        {
+          label: 'Discard items',
+          kind: 'danger',
+          onClick: () => {
+            closeModal();
+            removeStaged(rows);
+            toast(`${plural(rows.length, 'item', 'items')} discarded`);
+            switchStoreGroup(id);
+          },
+        },
+        {
+          label: 'Import items',
+          kind: 'primary',
+          onClick: () => {
+            closeModal();
+            importStaged(() => switchStoreGroup(id));
           },
         },
       ],
