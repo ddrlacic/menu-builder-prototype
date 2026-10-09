@@ -170,11 +170,13 @@
   function keepChoiceInMenu(choiceProductPath, pid) {
     const ent = entity('product', pid);
     const d = { kind: 'product', name: nameOf('product', ent), source: ent.source, posId: ent.source === 'pos' ? ent.externalId : null, ptype: ent.ptype };
+    const staged = isPendingLink(childPath(choiceProductPath, 'product', pid));
     const added = [];
     for (const catPath of choiceProductCategoryPaths(choiceProductPath)) {
       const cat = entity('category', parsePath(catPath).id);
       if (cat.children.includes(pid) || dropError(catPath, d)) continue;
       cat.children.push(pid);
+      if (staged) stageLink('category', cat.id, 'product', pid);
       const pp = childPath(catPath, 'product', pid);
       S.data.placements[pp] = { ...placement(pp), hidden: true };
       added.push(cat);
@@ -823,6 +825,16 @@
     const ok = commit(() => {
       parent.children = parent.children.filter((c) => c !== info.id);
       delete S.data.pendingLinks[linkKeyOf(path)];
+      if (pInfo.kind === 'product' && parent.ptype === 'size') {
+        for (const catPath of choiceProductCategoryPaths(info.parentPath)) {
+          const copy = childPath(catPath, 'product', info.id);
+          const cat = entity('category', parsePath(catPath).id);
+          if (!S.data.pendingLinks[linkKeyOf(copy)] || choiceProductsHolding(cat, info.id).length) continue;
+          cat.children = cat.children.filter((c) => c !== info.id);
+          delete S.data.pendingLinks[linkKeyOf(copy)];
+          for (const k of Object.keys(S.data.placements)) if (k === copy || k.startsWith(`${copy}>`)) delete S.data.placements[k];
+        }
+      }
       const segs = choiceProducts.map((p) => `>p:${p.id}>p:${info.id}`);
       for (const k of Object.keys(S.data.placements)) {
         if (k === path || k.startsWith(`${path}>`) || segs.some((s) => k.endsWith(s) || k.includes(`${s}>`))) delete S.data.placements[k];
