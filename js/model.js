@@ -859,12 +859,22 @@
     }
     if (pi.kind === 'category') {
       if (d.ptype === 'container') return 'Option folders go inside a group, not in a category';
+      if (d.ptype === 'size' && d.id && !isVirtual(parent)) {
+        const off = entity('product', d.id).children.map((cid) => entity('product', cid)).filter((x) => x && x.source === 'pos' && !posChildren(parent.externalId).includes(x.externalId));
+        if (off.length)
+          return `${listJoin(off.map((x) => nameOf('product', x)))} ${off.length > 1 ? 'are' : 'is'} not in ${pName} on POS, so ${d.name} cannot go here. Put it in a menu-only category`;
+      }
       if (d.source !== 'pos') return null;
       if (isVirtual(parent)) return standaloneError();
       if (posChildren(parent.externalId).includes(d.posId)) return null;
       return `${d.name} is not in ${pName} on POS. To show it here, put it in a menu-only category`;
     }
     if (pi.kind === 'product') {
+      if (d.gtype === 'linked' && d.id) {
+        const base = entity('group', d.id).posGroupExt;
+        if (!allowedPosGroupsFor(parentPath).includes(base))
+          return `${d.name} is based on ${posLabel(base) === d.name ? 'a POS group' : posLabel(base)}, which ${pName} does not have on POS. To show these options here, use suggested products`;
+      }
       if (d.source !== 'pos') return null;
       if (allowedPosGroupsFor(parentPath).includes(d.posId)) return null;
       return `${d.name} is not a group of ${pName} on POS. To show these options here, use suggested products`;

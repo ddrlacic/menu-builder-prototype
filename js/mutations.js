@@ -164,6 +164,7 @@
       { label: 'POS category', hint: 'Comes with its POS products and prices', icon: 'folder', onClick: openPosCategoryPicker },
       { heading: 'Create' },
       { label: 'Menu-only category', hint: 'Arrange products your own way. Not on POS', icon: 'dashed', onClick: createVirtualCategory },
+      ...existingMenuItems(activeMenu().id),
     ]);
   }
 
@@ -186,6 +187,109 @@
 
   const alsoInText = (name, cats) =>
     `${name} added. It’s also in ${cats.map((c) => nameOf('category', c)).join(' and ')} now, hidden there, so it gets its POS price`;
+
+  function keepChoicesInCategory(cp, cat) {
+    const before = new Set(cat.children);
+    S.data.menus
+      .filter((m) => m.children.includes(cat.id))
+      .forEach((m) => {
+        const cpPath = childPath(childPath(m.id, 'category', cat.id), 'product', cp.id);
+        cp.children.forEach((pid) => keepChoiceInMenu(cpPath, pid));
+      });
+    return cat.children.filter((pid) => !before.has(pid)).length;
+  }
+
+  const EXISTING = {
+    category: { noun: 'category', label: 'Existing category', hint: 'Menu-only category you made', intro: 'Menu-only categories you made in MC.' },
+    product: { noun: 'product', label: 'Existing product', hint: 'Custom or choice product you made', intro: 'Custom and choice products you made in MC.' },
+    upsell: { noun: 'product', label: 'Existing product', hint: 'Custom product you made', intro: 'Custom products you made in MC.' },
+    group: { noun: 'group', label: 'Existing group', hint: 'Custom group or suggested products you made', intro: 'Custom groups and suggested products you made in MC.' },
+    folder: { noun: 'option folder', label: 'Existing option folder', hint: 'Option folder you made', intro: 'Option folders you made in MC.' },
+  };
+
+  function existingFor(parentPath) {
+    const pi = parsePath(parentPath);
+    const parent = entity(pi.kind, pi.id);
+    if (pi.kind === 'product' && parent.ptype === 'size') return null;
+    const ck = childKind(pi.kind, parent);
+    const which = pi.kind === 'menu' ? 'category' : pi.kind === 'category' ? 'product' : pi.kind === 'product' ? 'group' : parent.gtype === 'standalone' ? 'upsell' : 'folder';
+    const fits = {
+      category: (x) => isVirtual(x),
+      product: (x) => x.ptype === 'linked' || x.ptype === 'size',
+      upsell: (x) => x.ptype === 'linked',
+      group: (x) => x.gtype === 'linked' || x.gtype === 'standalone',
+      folder: (x) => x.ptype === 'container',
+    }[which];
+    const ents = Object.values(S.data.entities[ck])
+      .filter((x) => fits(x) && !x.pending && !parent.children.includes(x.id))
+      .filter((x) => pi.kind === 'menu' || !reaches(ck, x.id, pi.kind, pi.id))
+      .filter((x) => !dropError(parentPath, { origin: 'canvas', id: x.id, kind: ck, name: nameOf(ck, x), source: x.source, ptype: x.ptype || null, gtype: x.gtype || null }))
+      .sort((a, b) => nameOf(ck, a).localeCompare(nameOf(ck, b)));
+    return { ...EXISTING[which], kind: ck, ents };
+  }
+
+  function existingMenuItems(parentPath, wrap = (it) => it) {
+    const ex = existingFor(parentPath);
+    if (!ex) return [];
+    const item = { label: ex.label, hint: ex.hint, icon: 'copy', onClick: () => openExistingPicker(parentPath) };
+    return [{ heading: 'Add existing' }, wrap(ex.ents.length ? item : { ...item, disabled: true, hint: 'Nothing you made fits here yet' })];
+  }
+
+  function openExistingPicker(parentPath) {
+    const ex = existingFor(parentPath);
+    const pi = parsePath(parentPath);
+    const nouns = ex.noun === 'category' ? 'categories' : `${ex.noun}s`;
+    openPicker({
+      title: `Add existing ${ex.noun}`,
+      intro: `${ex.intro} It stays one ${ex.noun}, so edits apply everywhere it’s used.`,
+      placeholder: 'Search by name or internal name',
+      items: ex.ents.map((x) => {
+        const uses = (ctx.usage.get(`${ex.kind}:${x.id}`) || []).length;
+        return { id: x.id, name: nameOf(ex.kind, x), alt: x.internalName, meta: `${kindLabel(ex.kind, x)} · ${uses ? `Used in ${plural(uses, 'place', 'places')}` : 'Not in any menu'}`, price: '' };
+      }),
+      empty: `No ${nouns} to add to ${nameOf(pi.kind, entity(pi.kind, pi.id))}`,
+      noMatch: [`No matching ${nouns}`, 'Try a different name.'],
+      keepOpen: true,
+      onPick: (id) => {
+        if (!linkExisting(parentPath, ex.kind, id) || !T.picker) return;
+        T.picker.items = T.picker.items.filter((it) => it.id !== id);
+        renderPicker();
+      },
+    });
+  }
+
+  function linkExisting(parentPath, kind, id, index = Infinity) {
+    const pi = parsePath(parentPath);
+    const parent = entity(pi.kind, pi.id);
+    const ent = entity(kind, id);
+    const parentName = nameOf(pi.kind, parent);
+    const name = nameOf(kind, ent);
+    if (parent.children.includes(id)) return toast(`${name} is already in ${parentName}`, 'error');
+    if (pi.kind !== 'menu' && reaches(kind, id, pi.kind, pi.id)) return toast(`${name} already contains ${parentName}, so it cannot go inside it`, 'error');
+    const staged = !!pendingRoot(parentPath);
+    if (staged && ent.source !== 'pos') return toast(`${name} can go in ${parentName} after you import it`, 'info');
+    let newPath = null;
+    let choices = 0;
+    const done = commit(() => {
+      parent.children.splice(Math.min(index, parent.children.length), 0, id);
+      if (ent.source === 'pos') stageLink(pi.kind, pi.id, kind, id);
+      if (pi.kind === 'category' && ent.ptype === 'size') choices = keepChoicesInCategory(ent, parent);
+      if (pi.kind === 'product' && parent.ptype === 'size') keepChoiceInMenu(parentPath, id);
+      newPath = childPath(parentPath, kind, id);
+      S.ui.expanded[parentPath] = true;
+      S.ui.selected = newPath;
+      flash(newPath);
+    });
+    if (!done) return null;
+    const uses = (ctx.usage.get(`${kind}:${id}`) || []).length;
+    const text = choices
+      ? `${name} added to ${parentName}. ${plural(choices, 'choice is', 'choices are')} also in ${parentName} now, hidden there, so they get their POS prices`
+      : uses > 1
+        ? `${name} added to ${parentName}. Edits apply in all ${uses} places`
+        : `${name} added to ${parentName}`;
+    toast(text, 'success', { action: { label: 'Undo', onClick: undo } });
+    return newPath;
+  }
 
   function createChoiceProduct(categoryPath) {
     commit(() => insertNew(categoryPath, 'product', newProduct({ ptype: 'size', name: 'New choice product' })));
@@ -478,12 +582,19 @@
     const name = nameOf(kind, parent);
     if (!parent.children.includes(child.id)) {
       const also = new Set();
+      let choices = 0;
       commit(() => {
         parent.children.push(child.id);
+        if (childKind === 'product' && kind === 'category' && child.ptype === 'size') choices = keepChoicesInCategory(child, parent);
         if (childKind !== 'product' || kind !== 'product' || parent.ptype !== 'size') return;
         for (const cpPath of ctx.usage.get(`product:${parent.id}`) || []) (keepChoiceInMenu(cpPath, child.id) || []).forEach((c) => also.add(c));
       });
-      toast(also.size ? alsoInText(nameOf(childKind, child), [...also]) : `Added to ${name}`, 'success', { action: { label: 'Undo', onClick: undo } });
+      const text = choices
+        ? `Added to ${name}. ${plural(choices, 'choice is', 'choices are')} also in ${name} now, hidden there, so they get their POS prices`
+        : also.size
+          ? alsoInText(nameOf(childKind, child), [...also])
+          : `Added to ${name}`;
+      toast(text, 'success', { action: { label: 'Undo', onClick: undo } });
       return;
     }
     const choiceProducts = childKind === 'product' && kind === 'category' ? choiceProductsHolding(parent, child.id) : [];

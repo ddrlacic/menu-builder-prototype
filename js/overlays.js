@@ -402,6 +402,7 @@
           { heading: 'Create' },
           customProduct,
           built({ label: 'Choice product', hint: 'Customers pick one product, like a size. Only that product goes to POS', icon: 'package', onClick: () => createChoiceProduct(path) }),
+          ...existingMenuItems(path, built),
         ];
         if (!staged && detectSizeSets(ent).length) items.push('-', { label: 'Group sizes', hint: 'Turn size variants into one choice product', icon: 'sparkles', onClick: () => openOptimize(path) });
         return openPopover(anchor, items);
@@ -423,6 +424,7 @@
             onClick: () => linkedGroupMenu(anchor, path),
           }),
           built({ label: 'Suggested products', hint: 'Products customers can add to this item. Each one goes on the order as its own item', icon: 'dashed', onClick: () => createVirtualGroup(path, 'upsell') }),
+          ...existingMenuItems(path, built),
         );
         return openPopover(anchor, items);
       }
@@ -432,6 +434,7 @@
           { label: 'POS product', hint: 'Keeps its own POS price', icon: 'utensils', onClick: () => openPosProductPicker(path) },
           { heading: 'Create' },
           customProduct,
+          ...existingMenuItems(path, built),
         ]);
       }
       return openPopover(anchor, [
@@ -444,6 +447,7 @@
           icon: 'dashed',
           onClick: () => createVirtualContainer(path),
         }),
+        ...existingMenuItems(path, built),
       ]);
     }
     const items = [];

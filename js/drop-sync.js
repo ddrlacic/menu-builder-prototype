@@ -6,6 +6,7 @@
     return {
       origin: 'canvas',
       path,
+      id: info.id,
       kind: info.kind,
       name: nameOf(info.kind, ent),
       source: ent.source,
@@ -84,6 +85,7 @@
       if (moved) {
         rekeyPlacements(d.path, newPath);
         movedTo = parentName;
+        if (pInfo.kind === 'category' && d.ptype === 'size') keepChoicesInCategory(entity('product', id), parent);
       }
       if (pInfo.kind === 'product' && parent.ptype === 'size') alsoIn = keepChoiceInMenu(parentPath, id);
       S.ui.expanded[parentPath] = true;

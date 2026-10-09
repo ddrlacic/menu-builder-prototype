@@ -406,10 +406,20 @@
   };
   const MOVE_HINT = {
     category: 'Drop between categories to change the order',
-    product: 'Drop between products to change the order, or on a category or group to move it',
-    group: 'Drop between groups to change the order, or on a product to move it',
+    product: 'Drop between products to change the order, or on a category or group to move it. Hold ⌥ to add it there too',
+    group: 'Drop between groups to change the order, or on a product to move it. Hold ⌥ to add it there too',
   };
   const baseHint = (d) => (d.origin === 'canvas' ? MOVE_HINT : DRAG_HINT)[d.kind];
+
+  function linkError(d, parentPath) {
+    const pi = parsePath(parentPath);
+    const parent = entity(pi.kind, pi.id);
+    const parentName = nameOf(pi.kind, parent);
+    if (parent.children.includes(d.id)) return `${d.name} is already in ${parentName}`;
+    if (pi.kind !== 'menu' && reaches(d.kind, d.id, pi.kind, pi.id)) return `${d.name} already contains ${parentName}, so it cannot go inside it`;
+    if (d.source !== 'pos' && pendingRoot(parentPath)) return `${d.name} can go in ${parentName} after you import it`;
+    return dropError(parentPath, d);
+  }
 
   function autoPlaceHint(d) {
     if (d.kind === 'menu') return `Drop to add all categories from ${d.name}`;
@@ -450,7 +460,7 @@
       row.classList.add('is-dragging');
     } else return;
     closePopover();
-    e.dataTransfer.effectAllowed = T.drag.origin === 'pos' ? 'copy' : 'move';
+    e.dataTransfer.effectAllowed = T.drag.origin === 'pos' ? 'copy' : 'copyMove';
     e.dataTransfer.setData('text/plain', T.drag.name);
     const ghost = $('#drag-ghost');
     ghost.innerHTML = `<span class="kind-glyph kind-${T.drag.kind}">${icon(KIND_ICON[T.drag.kind], 13)}</span>${esc(T.drag.name)}`;
@@ -502,9 +512,10 @@
         setHint(baseHint(d));
         return;
       }
-      const target = { path: row.dataset.path, pos };
+      const link = d.origin === 'canvas' && e.altKey;
+      const target = { path: row.dataset.path, pos, link };
       const { parentPath } = resolveDrop(d, target);
-      const err = dropError(parentPath, d);
+      const err = link ? linkError(d, parentPath) : dropError(parentPath, d);
       if (err) {
         row.dataset.drop = 'invalid';
         T.dropTarget = null;
@@ -512,10 +523,11 @@
         return;
       }
       e.preventDefault();
-      e.dataTransfer.dropEffect = d.origin === 'pos' ? 'copy' : 'move';
+      e.dataTransfer.dropEffect = d.origin === 'pos' || link ? 'copy' : 'move';
       row.dataset.drop = pos;
       T.dropTarget = target;
-      setHint(baseHint(d));
+      const pi = parsePath(parentPath);
+      setHint(link ? `Drop to also add it to ${nameOf(pi.kind, entity(pi.kind, pi.id))}` : baseHint(d));
       return;
     }
     if (T.markedRow) {
@@ -549,7 +561,12 @@
     if (!d) return;
     e.preventDefault();
     endDrag();
-    if (t) confirmDrop(d, t);
+    if (!t) return;
+    if (t.link) {
+      const { parentPath, index } = resolveDrop(d, t);
+      return linkExisting(parentPath, d.kind, d.id, index);
+    }
+    confirmDrop(d, t);
   });
 
   document.addEventListener('dragover', (e) => {
