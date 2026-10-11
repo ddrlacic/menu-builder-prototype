@@ -344,6 +344,7 @@
       S.data.menus.forEach((m) => walkMenu(m, (k, id) => void reached.add(`${k}:${id}`)));
       for (const [kind, map] of Object.entries(S.data.entities))
         for (const [id, e] of Object.entries(map)) if (e.pending && !reached.has(`${kind}:${id}`)) delete map[id];
+      finishStagedSizes();
       clearPending();
       Object.assign(hist, { past: [], future: [], key: null, at: 0 });
       dataVersion++;

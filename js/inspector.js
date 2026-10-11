@@ -445,6 +445,12 @@
       );
     }
 
+    html += section(
+      'Optimize',
+      `<div class="hint-actions"><button type="button" class="btn secondary sm" data-action="bulk-optimize">${icon('sparkles', 14)}Optimize ${esc(noun(n))}</button></div>`,
+      { desc: kind === 'category' ? 'Suggests names and descriptions for them and what’s inside, and groups their sizes into choice products.' : 'Suggests names and descriptions for them and what’s inside.' },
+    );
+
     const removable = removableRows(paths);
     const inherited = paths.filter((p) => inheritedAt(p).length).length;
     const removeLabel = kind === 'category' ? 'Remove from menu' : sharedParent(removable.length ? removable : paths) ? `Remove from ${sharedParent(removable.length ? removable : paths)}` : `Remove ${many}`;

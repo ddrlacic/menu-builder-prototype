@@ -449,7 +449,7 @@
           built({ label: 'Choice product', hint: 'Customers pick one product, like a size. Only that product goes to POS', icon: 'package', onClick: () => createChoiceProduct(path) }),
           ...existingMenuItems(path, built),
         ];
-        if (!staged && detectSizeSets(ent).length) items.push('-', { label: 'Group sizes', hint: 'Turn size variants into one choice product', icon: 'sparkles', onClick: () => openOptimize(path) });
+        if (detectSizeSets(ent).length) items.push('-', { label: 'Group sizes', hint: 'Turn size variants into one choice product', icon: 'sparkles', onClick: () => groupSizes(path) });
         return openPopover(anchor, items);
       }
       if (info.kind === 'product' && ent.ptype === 'size') return openPosProductPicker(path);
@@ -496,8 +496,12 @@
       ]);
     }
     const items = [];
+    if (['category', 'product', 'group'].includes(info.kind)) {
+      const targets = T.sel.length > 1 && T.sel.includes(path) ? T.sel.slice() : [path];
+      items.push({ label: targets.length > 1 ? `Optimize ${plural(targets.length, info.kind, OPT_PLURAL[info.kind])}` : 'Optimize', icon: 'sparkles', onClick: () => openOptimize(targets) });
+    }
+    if (info.kind === 'category' && detectSizeSets(ent).length) items.push({ label: 'Group sizes', icon: 'sparkles', onClick: () => groupSizes(path) });
     if (!staged) {
-      if (info.kind === 'category' && detectSizeSets(ent).length) items.push({ label: 'Group sizes', icon: 'sparkles', onClick: () => openOptimize(path) });
       if (info.kind === 'category' && suggestedSizeSets(ent).length) items.push({ label: 'Dismiss suggestion', icon: 'x', onClick: () => dismissSizeHint(path) });
       if (info.kind === 'group' && halfSuggestions(ent).length) items.push({ label: 'Group halves', icon: 'sparkles', onClick: () => openHalfMatch(ent.id) });
       if (info.kind === 'group' && suggestedHalves(ent).length) items.push({ label: 'Dismiss suggestion', icon: 'x', onClick: () => dismissHalfHint(ent.id) });

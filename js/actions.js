@@ -218,7 +218,10 @@
         break;
       case 'group-sizes':
         e.stopPropagation();
-        openOptimize(path);
+        groupSizes(path);
+        break;
+      case 'bulk-optimize':
+        openOptimize(T.sel.slice());
         break;
       case 'dismiss-size-hint':
         dismissSizeHint(path);
@@ -935,23 +938,33 @@
         select(path, { focusRow: true });
         break;
       case 'opt-pick':
-        T.opt.pick[el.dataset.key] = !T.opt.pick[el.dataset.key];
+        T.optDraft.pick[el.dataset.key] = !T.optDraft.pick[el.dataset.key];
         renderOptimize();
         break;
       case 'opt-find':
-        T.opt.items = buildSuggestions();
-        T.opt.off = new Set();
+        startOptimize(T.optDraft.scope, { ...T.optDraft.pick });
         T.opt.step = 'review';
         renderOptimize();
+        render();
         break;
       case 'opt-back':
+        T.optDraft = { scope: T.optRun.scope, pick: { ...T.optRun.pick } };
+        T.optRun = null;
         T.opt.step = 'choose';
         renderOptimize();
+        render();
         break;
       case 'opt-item': {
         const k = el.dataset.key;
-        if (T.opt.off.has(k)) T.opt.off.delete(k);
-        else T.opt.off.add(k);
+        if (T.optRun.off.has(k)) T.optRun.off.delete(k);
+        else T.optRun.off.add(k);
+        renderOptimize();
+        break;
+      }
+      case 'opt-section': {
+        const keys = T.optRun.items.filter((i) => i.type === el.dataset.type).map((i) => i.key);
+        const allOn = keys.every((k) => !T.optRun.off.has(k));
+        keys.forEach((k) => (allOn ? T.optRun.off.add(k) : T.optRun.off.delete(k)));
         renderOptimize();
         break;
       }

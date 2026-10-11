@@ -166,6 +166,14 @@
     return `<button class="btn secondary" data-action="import" ${n ? `title="${plural(n, 'item', 'items')} not imported yet"` : 'disabled'}>${icon('download', 15)}Import${n ? `<span class="btn-count tnum">${n}</span>` : ''}</button>`;
   }
 
+  function optimizeButton(menu) {
+    const run = T.optRun && !T.optRun.sizesOnly && T.optRun.scope.menuId === menu.id ? T.optRun : null;
+    const busy = run && run.running;
+    const n = run && !busy && !T.opt ? run.items.length : 0;
+    const tip = busy ? ' title="Finding suggestions"' : n ? ` title="${plural(n, 'suggestion', 'suggestions')} to review"` : '';
+    return `<button class="btn secondary" data-action="optimize"${tip}>${busy ? '<span class="spinner"></span>' : icon('sparkles', 15)}Optimize${n ? `<span class="btn-count tnum">${n}</span>` : ''}</button>`;
+  }
+
   function posShowButton() {
     return S.ui.posCollapsed
       ? `<button class="icon-btn pos-show" data-action="pos-panel" data-focus-key="pos-show" title="Show POS items" data-tip-kbd="⌘B">${icon('panelOpen', 18)}</button>`
@@ -526,7 +534,7 @@
         </div>
         <div class="tools-actions">
         <button class="btn secondary" data-action="compare">${icon('diff', 15)}Compare to POS${changes ? `<span class="btn-count tnum">${changes}</span>` : ''}</button>
-        <button class="btn secondary" data-action="optimize">${icon('sparkles', 15)}Optimize</button>
+        ${optimizeButton(menu)}
         <button class="btn secondary" data-action="add-category" aria-haspopup="menu">${icon('plus', 15)}Add category</button>
         </div>
       </div>`;

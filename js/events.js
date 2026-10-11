@@ -61,6 +61,11 @@
       render();
       return;
     }
+    if (t.matches('[data-opt-edit]') && T.optRun) {
+      T.optRun.edits[t.dataset.optEdit] = t.value;
+      renderOptimize();
+      return;
+    }
     if (t.id === 'picker-search' && T.picker) {
       T.picker.query = t.value;
       renderPicker();

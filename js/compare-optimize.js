@@ -181,120 +181,269 @@
 
   /* ---------- optimize ---------- */
 
-  function openOptimize(onlyCategoryPath = null) {
-    T.opt = {
-      step: onlyCategoryPath ? 'review' : 'choose',
-      pick: onlyCategoryPath ? { names: false, descriptions: false, sizes: true } : { names: true, descriptions: true, sizes: true },
-      only: onlyCategoryPath,
-      items: [],
-      off: new Set(),
-    };
-    if (onlyCategoryPath) T.opt.items = buildSuggestions();
-    openModal({ title: onlyCategoryPath ? 'Group sizes' : 'Optimize menu', body: '<div id="opt"></div>', size: 'lg', foot: '<div class="modal-foot" id="opt-foot"></div>' });
-    renderOptimize();
+  const NOT_SHORTHAND = new Set(['BBQ', 'BLT', 'IPA', 'NY', 'XL', 'GF', 'PB', 'OZ']);
+  const OPT_PLURAL = { category: 'categories', product: 'products', group: 'groups' };
+
+  function looksLikeShorthand(name) {
+    const words = String(name || '').match(/[A-Za-z]+/g) || [];
+    return words.some((w) => (w.length >= 2 && w === w.toUpperCase() && !NOT_SHORTHAND.has(w)) || (w.length >= 3 && !/[aeiouy]/i.test(w)));
   }
 
-  function buildSuggestions() {
-    const { pick, only } = T.opt;
+  function isMenuItemPath(path) {
+    const p = parsePath(parsePath(path).parentPath);
+    const parent = entity(p.kind, p.id) || {};
+    return p.kind === 'category' || (p.kind === 'product' && parent.ptype === 'size') || (p.kind === 'group' && parent.gtype === 'standalone');
+  }
+
+  const optEntity = (kind, id) => (kind === 'menu' ? S.data.menus.find((m) => m.id === id) : entity(kind, id));
+
+  function optScope(paths) {
     const menu = activeMenu();
-    const items = [];
+    if (!paths || !paths.length) return { menuId: menu.id, paths: null, kind: 'menu', title: 'Optimize menu' };
+    const { kind } = parsePath(paths[0]);
+    const info = parsePath(paths[0]);
+    const title = paths.length === 1 ? `Optimize ${nameOf(kind, entity(kind, info.id))}` : `Optimize ${plural(paths.length, kind, OPT_PLURAL[kind])}`;
+    return { menuId: menu.id, paths: [...paths], kind, title };
+  }
+
+  const canGroupSizes = (scope) => scope.kind === 'menu' || scope.kind === 'category';
+
+  function openOptimize(paths = null) {
+    const run = T.optRun;
+    if (!paths && run && !run.sizesOnly && run.scope.menuId === activeMenu().id && (run.running || run.items.length)) return showOptimize('review');
+    const scope = optScope(paths);
+    T.optDraft = { scope, pick: { sizes: canGroupSizes(scope), names: true, descriptions: true } };
+    showOptimize('choose');
+  }
+
+  function groupSizes(path) {
+    const scope = { ...optScope([path]), title: 'Group sizes' };
+    startOptimize(scope, { sizes: true, names: false, descriptions: false }, true);
+    showOptimize('review');
+  }
+
+  function showOptimize(step) {
+    const scope = step === 'review' ? T.optRun.scope : T.optDraft.scope;
+    openModal({ title: scope.title, body: '<div id="opt"></div>', size: 'lg', foot: '<div class="modal-foot" id="opt-foot"></div>' });
+    T.opt = { step };
+    renderOptimize();
+    render();
+  }
+
+  function optimizeRequests(scope, pick) {
+    const menu = S.data.menus.find((m) => m.id === scope.menuId);
+    const roots = scope.paths || menu.children.map((cid) => childPath(menu.id, 'category', cid));
+    const sizes = [];
+    const batches = new Map();
     const seen = new Set();
-    walkMenu(menu, (kind, id, ent, path) => {
-      if (kind === 'category' && pick.sizes && (!only || only === path)) {
-        detectSizeSets(ent).forEach((set, i) => items.push({ key: `sizes|${path}|${i}`, type: 'sizes', path, set, name: containerName(set) }));
-      }
-      if (only || ent.source !== 'pos' || seen.has(`${kind}:${id}`)) return;
-      seen.add(`${kind}:${id}`);
-      const ext = ent.externalId;
-      const posName = (posItem(ent) || ent.reviewed || {}).name;
-      if (pick.names && kind === 'product' && ent.name === posName && SUG.names[ext] && SUG.names[ext] !== ent.name)
-        items.push({ key: `name|${kind}|${id}`, type: 'name', kind, id, from: nameOf(kind, ent), to: SUG.names[ext] });
-      if (pick.descriptions && kind === 'product' && !ent.description && SUG.descriptions[ext])
-        items.push({ key: `desc|${id}`, type: 'description', kind, id, name: SUG.names[ext] || nameOf(kind, ent), to: SUG.descriptions[ext] });
-    });
-    return items;
+    const ask = (catPath, q) => {
+      const k = `${q.field}|${q.kind}|${q.id}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      if (!batches.has(catPath)) batches.set(catPath, []);
+      batches.get(catPath).push(q);
+    };
+    if (!scope.paths && pick.names && roots.length && menu.name === (linkedPosMenu(menu) || {}).name && looksLikeShorthand(menu.name))
+      ask(roots[0], { kind: 'menu', id: menu.id, path: menu.id, field: 'name' });
+    for (const root of roots) {
+      if (!pathExists(root)) continue;
+      const catPath = root.split('>').slice(0, 2).join('>');
+      walkSubtree(root, (kind, id, ent, path) => {
+        if (kind === 'category' && pick.sizes)
+          detectSizeSets(ent).forEach((set) => {
+            const key = `sizes|${path}|${set.base.toLowerCase()}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            sizes.push({ key, type: 'sizes', path, set, name: containerName(set) });
+          });
+        if (pick.names && ent.source === 'pos' && ent.name === (posItem(ent) || ent.reviewed || {}).name && looksLikeShorthand(ent.name)) ask(catPath, { kind, id, path, field: 'name' });
+        if (pick.descriptions && !ent.description && (kind === 'category' || (kind === 'product' && isMenuItemPath(path)))) ask(catPath, { kind, id, path, field: 'description' });
+      });
+    }
+    return { sizes, batches: [...batches.values()] };
+  }
+
+  function startOptimize(scope, pick, sizesOnly = false) {
+    const id = (T.optRunId = (T.optRunId || 0) + 1);
+    const { sizes, batches } = optimizeRequests(scope, pick);
+    T.optRun = { id, scope, pick, sizesOnly, items: sizes, off: new Set(), edits: {}, total: batches.length, done: 0, running: batches.length > 0 };
+    batches.forEach((batch, i) => setTimeout(() => receiveOptimizeBatch(id, batch), 600 + i * 350 + Math.random() * 600));
+  }
+
+  function optAnswer(q) {
+    const ent = optEntity(q.kind, q.id);
+    if (!ent) return null;
+    const ext = q.kind === 'menu' ? ent.posExt : ent.externalId;
+    const to = (q.field === 'name' ? SUG.names : SUG.descriptions)[ext];
+    if (!to) return null;
+    if (q.field === 'name') return to === ent.name ? null : { key: `name|${q.kind}|${q.id}`, type: 'name', kind: q.kind, id: q.id, path: q.path, from: ent.name, to };
+    return ent.description ? null : { key: `desc|${q.kind}|${q.id}`, type: 'description', kind: q.kind, id: q.id, path: q.path, name: SUG.names[ext] || nameOf(q.kind, ent), to };
+  }
+
+  function receiveOptimizeBatch(id, batch) {
+    const run = T.optRun;
+    if (!run || run.id !== id) return;
+    run.items.push(...batch.map(optAnswer).filter(Boolean));
+    run.done += 1;
+    run.running = run.done < run.total;
+    renderOptimize();
+    render();
+    if (run.running || T.opt) return;
+    if (run.items.length) toast(`${plural(run.items.length, 'suggestion', 'suggestions')} to review`, 'info', { action: { label: 'Review', onClick: () => openOptimize() } });
+    else {
+      T.optRun = null;
+      toast('Nothing to suggest. Names and descriptions already look good', 'info');
+      render();
+    }
+  }
+
+  function optKindWord(i) {
+    if (i.kind === 'product') return isMenuItemPath(i.path) ? 'Product' : 'Option';
+    return capitalize(i.kind);
+  }
+
+  const optValue = (run, i) => String(run.edits[i.key] ?? (i.type === 'sizes' ? i.name : i.to)).trim();
+  const optOn = (run, i) => !run.off.has(i.key) && !!optValue(run, i);
+
+  function sizesStaged(i) {
+    return !!pendingRoot(i.path) || i.set.items.some((x) => isPendingLink(childPath(i.path, 'product', x.pid)));
   }
 
   function renderOptimize() {
     if (!T.opt || !$('#opt')) return;
-    const o = T.opt;
+    const focus = captureFocus();
+    if (T.opt.step === 'choose') renderOptimizeChoose();
+    else renderOptimizeReview();
+    restoreFocus(focus);
+  }
+
+  function renderOptimizeChoose() {
+    const { scope, pick } = T.optDraft;
+    const choice = (key, title, help) =>
+      `<button type="button" class="choice-row${pick[key] ? ' is-on' : ''}" role="checkbox" aria-checked="${pick[key]}" data-action="opt-pick" data-key="${key}">
+        <span class="check${pick[key] ? ' is-on' : ''}" aria-hidden="true">${pick[key] ? icon('check', 12) : ''}</span>
+        <span class="choice-text"><strong>${title}</strong><span>${help}</span></span></button>`;
+    $('#opt').innerHTML = `<p>Review suggestions before anything changes. POS stays as it is.</p>
+      <div class="choice-list">
+        ${canGroupSizes(scope) ? choice('sizes', 'Group my sizes', 'Combine sizes like Small and Large, or 20oz and 2-Liter, into one choice product') : ''}
+        ${choice('names', 'Suggest names', 'Replace POS shorthand like SML LMNADE with names customers understand')}
+        ${choice('descriptions', 'Suggest descriptions', 'Write descriptions for products and categories that have none')}
+      </div>`;
+    const any = Object.values(pick).some(Boolean);
+    $('#opt-foot').innerHTML = `<button type="button" class="btn secondary" data-modal-close>Cancel</button>
+      <button type="button" class="btn primary" data-action="opt-find" ${any ? '' : 'disabled'}>${icon('sparkles', 15)}Find suggestions</button>`;
+  }
+
+  function renderOptimizeReview() {
+    const run = T.optRun;
+    const box = (st) => `<span class="check${st === 'off' ? '' : ' is-on'}" aria-hidden="true">${st === 'on' ? icon('check', 12) : st === 'mixed' ? icon('minus', 12) : ''}</span>`;
     const checkBtn = (key, on, label) =>
       `<button type="button" class="check${on ? ' is-on' : ''}" role="checkbox" aria-checked="${on}" aria-label="${esc(label)}" data-action="opt-item" data-key="${esc(key)}">${on ? icon('check', 12) : ''}</button>`;
-    if (o.step === 'choose') {
-      const choice = (key, title, help) =>
-        `<button type="button" class="choice-row${o.pick[key] ? ' is-on' : ''}" role="checkbox" aria-checked="${o.pick[key]}" data-action="opt-pick" data-key="${key}">
-          <span class="check${o.pick[key] ? ' is-on' : ''}" aria-hidden="true">${o.pick[key] ? icon('check', 12) : ''}</span>
-          <span class="choice-text"><strong>${title}</strong><span>${help}</span></span></button>`;
-      $('#opt').innerHTML = `<p>Review suggestions before anything changes. POS stays as it is.</p>
-        <div class="choice-list">
-          ${choice('sizes', 'Group my sizes', 'Combine size variants like Small and Large into one choice product')}
-          ${choice('names', 'Suggest names', 'Replace POS shorthand like SML LMNADE with names customers understand')}
-          ${choice('descriptions', 'Suggest descriptions', 'Write descriptions for products that have none')}
-        </div>`;
-      const any = Object.values(o.pick).some(Boolean);
-      $('#opt-foot').innerHTML = `<button type="button" class="btn secondary" data-modal-close>Cancel</button>
-        <button type="button" class="btn primary" data-action="opt-find" ${any ? '' : 'disabled'}>${icon('sparkles', 15)}Find suggestions</button>`;
-      return;
-    }
+    const field = (i, label, max, area = false) => {
+      const attrs = `class="input sm opt-input" data-opt-edit="${esc(i.key)}" data-focus-key="opt|${esc(i.key)}" aria-label="${esc(label)}" maxlength="${max}"`;
+      const v = esc(run.edits[i.key] ?? (i.type === 'sizes' ? i.name : i.to));
+      return area ? `<textarea ${attrs} rows="2">${v}</textarea>` : `<input type="text" ${attrs} value="${v}">`;
+    };
     const groups = [
       ['name', 'Names'],
       ['description', 'Descriptions'],
       ['sizes', 'Choice products'],
     ];
-    const on = o.items.filter((i) => !o.off.has(i.key)).length;
-    let body = '';
-    if (!o.items.length) {
-      body = `<div class="empty-small">${icon('checkCircle', 20)}<strong>Nothing to suggest</strong><span>Names, descriptions, and sizes already look good.</span></div>`;
+    let body = run.running
+      ? `<div class="opt-progress tnum"><span class="spinner"></span><span>Finding suggestions · Checked ${run.done} of ${plural(run.total, 'category', 'categories')}</span></div>`
+      : '';
+    if (!run.items.length && !run.running) {
+      body += `<div class="empty-small">${icon('checkCircle', 20)}<strong>Nothing to suggest</strong><span>${run.sizesOnly ? 'Every size is already in a choice product.' : 'Names, descriptions, and sizes already look good.'}</span></div>`;
     }
     for (const [type, title] of groups) {
-      const list = o.items.filter((i) => i.type === type);
+      const list = run.items.filter((i) => i.type === type);
       if (!list.length) continue;
-      body += `<section class="cmp-section"><header class="cmp-head"><h3 class="section-title">${title}<span class="tnum"> · ${list.length}</span></h3></header>${type === 'sizes' ? '<p class="section-desc">Each size stays in its category, hidden there, so it keeps its POS price. Customers find it inside the new product.</p>' : ''}<div class="cmp-list">${list
+      const n = list.filter((i) => !run.off.has(i.key)).length;
+      const st = n === 0 ? 'off' : n === list.length ? 'on' : 'mixed';
+      const head = `<button type="button" class="opt-all" role="checkbox" aria-checked="${st === 'mixed' ? 'mixed' : st === 'on'}" aria-label="Select all ${title.toLowerCase()}" data-action="opt-section" data-type="${type}">${box(st)}<h3 class="section-title">${title}<span class="tnum"> · ${list.length}</span></h3></button>`;
+      const desc =
+        type === 'sizes'
+          ? '<p class="section-desc">Each size stays in its category, hidden there, so it keeps its POS price. Customers find it inside the new product.</p>'
+          : type === 'name'
+            ? '<p class="section-desc">POS keeps its own names.</p>'
+            : '';
+      body += `<section class="cmp-section"><header class="cmp-head">${head}</header>${desc}<div class="cmp-list">${list
         .map((i) => {
-          const isOn = !o.off.has(i.key);
+          const isOn = !run.off.has(i.key);
           if (type === 'name')
-            return `<div class="cmp-row">${checkBtn(i.key, isOn, `Use ${i.to}`)}<span class="cmp-main"><span class="sug-line"><span class="sug-from">${esc(i.from)}</span>${icon('chevRight', 13)}<span class="cmp-name">${esc(i.to)}</span></span><span class="cmp-meta">POS name stays ${esc(i.from)}</span></span></div>`;
+            return `<div class="cmp-row opt-row">${checkBtn(i.key, isOn, `Use new name for ${i.from}`)}<span class="cmp-main"><span class="cmp-meta">${optKindWord(i)} · ${esc(i.from)}</span>${field(i, `New name for ${i.from}`, 255)}</span></div>`;
           if (type === 'description')
-            return `<div class="cmp-row">${checkBtn(i.key, isOn, `Add description to ${i.name}`)}<span class="cmp-main"><span class="cmp-name">${esc(i.name)}</span><span class="cmp-meta">${esc(i.to)}</span></span></div>`;
-          return `<div class="cmp-row">${checkBtn(i.key, isOn, `Create ${i.name}`)}<span class="thumb kind-container thumb-sm">${icon('package', 13)}</span><span class="cmp-main"><span class="cmp-name">${esc(i.name)}</span><span class="cmp-meta">${esc(listJoin(i.set.items.map((x) => capitalize(x.size))))} · in ${esc(nameOf('category', entity('category', parsePath(i.path).id)))}</span></span></div>`;
+            return `<div class="cmp-row opt-row">${checkBtn(i.key, isOn, `Add description to ${i.name}`)}<span class="cmp-main"><span class="cmp-meta">${optKindWord(i)} · ${esc(i.name)}</span>${field(i, `Description for ${i.name}`, DESC_LIMIT, true)}</span></div>`;
+          const staged = sizesStaged(i);
+          return `<div class="cmp-row opt-row">${checkBtn(i.key, isOn, `Create ${i.name}`)}<span class="cmp-main"><span class="cmp-meta">${esc(listJoin(i.set.items.map((x) => capitalize(x.size))))} · in ${esc(nameOf('category', entity('category', parsePath(i.path).id)))}</span>${field(i, 'Choice product name', 255)}</span>${staged ? '<span class="badge tone-staged" title="Import creates it">Not imported</span>' : ''}</div>`;
         })
         .join('')}</div></section>`;
     }
     $('#opt').innerHTML = body;
-    $('#opt-foot').innerHTML = `${o.only ? '<button type="button" class="btn secondary" data-modal-close>Cancel</button>' : `<button type="button" class="btn ghost" data-action="opt-back">${icon('chevLeft', 15)}Back</button><span class="foot-spacer"></span>`}
+    const on = run.items.filter((i) => optOn(run, i)).length;
+    $('#opt-foot').innerHTML = `${run.sizesOnly ? '<button type="button" class="btn secondary" data-modal-close>Cancel</button>' : `<button type="button" class="btn ghost" data-action="opt-back">${icon('chevLeft', 15)}Back</button><span class="foot-spacer"></span>`}
       <button type="button" class="btn primary" data-action="opt-apply" ${on ? '' : 'disabled'}>${on ? `Apply ${plural(on, 'change', 'changes')}` : 'Apply changes'}</button>`;
   }
 
   function applyOptimize() {
-    const picks = T.opt.items.filter((i) => !T.opt.off.has(i.key));
-    closeModal();
-    commit(() => {
+    const run = T.optRun;
+    const picks = run.items.filter((i) => optOn(run, i));
+    let applied = 0;
+    const ok = commit(() => {
       for (const i of picks) {
+        if (i.type === 'sizes') continue;
+        const ent = optEntity(i.kind, i.id);
+        if (!ent) continue;
         if (i.type === 'name') {
-          entity(i.kind, i.id).name = i.to;
-        } else if (i.type === 'description') {
-          entity('product', i.id).description = i.to;
+          if (ent.name !== i.from) continue;
+          ent.name = optValue(run, i);
+        } else {
+          if (ent.description) continue;
+          ent.description = optValue(run, i);
         }
+        applied += 1;
       }
       for (const i of picks.filter((x) => x.type === 'sizes')) {
         const catPath = i.path;
+        if (!pathExists(catPath)) continue;
         const cat = entity('category', parsePath(catPath).id);
-        const pids = i.set.items.map((x) => x.pid).filter((pid) => cat.children.includes(pid));
+        const grouped = new Set(cat.children.flatMap((pid) => (entity('product', pid) || {}).ptype === 'size' ? entity('product', pid).children : []));
+        const pids = i.set.items.map((x) => x.pid).filter((pid) => cat.children.includes(pid) && !grouped.has(pid));
         if (pids.length < 2) continue;
-        const container = newProduct({ ptype: 'size', name: i.name, children: pids });
+        const staged = sizesStaged(i);
+        const sizePaths = pids.map((pid) => childPath(catPath, 'product', pid));
+        const container = newProduct({ ptype: 'size', name: optValue(run, i), children: pids });
+        if (staged) Object.assign(container, { pending: true, hideOnImport: sizePaths });
         S.data.entities.product[container.id] = container;
         cat.children.splice(cat.children.indexOf(pids[0]), 0, container.id);
         const cp = childPath(catPath, 'product', container.id);
-        pids.forEach((pid) => {
-          const sp = childPath(catPath, 'product', pid);
-          S.data.placements[sp] = { ...placement(sp), hidden: true };
-        });
+        if (!staged) sizePaths.forEach((sp) => (S.data.placements[sp] = { ...placement(sp), hidden: true }));
         S.ui.expanded[catPath] = true;
         S.ui.expanded[cp] = true;
         flash(cp);
+        applied += 1;
       }
     });
-    toast(`${plural(picks.length, 'change', 'changes')} applied. POS stays as it is`);
+    if (!ok) return;
+    run.items = [];
+    run.off = new Set();
+    run.edits = {};
+    if (run.running) renderOptimize();
+    else {
+      T.optRun = null;
+      closeModal();
+    }
+    render();
+    if (applied) toast(`${plural(applied, 'change', 'changes')} successfully applied`, 'success', { action: { label: 'Undo', onClick: undo } });
+    else toast('No changes applied. These items changed after the suggestions came in', 'info');
+  }
+
+  function finishStagedSizes() {
+    for (const p of Object.values(S.data.entities.product)) {
+      if (!p.hideOnImport) continue;
+      p.hideOnImport.filter(pathExists).forEach((sp) => (S.data.placements[sp] = { ...placement(sp), hidden: true }));
+      delete p.hideOnImport;
+    }
   }
 
   function openHalfMatch(gid) {

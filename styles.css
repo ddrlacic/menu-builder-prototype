@@ -4433,23 +4433,46 @@ button.check:active {
   text-wrap: pretty;
 }
 
-.sug-line {
+.opt-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.opt-all {
   display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
+  gap: 10px;
+  padding-left: 12px;
+  text-align: left;
+}
+
+.opt-row {
+  align-items: flex-start;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.opt-row > .check {
+  margin-top: 1px;
+}
+
+.opt-row > .badge {
+  margin-top: 1px;
+}
+
+.opt-row .cmp-main {
   gap: 6px;
 }
 
-.sug-line .icon {
-  color: var(--ink-3);
+.opt-input {
+  height: 32px;
 }
 
-.sug-from {
-  font-family: var(--mono);
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-  text-decoration: line-through;
-  text-decoration-color: var(--line-strong);
+textarea.opt-input {
+  height: auto;
 }
 
 .choice-list {

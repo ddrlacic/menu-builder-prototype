@@ -213,6 +213,8 @@ window.MENU_SUGGESTIONS = {
     'ICD TEA': 'Iced Tea',
   },
   descriptions: {
+    'pos-cat-sides': 'Fries, rings, and more to share or keep to yourself.',
+    'pos-cat-drinks': 'Fresh lemonade, iced tea, draft beer, and sparkling water.',
     'pos-fries': 'Hand-cut and double-fried, finished with sea salt.',
     'pos-onion-rings': 'Thick-cut sweet onions in a crisp beer batter.',
     'pos-mac': 'Elbow pasta baked in a three-cheese sauce.',

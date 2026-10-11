@@ -904,8 +904,21 @@
     return `${d.name} is not an option of ${posLabel(gpos)} on POS. To offer it here, use suggested products`;
   }
 
-  const SIZE_RE_TOKENS = [...SIZE_WORDS, ...Object.keys(SIZE_ABBR)].sort((a, b) => b.length - a.length).join('|');
-  const normSize = (s) => SIZE_ABBR[s.toLowerCase()] || s.toLowerCase();
+  const SIZE_MEASURE = String.raw`\d+(?:\.\d+)?\s*-?\s*(?:fl\.?\s*oz|oz|ml|cl|liters?|litres?|l|inch(?:es)?|in|")(?:\s+(?:bottle|can|cup|glass|jug|pitcher))?`;
+  const SIZE_COUNT = String.raw`pack\s+of\s+\d+|\d+\s*-?\s*pack|\d+\s*(?:pieces?|pcs?|ct|count)`;
+  const SIZE_RE_TOKENS = [SIZE_MEASURE, SIZE_COUNT, ...[...SIZE_WORDS, ...Object.keys(SIZE_ABBR)].sort((a, b) => b.length - a.length)].join('|');
+  const normSize = (s) => SIZE_ABBR[s.toLowerCase()] || (SIZE_WORDS.includes(s.toLowerCase()) ? s.toLowerCase() : s.trim());
+
+  function sizeRank(size) {
+    const word = SIZE_WORDS.indexOf(size);
+    if (word >= 0) return word;
+    const n = parseFloat((size.match(/\d+(?:\.\d+)?/) || [0])[0]);
+    if (/pack/i.test(size)) return 1e6 + n;
+    if (/liter|litre|\d\s*-?\s*l\b/i.test(size)) return n * 1000;
+    if (/oz/i.test(size)) return n * 29.57;
+    if (/cl/i.test(size)) return n * 10;
+    return n;
+  }
 
   function containerName(set) {
     const key = set.base.toUpperCase();
@@ -916,7 +929,7 @@
   function detectSizeSets(category) {
     const sets = {};
     const re1 = new RegExp(`^(${SIZE_RE_TOKENS})\\s+(.+)$`, 'i');
-    const re2 = new RegExp(`^(.+?)\\s*[-(]\\s*(${SIZE_RE_TOKENS})\\)?$`, 'i');
+    const re2 = new RegExp(`^(.+?)(?:\\s+|\\s*[-(,]\\s*)(${SIZE_RE_TOKENS})\\)?$`, 'i');
     const inContainer = new Set(
       category.children.flatMap((pid) => {
         const c = entity('product', pid);
@@ -939,7 +952,7 @@
     }
     return Object.values(sets)
       .filter((s) => s.items.length >= 2)
-      .map((s) => ({ ...s, items: s.items.sort((a, b) => SIZE_WORDS.indexOf(a.size) - SIZE_WORDS.indexOf(b.size)) }));
+      .map((s) => ({ ...s, items: s.items.sort((a, b) => sizeRank(a.size) - sizeRank(b.size)) }));
   }
 
   const sizeSetsKey = (sets) =>
