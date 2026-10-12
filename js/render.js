@@ -115,7 +115,8 @@
       <div class="blank">
         <div class="blank-art">${icon('layers', 22)}</div>
         <h3>No menus yet</h3>
-        <button class="btn primary" data-action="new-menu">${icon('plus', 15)}Create menu</button>
+        <p>Menus hold the categories and products customers order from. Create one, then add categories from POS.</p>
+        <div class="blank-actions"><button class="btn primary" data-action="new-menu">${icon('plus', 15)}Create menu</button></div>
       </div>`;
     $('#inspector-head').innerHTML = '';
     $('#inspector-tabs').innerHTML = '';
