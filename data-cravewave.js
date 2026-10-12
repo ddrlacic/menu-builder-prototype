@@ -678,3 +678,4 @@ window.POS_DATASETS.cravewave = {
     "673963107": {"options":["673963568","673963573"],"rules":{"min":0,"max":null,"maxSingle":1,"freeCount":0}},
   },
 };
+window.POS_DATASETS['cravewave-empty'] = (({ modifierCodes, posFocus, pos, syncDemo }) => ({ modifierCodes, posFocus, pos, syncDemo, empty: true }))(window.POS_DATASETS.cravewave);

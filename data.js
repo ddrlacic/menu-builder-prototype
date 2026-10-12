@@ -326,6 +326,7 @@ window.MENU_CONSTANTS = {
     { id: 'sg-corporate', name: 'Corporate stores', pos: 'PAR POS', dataset: 'example' },
     { id: 'sg-airport', name: 'Airport concessions', pos: 'PAR POS', dataset: 'example' },
     { id: 'sg-cravewave', name: 'Cravewave Pizza', pos: 'PAR Brink', dataset: 'cravewave' },
+    { id: 'sg-cravewave-empty', name: 'Cravewave Pizza (empty)', pos: 'PAR Brink', dataset: 'cravewave-empty' },
     { id: 'sg-cravewave-express', name: 'Cravewave Express', pos: 'PAR Brink', dataset: 'cravewave-halves' },
   ],
   groupTypes: {

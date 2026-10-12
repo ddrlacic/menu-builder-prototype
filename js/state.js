@@ -773,12 +773,12 @@
     };
     if (!S.data.pos.syncedAt) S.data.pos.syncedAt = Date.now() - 1000 * 60 * 18;
     if (src.menu) seedImported(src);
-    else seedExample();
+    else if (!src.empty) seedExample();
     if (src.built) seedBuiltDemo(src);
     S.data.menus.forEach((m) => {
       if (!m.image) m.image = posImageOf(m);
     });
-    seedOwnTimes(S.data.menus[0]);
+    if (S.data.menus[0]) seedOwnTimes(S.data.menus[0]);
     seedStoreStatusDemo(S.data.menus[0]);
     seedPosStockDemo(S.data.menus[0]);
     clearPending();
@@ -1003,16 +1003,18 @@
   }
 
   function defaultUi() {
+    const first = S.data.menus[0];
+    const focusMenu = S.data.pos.menus.find((pm) => pm.roots.includes(DATASETS[dataset].posFocus));
     return {
-      activeMenuId: S.data.menus[0].id,
-      selected: S.data.menus[0].id,
+      activeMenuId: first ? first.id : null,
+      selected: first ? first.id : null,
       expanded: {},
       posExpanded: {},
       posQuery: '',
       canvasQuery: '',
       tabs: {},
       storeGroupId: storeGroups().find((g) => g.dataset === dataset).id,
-      posMenuId: S.data.menus[0].posExt || S.data.pos.menus[0].id,
+      posMenuId: (first && first.posExt) || (focusMenu || S.data.pos.menus[0]).id,
       sizeHintDismissed: {},
       halfHintDismissed: {},
       showPosIds: false,
