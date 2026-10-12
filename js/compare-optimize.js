@@ -207,25 +207,31 @@
   }
 
   const canGroupSizes = (scope) => scope.kind === 'menu' || scope.kind === 'category';
+  const OPT_BATCH_MAX = 100;
+  const OPT_PARALLEL = 4;
+  const OPT_TABS = [
+    ['name', 'Names', 'name', 'names'],
+    ['description', 'Descriptions', 'description', 'descriptions'],
+    ['sizes', 'Choice products', 'choice product', 'choice products'],
+  ];
 
   function openOptimize(paths = null) {
     const run = T.optRun;
-    if (!paths && run && !run.sizesOnly && run.scope.menuId === activeMenu().id && (run.running || run.items.length)) return showOptimize('review');
+    if (!paths && run && !run.sizesOnly && run.scope.menuId === activeMenu().id && (run.running || run.items.length)) return showOptimize();
     const scope = optScope(paths);
-    T.optDraft = { scope, pick: { sizes: canGroupSizes(scope), names: true, descriptions: true } };
-    showOptimize('choose');
+    startOptimize(scope, { sizes: canGroupSizes(scope), names: true, descriptions: true });
+    showOptimize();
   }
 
   function groupSizes(path) {
     const scope = { ...optScope([path]), title: 'Group sizes' };
     startOptimize(scope, { sizes: true, names: false, descriptions: false }, true);
-    showOptimize('review');
+    showOptimize();
   }
 
-  function showOptimize(step) {
-    const scope = step === 'review' ? T.optRun.scope : T.optDraft.scope;
-    openModal({ title: scope.title, body: '<div id="opt"></div>', size: 'lg', foot: '<div class="modal-foot" id="opt-foot"></div>' });
-    T.opt = { step };
+  function showOptimize() {
+    openModal({ title: T.optRun.scope.title, body: '<div id="opt"></div>', size: 'lg', top: true, foot: '<div class="modal-foot" id="opt-foot"></div>' });
+    T.opt = {};
     renderOptimize();
     render();
   }
@@ -260,14 +266,43 @@
         if (pick.descriptions && !ent.description && (kind === 'category' || (kind === 'product' && isMenuItemPath(path)))) ask(catPath, { kind, id, path, field: 'description' });
       });
     }
-    return { sizes, batches: [...batches.values()] };
+    const chunks = [];
+    [...batches.values()].forEach((qs, cat) => {
+      const ents = [...new Set(qs.map((q) => `${q.kind}|${q.id}`))];
+      for (let i = 0; i < ents.length; i += OPT_BATCH_MAX) {
+        const part = new Set(ents.slice(i, i + OPT_BATCH_MAX));
+        chunks.push({ cat, qs: qs.filter((q) => part.has(`${q.kind}|${q.id}`)) });
+      }
+    });
+    return { sizes, chunks, categories: batches.size };
   }
 
   function startOptimize(scope, pick, sizesOnly = false) {
     const id = (T.optRunId = (T.optRunId || 0) + 1);
-    const { sizes, batches } = optimizeRequests(scope, pick);
-    T.optRun = { id, scope, pick, sizesOnly, items: sizes, off: new Set(), edits: {}, total: batches.length, done: 0, running: batches.length > 0 };
-    batches.forEach((batch, i) => setTimeout(() => receiveOptimizeBatch(id, batch), 600 + i * 350 + Math.random() * 600));
+    const { sizes, chunks, categories } = optimizeRequests(scope, pick);
+    const left = chunks.reduce((m, c) => ((m[c.cat] = (m[c.cat] || 0) + 1), m), {});
+    T.optRun = {
+      id, scope, pick, sizesOnly, items: sizes, off: new Set(), edits: {},
+      queue: chunks, inflight: 0, left, total: categories, done: 0, running: chunks.length > 0, stopped: false,
+      tab: sizesOnly ? 'sizes' : 'name', tabPicked: sizesOnly, applied: {},
+    };
+    pumpOptimize(T.optRun);
+  }
+
+  function pumpOptimize(run) {
+    while (run.inflight < OPT_PARALLEL && run.queue.length) {
+      const chunk = run.queue.shift();
+      run.inflight += 1;
+      setTimeout(() => receiveOptimizeBatch(run.id, chunk), 700 + Math.random() * 900);
+    }
+  }
+
+  function stopOptimize() {
+    const run = T.optRun;
+    if (!run || !run.running) return;
+    Object.assign(run, { queue: [], running: false, stopped: true });
+    renderOptimize();
+    render();
   }
 
   function optAnswer(q) {
@@ -280,12 +315,15 @@
     return ent.description ? null : { key: `desc|${q.kind}|${q.id}`, type: 'description', kind: q.kind, id: q.id, path: q.path, name: SUG.names[ext] || nameOf(q.kind, ent), to };
   }
 
-  function receiveOptimizeBatch(id, batch) {
+  function receiveOptimizeBatch(id, chunk) {
     const run = T.optRun;
-    if (!run || run.id !== id) return;
-    run.items.push(...batch.map(optAnswer).filter(Boolean));
-    run.done += 1;
+    if (!run || run.id !== id || run.stopped) return;
+    run.inflight -= 1;
+    run.items.push(...chunk.qs.map(optAnswer).filter(Boolean));
+    run.left[chunk.cat] -= 1;
+    if (!run.left[chunk.cat]) run.done += 1;
     run.running = run.done < run.total;
+    pumpOptimize(run);
     renderOptimize();
     render();
     if (run.running || T.opt) return;
@@ -312,26 +350,20 @@
   function renderOptimize() {
     if (!T.opt || !$('#opt')) return;
     const focus = captureFocus();
-    if (T.opt.step === 'choose') renderOptimizeChoose();
-    else renderOptimizeReview();
+    renderOptimizeReview();
     restoreFocus(focus);
   }
 
-  function renderOptimizeChoose() {
-    const { scope, pick } = T.optDraft;
-    const choice = (key, title, help) =>
-      `<button type="button" class="choice-row${pick[key] ? ' is-on' : ''}" role="checkbox" aria-checked="${pick[key]}" data-action="opt-pick" data-key="${key}">
-        <span class="check${pick[key] ? ' is-on' : ''}" aria-hidden="true">${pick[key] ? icon('check', 12) : ''}</span>
-        <span class="choice-text"><strong>${title}</strong><span>${help}</span></span></button>`;
-    $('#opt').innerHTML = `<p>Review suggestions before anything changes. POS stays as it is.</p>
-      <div class="choice-list">
-        ${canGroupSizes(scope) ? choice('sizes', 'Group my sizes', 'Combine sizes like Small and Large, or 20oz and 2-Liter, into one choice product') : ''}
-        ${choice('names', 'Suggest names', 'Replace POS shorthand like SML LMNADE with names customers understand')}
-        ${choice('descriptions', 'Suggest descriptions', 'Write descriptions for products and categories that have none')}
-      </div>`;
-    const any = Object.values(pick).some(Boolean);
-    $('#opt-foot').innerHTML = `<button type="button" class="btn secondary" data-modal-close>Cancel</button>
-      <button type="button" class="btn primary" data-action="opt-find" ${any ? '' : 'disabled'}>${icon('sparkles', 15)}Find suggestions</button>`;
+  function optTabs(run) {
+    return OPT_TABS.filter(([type]) => (type === 'sizes' ? run.pick.sizes : !run.sizesOnly));
+  }
+
+  function optCurrentTab(run) {
+    if (!run.tabPicked) {
+      const first = optTabs(run).find(([type]) => run.items.some((i) => i.type === type));
+      if (first) Object.assign(run, { tab: first[0], tabPicked: true });
+    }
+    return run.tab;
   }
 
   function renderOptimizeReview() {
@@ -344,35 +376,39 @@
       const v = esc(run.edits[i.key] ?? (i.type === 'sizes' ? i.name : i.to));
       return area ? `<textarea ${attrs} rows="2">${v}</textarea>` : `<input type="text" ${attrs} value="${v}">`;
     };
-    const groups = [
-      ['name', 'Names'],
-      ['description', 'Descriptions'],
-      ['sizes', 'Choice products'],
-    ];
-    let body = run.running
-      ? `<div class="opt-progress tnum"><span class="spinner"></span><span>Finding suggestions · Checked ${run.done} of ${plural(run.total, 'category', 'categories')}</span></div>`
-      : '';
-    if (!run.items.length && !run.running) {
-      body += `<div class="empty-small">${icon('checkCircle', 20)}<strong>Nothing to suggest</strong><span>${run.sizesOnly ? 'Every size is already in a choice product.' : 'Names, descriptions, and sizes already look good.'}</span></div>`;
-    }
-    for (const [type, title] of groups) {
-      const list = run.items.filter((i) => i.type === type);
-      if (!list.length) continue;
+    const tab = optCurrentTab(run);
+    const word = Object.fromEntries(OPT_TABS.map(([t, , one, many]) => [t, [one, many]]));
+    const tabs = optTabs(run);
+    let body = tabs.length > 1 ? `<div class="cmp-tabs">${tabList(tabs.map(([t, label]) => [t, label, run.items.filter((i) => i.type === t).length]), tab, (id) => `data-action="opt-tab" data-tab="${id}"`)}</div>` : '';
+    if (!run.sizesOnly && (run.running || run.stopped))
+      body += `<div class="opt-progress tnum">${run.running ? '<span class="spinner"></span><span>Finding suggestions' : '<span>Stopped'} · Checked ${run.done} of ${plural(run.total, 'category', 'categories')}</span></div>`;
+    const list = run.items.filter((i) => i.type === tab);
+    if (!list.length) {
+      const done = run.applied[tab];
+      const [one, many] = word[tab];
+      const empty = {
+        name: ['No name suggestions', 'Only POS shorthand like SML LMNADE gets a suggestion'],
+        description: ['No description suggestions', 'Every product and category already has one'],
+        sizes: ['No sizes to group', 'Every size is already in a choice product'],
+      }[tab];
+      if (done) body += `<div class="empty-small">${icon('checkCircle', 20)}<strong>${plural(done, one, many)} ${tab === 'sizes' ? 'created' : 'applied'}</strong></div>`;
+      else if (run.running && tab !== 'sizes') body += `<div class="empty-small"><span class="spinner"></span><span>Suggestions show here as they come in</span></div>`;
+      else body += `<div class="empty-small">${icon('checkCircle', 20)}<strong>${empty[0]}</strong><span>${run.stopped && tab !== 'sizes' ? 'Search stopped before every category was checked' : empty[1]}</span></div>`;
+    } else {
       const n = list.filter((i) => !run.off.has(i.key)).length;
       const st = n === 0 ? 'off' : n === list.length ? 'on' : 'mixed';
-      const head = `<button type="button" class="opt-all" role="checkbox" aria-checked="${st === 'mixed' ? 'mixed' : st === 'on'}" aria-label="Select all ${title.toLowerCase()}" data-action="opt-section" data-type="${type}">${box(st)}<h3 class="section-title">${title}<span class="tnum"> · ${list.length}</span></h3></button>`;
       const desc =
-        type === 'sizes'
+        tab === 'sizes'
           ? '<p class="section-desc">Each size stays in its category, hidden there, so it keeps its POS price. Customers find it inside the new product.</p>'
-          : type === 'name'
-            ? '<p class="section-desc">POS keeps its own names.</p>'
+          : tab === 'name'
+            ? '<p class="section-desc">POS keeps its own names</p>'
             : '';
-      body += `<section class="cmp-section"><header class="cmp-head">${head}</header>${desc}<div class="cmp-list">${list
+      body += `<section class="cmp-section">${desc}<header class="cmp-head"><button type="button" class="opt-all" role="checkbox" aria-checked="${st === 'mixed' ? 'mixed' : st === 'on'}" data-action="opt-section" data-type="${tab}">${box(st)}<span>Select all</span></button></header><div class="cmp-list">${list
         .map((i) => {
           const isOn = !run.off.has(i.key);
-          if (type === 'name')
+          if (tab === 'name')
             return `<div class="cmp-row opt-row">${checkBtn(i.key, isOn, `Use new name for ${i.from}`)}<span class="cmp-main"><span class="cmp-meta">${optKindWord(i)} · ${esc(i.from)}</span>${field(i, `New name for ${i.from}`, 255)}</span></div>`;
-          if (type === 'description')
+          if (tab === 'description')
             return `<div class="cmp-row opt-row">${checkBtn(i.key, isOn, `Add description to ${i.name}`)}<span class="cmp-main"><span class="cmp-meta">${optKindWord(i)} · ${esc(i.name)}</span>${field(i, `Description for ${i.name}`, DESC_LIMIT, true)}</span></div>`;
           const staged = sizesStaged(i);
           return `<div class="cmp-row opt-row">${checkBtn(i.key, isOn, `Create ${i.name}`)}<span class="cmp-main"><span class="cmp-meta">${esc(listJoin(i.set.items.map((x) => capitalize(x.size))))} · in ${esc(nameOf('category', entity('category', parsePath(i.path).id)))}</span>${field(i, 'Choice product name', 255)}</span>${staged ? '<span class="badge tone-staged" title="Import creates it">Not imported</span>' : ''}</div>`;
@@ -380,14 +416,18 @@
         .join('')}</div></section>`;
     }
     $('#opt').innerHTML = body;
-    const on = run.items.filter((i) => optOn(run, i)).length;
-    $('#opt-foot').innerHTML = `${run.sizesOnly ? '<button type="button" class="btn secondary" data-modal-close>Cancel</button>' : `<button type="button" class="btn ghost" data-action="opt-back">${icon('chevLeft', 15)}Back</button><span class="foot-spacer"></span>`}
-      <button type="button" class="btn primary" data-action="opt-apply" ${on ? '' : 'disabled'}>${on ? `Apply ${plural(on, 'change', 'changes')}` : 'Apply changes'}</button>`;
+    const on = list.filter((i) => optOn(run, i)).length;
+    const [one, many] = word[tab];
+    const verb = tab === 'sizes' ? 'Create' : 'Apply';
+    $('#opt-foot').innerHTML = `${run.running ? `<button type="button" class="btn ghost" data-action="opt-stop">Stop search</button><span class="foot-spacer"></span>` : ''}
+      <button type="button" class="btn secondary" data-modal-close>${run.sizesOnly ? 'Cancel' : 'Close'}</button>
+      <button type="button" class="btn primary" data-action="opt-apply" ${on ? '' : 'disabled'}>${verb} ${on ? plural(on, one, many) : many}</button>`;
   }
 
   function applyOptimize() {
     const run = T.optRun;
-    const picks = run.items.filter((i) => optOn(run, i));
+    const tab = run.tab;
+    const picks = run.items.filter((i) => i.type === tab && optOn(run, i));
     let applied = 0;
     const ok = commit(() => {
       for (const i of picks) {
@@ -425,16 +465,23 @@
       }
     });
     if (!ok) return;
-    run.items = [];
-    run.off = new Set();
-    run.edits = {};
-    if (run.running) renderOptimize();
-    else {
+    run.items.filter((i) => i.type === tab).forEach((i) => {
+      run.off.delete(i.key);
+      delete run.edits[i.key];
+    });
+    run.items = run.items.filter((i) => i.type !== tab);
+    run.applied[tab] = (run.applied[tab] || 0) + applied;
+    if (!run.items.length && !run.running) {
       T.optRun = null;
       closeModal();
+    } else {
+      const next = optTabs(run).find(([type]) => run.items.some((i) => i.type === type));
+      if (next) run.tab = next[0];
+      renderOptimize();
     }
     render();
-    if (applied) toast(`${plural(applied, 'change', 'changes')} successfully applied`, 'success', { action: { label: 'Undo', onClick: undo } });
+    const [one, many] = OPT_TABS.find(([t]) => t === tab).slice(2);
+    if (applied) toast(`${plural(applied, one, many)} successfully ${tab === 'sizes' ? 'created' : 'applied'}`, 'success', { action: { label: 'Undo', onClick: undo } });
     else toast('No changes applied. These items changed after the suggestions came in', 'info');
   }
 

@@ -937,22 +937,13 @@
         expandTo(path);
         select(path, { focusRow: true });
         break;
-      case 'opt-pick':
-        T.optDraft.pick[el.dataset.key] = !T.optDraft.pick[el.dataset.key];
+      case 'opt-tab':
+        Object.assign(T.optRun, { tab: el.dataset.tab, tabPicked: true });
         renderOptimize();
+        $('#modal-root .modal-scroll').scrollTop = 0;
         break;
-      case 'opt-find':
-        startOptimize(T.optDraft.scope, { ...T.optDraft.pick });
-        T.opt.step = 'review';
-        renderOptimize();
-        render();
-        break;
-      case 'opt-back':
-        T.optDraft = { scope: T.optRun.scope, pick: { ...T.optRun.pick } };
-        T.optRun = null;
-        T.opt.step = 'choose';
-        renderOptimize();
-        render();
+      case 'opt-stop':
+        stopOptimize();
         break;
       case 'opt-item': {
         const k = el.dataset.key;

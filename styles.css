@@ -4475,55 +4475,6 @@ textarea.opt-input {
   height: auto;
 }
 
-.choice-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.choice-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
-  text-align: left;
-  background: var(--panel);
-  box-shadow: var(--shadow-border);
-  transition-property: box-shadow, background-color, transform;
-  transition-duration: 160ms;
-  transition-timing-function: var(--ease-out);
-}
-
-.choice-row .check {
-  margin-top: 1px;
-}
-
-.choice-row.is-on {
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1.5px var(--accent-line);
-}
-
-.choice-row:active {
-  transform: scale(0.99);
-}
-
-.choice-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.choice-text strong {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.choice-text span {
-  font-size: var(--text-sm);
-  color: var(--ink-2);
-}
-
 /* POS product picker */
 
 .picker-list {
@@ -4576,9 +4527,6 @@ textarea.opt-input {
 @media (hover: hover) and (pointer: fine) {
   .picker-row:not(:disabled):hover {
     background: var(--hover);
-  }
-  .choice-row:not(.is-on):hover {
-    box-shadow: var(--shadow-border-hover);
   }
 }
 
