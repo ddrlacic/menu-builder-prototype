@@ -716,6 +716,11 @@ mark {
   cursor: grabbing;
 }
 
+.pos-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
 .pos-name {
   flex: 1;
   min-width: 0;
@@ -770,6 +775,7 @@ mark {
     opacity: 0;
   }
   .pos-row:hover .pos-add,
+  .pos-row:focus-visible .pos-add,
   .pos-row .pos-add:focus-visible {
     opacity: 1;
   }

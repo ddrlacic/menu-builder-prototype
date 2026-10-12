@@ -356,6 +356,7 @@
       newPath = childPath(parentPath, kind, id);
       openRow(parentPath);
       S.ui.selected = newPath;
+      if (!T.modal) T.focusRow = newPath;
       flash(newPath);
     });
     if (!done) return null;
@@ -367,6 +368,140 @@
         : `${name} added to ${parentName}`;
     toast(text, 'success', { action: { label: 'Undo', onClick: undo } });
     return newPath;
+  }
+
+  function linkError(d, parentPath) {
+    const pi = parsePath(parentPath);
+    const parent = entity(pi.kind, pi.id);
+    const parentName = nameOf(pi.kind, parent);
+    if (parent.children.includes(d.id)) return `${d.name} is already in ${parentName}`;
+    if (pi.kind !== 'menu' && reaches(d.kind, d.id, pi.kind, pi.id)) return `${d.name} already contains ${parentName}, so it cannot go inside it`;
+    if (d.source !== 'pos' && pendingRoot(parentPath)) return `${d.name} can go in ${parentName} after you import it`;
+    return dropError(parentPath, d);
+  }
+
+  function placeTargets(ds, mode) {
+    const kind = ds[0].kind;
+    const seen = new Set();
+    const out = [];
+    walkMenu(activeMenu(), (k, id, ent, path) => {
+      if (childKind(k, ent) !== kind || seen.has(`${k}:${id}`)) return;
+      seen.add(`${k}:${id}`);
+      if (ds.some((d) => ent.children.includes(d.id) || reaches(kind, d.id, k, id))) return;
+      if (ds.some((d) => (mode === 'add' ? linkError(d, path) : dropError(path, d)))) return;
+      out.push({ path, kind: k, ent });
+    });
+    return out;
+  }
+
+  function placeDescs(paths, mode) {
+    const ds = multiDragDescs(paths);
+    if (mode !== 'add') return ds;
+    const seen = new Set();
+    return ds.filter((d) => !seen.has(d.id) && seen.add(d.id));
+  }
+
+  function openPlacePicker(paths, mode) {
+    const ds = placeDescs(paths, mode);
+    const kind = ds[0].kind;
+    const [one, many] = BULK_NOUN[kind];
+    const single = ds.length === 1;
+    const name = single ? ds[0].name : plural(ds.length, one, many);
+    const from = parsePath(parsePath(ds[0].path).parentPath);
+    const intro =
+      mode === 'add'
+        ? single
+          ? `It stays one ${one}, so edits apply everywhere it’s used.`
+          : `Each stays one ${one}, so edits apply everywhere they’re used.`
+        : single
+          ? `Pick where ${name} goes. It’s removed from ${nameOf(from.kind, entity(from.kind, from.id))}.`
+          : `Pick where they go. They’re removed from where they are now.`;
+    openPicker({
+      title: mode === 'add' ? `Add ${name} to another place` : `Move ${name}`,
+      intro,
+      placeholder: 'Search by name',
+      items: placeTargets(ds, mode).map(({ path, kind: k, ent }) => {
+        const where = crumbText(parsePath(path).parentPath);
+        const uses = (ctx.usage.get(`${k}:${ent.id}`) || []).length;
+        return {
+          id: path,
+          name: nameOf(k, ent),
+          meta: `${kindLabel(k, ent)} in ${where}${uses > 1 ? ` · Used in ${uses} places` : ''}`,
+          thumb: thumb(k, ent, 'thumb-sm'),
+          search: [nameOf(k, ent), ent.internalName, where],
+          price: '',
+        };
+      }),
+      noMatch: ['No matching places', 'Try a different name.'],
+      onPick: (path) => {
+        closeModal();
+        expandTo(path);
+        const t = { path, pos: 'inside' };
+        if (mode === 'add') return single ? linkExisting(path, kind, ds[0].id) : linkMany(path, ds);
+        return single ? confirmDrop(ds[0], t) : confirmMultiDrop(ds, t);
+      },
+    });
+  }
+
+  function linkMany(parentPath, ds) {
+    const pi = parsePath(parentPath);
+    const parent = entity(pi.kind, pi.id);
+    const paths = [];
+    const done = commit(() => {
+      ds.forEach((d) => {
+        const ent = entity(d.kind, d.id);
+        parent.children.push(d.id);
+        if (ent.source === 'pos') stageLink(pi.kind, pi.id, d.kind, d.id);
+        if (pi.kind === 'category' && ent.ptype === 'size') keepChoicesInCategory(ent, parent);
+        if (pi.kind === 'product' && parent.ptype === 'size') keepChoiceInMenu(parentPath, d.id);
+        paths.push(childPath(parentPath, d.kind, d.id));
+      });
+      openRow(parentPath);
+      paths.forEach(flash);
+      T.sel = paths;
+      S.ui.selected = paths[paths.length - 1];
+      T.selAnchor = paths[0];
+      T.focusRow = S.ui.selected;
+    });
+    if (done) toast(`${plural(ds.length, ...BULK_NOUN[ds[0].kind])} added to ${nameOf(pi.kind, parent)}`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function nudgeSelection(dir) {
+    const picked = (T.sel.length ? T.sel : [S.ui.selected]).filter((p) => p.includes('>'));
+    if (!picked.length) return;
+    const rows = $$('#canvas-tree .row:not([data-half-of])').map((r) => r.dataset.path);
+    const groups = new Map();
+    rows
+      .filter((p) => picked.includes(p))
+      .forEach((p) => {
+        const pp = parsePath(p).parentPath;
+        if (!groups.has(pp)) groups.set(pp, []);
+        groups.get(pp).push(p);
+      });
+    const moves = [];
+    const parents = new Set();
+    groups.forEach((group, pp) => {
+      const pi = parsePath(pp);
+      const parent = entity(pi.kind, pi.id);
+      if (parents.has(`${pi.kind}:${pi.id}`)) return;
+      parents.add(`${pi.kind}:${pi.id}`);
+      const ids = [...new Set(group.map((p) => parsePath(p).id))].filter((id) => parent.children.includes(id));
+      const sibs = rows.filter((p) => parsePath(p).parentPath === pp && !group.includes(p));
+      const edge = rows.indexOf(group[dir < 0 ? 0 : group.length - 1]);
+      const near = dir < 0 ? sibs.filter((p) => rows.indexOf(p) < edge).pop() : sibs.find((p) => rows.indexOf(p) > edge);
+      const target = near && parsePath(near).id;
+      if (!ids.length || !target || !parent.children.includes(target)) return;
+      moves.push({ parent, ids, target });
+    });
+    if (!moves.length) return;
+    commit(() => {
+      moves.forEach(({ parent, ids, target }) => {
+        const list = parent.children.filter((c) => !ids.includes(c));
+        list.splice(list.indexOf(target) + (dir > 0 ? 1 : 0), 0, ...ids);
+        parent.children.splice(0, parent.children.length, ...list);
+      });
+      T.focusRow = S.ui.selected;
+    }, { key: `nudge:${picked.join('|')}` });
   }
 
   function createChoiceProduct(categoryPath) {

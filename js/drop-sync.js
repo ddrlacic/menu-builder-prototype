@@ -93,6 +93,7 @@
     commit(() => {
       r = dropInto(d, parentPath, index);
       S.ui.selected = r.newPath;
+      if (d.origin === 'canvas') T.focusRow = r.newPath;
       flash(r.newPath);
     });
     const { newPath, movedTo, linked, alsoIn, reused } = r;

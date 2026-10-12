@@ -2,9 +2,63 @@
 
   function togglePosRow(row) {
     const state = searchTerm(S.ui.posQuery) ? T.posSearchExpanded : S.ui.posExpanded;
+    const refocus = row === document.activeElement;
     state[row.dataset.key] = row.getAttribute('aria-expanded') !== 'true';
     renderPos();
+    if (refocus) focusPosKey(row.dataset.rowKey);
     if (state === S.ui.posExpanded) schedulePersist();
+  }
+
+  function focusPosRow(row) {
+    if (!row) return;
+    T.posFocus = row.dataset.rowKey;
+    $$('#pos-tree .pos-row[tabindex="0"]').forEach((r) => (r.tabIndex = -1));
+    row.tabIndex = 0;
+    row.focus({ preventScroll: true });
+    row.scrollIntoView({ block: 'nearest' });
+  }
+
+  const focusPosKey = (key) => focusPosRow($(`#pos-tree .pos-row[data-row-key="${cssEsc(key)}"]`));
+
+  function posKeys(e) {
+    const rows = $$('#pos-tree .pos-row');
+    const cur = e.target.closest('.pos-row');
+    const i = rows.indexOf(cur);
+    const open = cur.getAttribute('aria-expanded');
+    const go = (r) => {
+      if (!r) return;
+      e.preventDefault();
+      focusPosRow(r);
+    };
+    switch (e.key) {
+      case 'ArrowDown':
+        go(rows[i + 1]);
+        break;
+      case 'ArrowUp':
+        go(rows[i - 1]);
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        if (open === 'false') togglePosRow(cur);
+        else if (open === 'true') go(rows[i + 1]);
+        break;
+      case 'ArrowLeft': {
+        e.preventDefault();
+        if (open === 'true') return togglePosRow(cur);
+        const level = Number(cur.getAttribute('aria-level'));
+        go(rows.slice(0, i).reverse().find((r) => Number(r.getAttribute('aria-level')) < level));
+        break;
+      }
+      case 'Enter': {
+        e.preventDefault();
+        const key = cur.dataset.rowKey;
+        cur.querySelector('[data-action="pos-add"]').click();
+        focusPosKey(key);
+        break;
+      }
+      default:
+        break;
+    }
   }
 
   function togglePosPanel(open = !!S.ui.posCollapsed) {
@@ -427,16 +481,6 @@
     return d.multi ? hint.replace('. Hold ⌥ to add it there too', '').replace(/\bit\b/, 'them') : hint;
   };
 
-  function linkError(d, parentPath) {
-    const pi = parsePath(parentPath);
-    const parent = entity(pi.kind, pi.id);
-    const parentName = nameOf(pi.kind, parent);
-    if (parent.children.includes(d.id)) return `${d.name} is already in ${parentName}`;
-    if (pi.kind !== 'menu' && reaches(d.kind, d.id, pi.kind, pi.id)) return `${d.name} already contains ${parentName}, so it cannot go inside it`;
-    if (d.source !== 'pos' && pendingRoot(parentPath)) return `${d.name} can go in ${parentName} after you import it`;
-    return dropError(parentPath, d);
-  }
-
   function autoPlaceHint(d) {
     if (d.kind === 'menu') return `Drop to add all categories from ${d.name}`;
     if (d.kind === 'category') return 'Drop to add it to the end of the menu';
@@ -651,6 +695,17 @@
       e.preventDefault();
       select(r.dataset.path, { focusRow: true });
     };
+    if (e.altKey && !e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      nudgeSelection(e.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+    if (e.shiftKey && e.key === 'F10' && cur) {
+      e.preventDefault();
+      hideTip();
+      rowMenu(cur.querySelector('[data-action="remove-row"]'), cur.dataset.path, 'more');
+      return;
+    }
     if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
       e.preventDefault();
       extendSelection(e.key === 'ArrowDown' ? 1 : -1);
@@ -774,11 +829,24 @@
       $('#canvas-search').select();
       return;
     }
+    if (mod && !e.altKey && e.key === '/' && !T.modal) {
+      e.preventDefault();
+      toggleShortcuts();
+      return;
+    }
     if (e.target.id === 'canvas-search' && (e.key === 'ArrowDown' || e.key === 'Enter') && !mod && !e.shiftKey && !e.altKey) {
       const row = $('#canvas-tree .row.is-hit') || $('#canvas-tree .row');
       if (row) {
         e.preventDefault();
         select(row.dataset.path, { focusRow: true });
+      }
+      return;
+    }
+    if (e.target.id === 'pos-search' && (e.key === 'ArrowDown' || e.key === 'Enter') && !mod && !e.shiftKey && !e.altKey) {
+      const row = $('#pos-tree .pos-row.is-hit') || $('#pos-tree .pos-row');
+      if (row) {
+        e.preventDefault();
+        focusPosRow(row);
       }
       return;
     }
@@ -793,5 +861,11 @@
       focusPosSearch();
       return;
     }
-    if (e.target.closest && e.target.closest('#canvas-tree')) treeKeys(e);
+    if (e.target.closest && e.target.closest('#pos-tree .pos-row')) posKeys(e);
+    else if (e.target.closest && e.target.closest('#canvas-tree')) treeKeys(e);
+  });
+
+  document.addEventListener('focusin', (e) => {
+    const row = e.target.closest && e.target.closest('#pos-tree .pos-row');
+    if (row) T.posFocus = row.dataset.rowKey;
   });

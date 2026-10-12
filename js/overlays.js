@@ -66,19 +66,26 @@
       ['Search this menu', ['⌘', 'F']],
       ['Go to the first match', ['↓'], ['Enter']],
       ['Clear the search', ['Esc']],
-      ['Search POS items', ['/']],
     ]],
     ['Edit', [
       ['Rename', ['Enter']],
+      ['Move up or down', ['⌥', '↑'], ['⌥', '↓']],
       ['Remove from its parent', ['⌫']],
       ['Add to another place too', ['⌥', 'Drag']],
-      ['More actions', ['Right-click']],
+      ['More actions', ['Right-click'], ['⇧', 'F10']],
       ['Undo', ['⌘', 'Z']],
       ['Redo', ['⇧', '⌘', 'Z']],
     ]],
+    ['POS items', [
+      ['Search POS items', ['/']],
+      ['Go to the first match', ['↓'], ['Enter']],
+      ['Previous or next item', ['↑'], ['↓']],
+      ['Expand or collapse', ['→'], ['←']],
+      ['Add to the menu', ['Enter']],
+    ]],
     ['View', [
       ['Show or hide POS items', ['⌘', 'B']],
-      ['Keyboard shortcuts', ['?']],
+      ['Keyboard shortcuts', ['?'], ['⌘', '/']],
     ]],
   ];
 
@@ -250,12 +257,12 @@
   function renderPicker() {
     if (!T.picker || !$('#picker-list')) return;
     const q = T.picker.query.trim().toLowerCase();
-    const list = T.picker.items.filter((it) => !q || [it.name, it.alt, it.id].some((s) => (s || '').toLowerCase().includes(q)));
+    const list = T.picker.items.filter((it) => !q || (it.search || [it.name, it.alt, it.id]).some((s) => (s || '').toLowerCase().includes(q)));
     $('#picker-list').innerHTML = list.length
       ? list
           .map(
             (it) => `<button type="button" class="picker-row" role="option" data-action="pick" data-id="${esc(it.id)}"${it.disabled ? ' disabled aria-disabled="true"' : ''}>
-              <span class="thumb thumb-product thumb-sm">${icon('utensils', 13)}</span>
+              ${it.thumb || `<span class="thumb thumb-product thumb-sm">${icon('utensils', 13)}</span>`}
               <span class="picker-main"><span class="picker-name">${esc(it.name)}</span><span class="picker-meta">${esc(it.meta)}</span></span>
               <span class="picker-price tnum">${esc(it.price)}</span></button>`,
           )
@@ -508,6 +515,18 @@
       if (info.kind === 'category' && suggestedSizeSets(ent).length) items.push({ label: 'Dismiss suggestion', icon: 'x', onClick: () => dismissSizeHint(path) });
       if (info.kind === 'group' && halfSuggestions(ent).length) items.push({ label: 'Group halves', icon: 'sparkles', onClick: () => openHalfMatch(ent.id) });
       if (info.kind === 'group' && suggestedHalves(ent).length) items.push({ label: 'Dismiss suggestion', icon: 'x', onClick: () => dismissHalfHint(ent.id) });
+    }
+    const role = info.kind === 'product' ? halfRole(path) : null;
+    if (['product', 'group'].includes(info.kind) && !(role && role.wholePath)) {
+      const targets = T.sel.length > 1 && T.sel.includes(path) ? T.sel.slice() : [path];
+      const noun = targets.length > 1 ? ` ${plural(placeDescs(targets, 'move').length, ...BULK_NOUN[info.kind])}` : '';
+      const place = (mode, label, iconName) => {
+        const fits = placeTargets(placeDescs(targets, mode), mode).length > 0;
+        return { label, icon: iconName, disabled: !fits, hint: fits ? '' : 'No other place in this menu fits', onClick: () => openPlacePicker(targets, mode) };
+      };
+      if (items.length) items.push('-');
+      if (!targets.some((p) => inheritedAt(p).length)) items.push(place('move', `Move${noun} to another place`, 'moveTo'));
+      items.push(place('add', `Add${noun} to another place`, 'copy'));
     }
     if (ent.children.length)
       items.push({
