@@ -982,6 +982,9 @@ mark {
   border-radius: var(--radius-lg);
   padding: 8px;
   box-shadow: var(--shadow-border);
+}
+
+.tree:not(:has(.row)) {
   min-height: 120px;
 }
 
