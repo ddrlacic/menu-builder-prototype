@@ -108,7 +108,7 @@
           <div class="opt-head"><span>Choice</span><span>Shown</span><span class="sr-only">Settings</span></div>
           ${rows}
         </div>
-        <p class="field-help">Customers pick one. Only the product they pick goes to POS, at its own POS price. Select a choice’s name to see its price. Shown applies only in ${esc(menuName)}.</p>
+        <p class="field-help">Customers pick one. Only the product they pick goes to POS, at its own POS price. Select a choice’s name to see its price. Shown applies only in ${esc(menuName)}.${liveNote(parsePath(path).menuId)}</p>
         ${add}`,
       ) +
       section('Copy details', `<button type="button" class="btn secondary sm" data-action="copy-to-choices">${icon('copy', 14)}Copy description and image to choices</button>`, {
@@ -455,9 +455,9 @@
       disabled: !!inProduct,
       help: inProduct
         ? `Hidden in ${esc(inProduct)}, in every menu. Show it on the Options tab of ${esc(parentName)}, with ${esc(inProduct)} chosen.`
-        : inChoice
-          ? `Hide it here without removing it. Applies everywhere ${esc(parentName)} is in ${esc(menuName)}.`
-          : 'Hide it here without removing it. Other places stay as they are.',
+        : (inChoice
+            ? `Hide it here without removing it. Applies everywhere ${esc(parentName)} is in ${esc(menuName)}.`
+            : 'Hide it here without removing it. Other places stay as they are.') + liveNote(info.menuId),
     });
     if (parent.kind !== 'group' || p.ptype === 'container') return html;
 

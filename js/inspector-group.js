@@ -134,6 +134,7 @@
         : 'Required groups cannot be hidden. Set the minimum to 0 first.';
     else if (hidden) help = 'Every option is hidden here, so the group is hidden. Turn this on to show every option. Other places stay as they are.';
     else if (hiddenCount) help = `${hiddenCount} of ${g.children.length} options are hidden here. The group stays visible until every option is hidden.`;
+    if (!lockHide) help += liveNote(parsePath(path).menuId);
     const from = listJoin(inheritedAt(path).map((x) => nameOf('group', x)));
     return (
       (from ? callout('info', `${esc(from)} adds this group to every option. Remove it on the Options tab of ${esc(from)}.`) : '') +

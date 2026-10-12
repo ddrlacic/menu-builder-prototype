@@ -60,6 +60,11 @@
     return `<div class="nest-list" data-nest="${esc(key)}">${blocks}</div>`;
   }
 
+  const liveNote = (menuId) => {
+    const m = menuById(menuId);
+    return m && m.publishedStoreIds.length ? ' Customers see the change right away.' : '';
+  };
+
   function placementSection(path) {
     const info = parsePath(path);
     if (!info.parentPath) return '';

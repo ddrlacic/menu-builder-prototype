@@ -934,15 +934,22 @@
     toast(`${nameOf('group', entity('group', gid))} removed from every option`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
+  function publishDeleteBlock(menus, what) {
+    if (menus.some((m) => m.status === 'publishing')) return `You can delete the ${what} once publishing finishes.`;
+    const failed = menus.find((m) => m.status === 'failed');
+    if (!failed) return '';
+    return canRetryPublish(failed) ? `Retry publishing ${failed.name} first, then delete the ${what}.` : `Contact support to finish publishing ${failed.name}, then delete the ${what}.`;
+  }
+
   function groupDeleteBlock(g) {
-    if (groupMenus(g).some((m) => m.status === 'publishing')) return 'You can delete the group once publishing finishes.';
+    const publishing = publishDeleteBlock(groupMenus(g), 'group');
+    if (publishing) return publishing;
     const halfIn = groupHalfUse(g);
     if (halfIn.length) return `Its options are halves in ${listJoin(halfIn)}. Remove them from half and whole there first, then delete it.`;
     return '';
   }
 
   function deleteGroupNow(g) {
-    groupMenus(g).forEach((m) => m.status === 'published' && (m.status = 'changed'));
     groupParents(g.id).forEach((p) => (p.children = p.children.filter((c) => c !== g.id)));
     for (const p of Object.values(S.data.entities.product)) for (const k of Object.keys(p.halfWhole || {})) if (k.startsWith(`${g.id}:`)) delete p.halfWhole[k];
     for (const k of Object.keys(S.data.placements)) if (k.split('>').includes(`g:${g.id}`)) delete S.data.placements[k];
@@ -994,14 +1001,14 @@
   const ringsUpAs = (p) => (p.source === 'pos' ? Object.values(S.data.entities.product).filter((x) => x.ptype === 'linked' && x.posParentExt === p.externalId) : []);
 
   function productDeleteBlock(p) {
-    if (productMenus(p).some((m) => m.status === 'publishing')) return 'You can delete the product once publishing finishes.';
+    const publishing = publishDeleteBlock(productMenus(p), 'product');
+    if (publishing) return publishing;
     const hw = halfWholeUse(p);
     if (hw.halfIn.length) return `It is a half in ${listJoin(hw.halfIn)}. Remove it from half and whole there first, then delete it.`;
     return '';
   }
 
   function deleteProductNow(p) {
-    productMenus(p).forEach((m) => m.status === 'published' && (m.status = 'changed'));
     productParents(p).forEach(({ ent }) => (ent.children = ent.children.filter((c) => c !== p.id)));
     for (const x of Object.values(S.data.entities.product)) {
       x.upsell.products = x.upsell.products.filter((id) => id !== p.id);
@@ -1015,8 +1022,8 @@
     if (at > 0) S.ui.selected = S.ui.selected.split('>').slice(0, at).join('>');
   }
 
-  const categoryDeleteBlock = (cat) =>
-    S.data.menus.some((m) => m.children.includes(cat.id) && m.status === 'publishing') ? 'You can delete the category once publishing finishes.' : '';
+  const menuDeleteBlock = (m) => publishDeleteBlock([m], 'menu');
+  const categoryDeleteBlock = (cat) => publishDeleteBlock(S.data.menus.filter((m) => m.children.includes(cat.id)), 'category');
 
   function deleteCategoryNow(cat) {
     S.data.menus.forEach((m) => (m.children = m.children.filter((c) => c !== cat.id)));
@@ -1156,7 +1163,7 @@
     const pInfo = parsePath(info.parentPath);
     const parent = entity(pInfo.kind, pInfo.id);
     let choiceProducts = [];
-    const ok = commit(() => (choiceProducts = unlinkPath(path)), { menu: menuById(info.menuId) });
+    const ok = commit(() => (choiceProducts = unlinkPath(path)));
     if (!ok || quiet) return;
     const text = choiceProducts.length
       ? `${nameOf('product', entity('product', info.id))} removed from ${nameOf('category', parent)} and ${choiceProducts.map((p) => nameOf('product', p)).join(' and ')}`

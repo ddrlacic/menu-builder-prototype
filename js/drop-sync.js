@@ -430,9 +430,28 @@
     });
   }
 
+  const PUBLISH_TRIES = 3;
+  const notLiveStores = (m) => {
+    const live = new Set(m.publishedStoreIds);
+    return menuStores(m).filter((s) => !live.has(s.id));
+  };
+  const needsPublish = (m) => m.status !== 'published' || notLiveStores(m).length > 0;
+  const canRetryPublish = (m) => m.status === 'failed' && m.publishRun.tries < PUBLISH_TRIES;
+
+  function publishBody(m) {
+    const total = menuStores(m).length;
+    const off = notLiveStores(m).length;
+    const where = plural(total, 'store', 'stores');
+    const text = m.publishedStoreIds.length
+      ? `New items and serving times reach ${where}. Other edits reached customers when you saved them.${off ? ` It also goes live at ${plural(off, 'store', 'stores')} where it’s not live now.` : ''}`
+      : `It goes live at ${where} in ${esc(listJoin(m.channels.map(channelLabel)))}.`;
+    return `<p>${text} Nothing changes on POS.</p>`;
+  }
+
   function publish() {
     const m = activeMenu();
-    if (T.importing) return;
+    if (T.importing || m.status === 'publishing') return;
+    if (m.status === 'failed') return retryPublish(m);
     const staged = pendingRows().length;
     if (staged) {
       openModal({
@@ -450,10 +469,12 @@
       openIssues($('[data-action="issues"]'));
       return;
     }
+    if (!needsPublish(m)) return;
     openModal({
       title: `Publish ${m.name}?`,
-      body: `<p>Customers see the changes in ${esc(listJoin(m.channels.map(channelLabel)))} within a few minutes. Nothing changes on POS.</p>
+      body: `${publishBody(m)}
         <dl class="kv"><dt>Stores</dt><dd>${esc(storeCountLabel(m))}</dd><dt>Categories</dt><dd>${m.children.length}</dd><dt>Order types</dt><dd>${esc(listJoin(m.orderTypes.map((o) => (C.orderTypes.find((x) => x[0] === o) || [o, o])[1])))}</dd></dl>
+        <p class="field-help">Large menus can take a few minutes. You can keep editing, but adding, moving and removing items waits until it finishes.</p>
         ${ctx.issues.warnings ? callout('warning', `${plural(ctx.issues.warnings, 'warning remains', 'warnings remain')}. You can still publish.`) : ''}`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },
@@ -462,21 +483,109 @@
           kind: 'primary',
           onClick: () => {
             closeModal();
+            runPublish(m, menuStores(m).map((s) => s.id));
+          },
+        },
+      ],
+    });
+  }
+
+  function retryPublish(m) {
+    if (canRetryPublish(m)) runPublish(m, m.publishRun.failedStoreIds);
+  }
+
+  function runPublish(m, storeIds) {
+    settleDelete();
+    const id = m.id;
+    const demo = !S.data.publishFailDemo && storeIds.length > 4;
+    if (demo) S.data.publishFailDemo = true;
+    const failIds = demo ? [storeIds[2], storeIds[storeIds.length - 2]] : [];
+    const run = { done: 0, total: storeIds.length };
+    T.publishing[id] = run;
+    m.status = 'publishing';
+    dataVersion++;
+    render();
+    const step = Math.max(1, Math.ceil(run.total / 14));
+    const tick = () => {
+      const pm = menuById(id);
+      if (!pm || pm.status !== 'publishing') return void delete T.publishing[id];
+      run.done = Math.min(run.total, run.done + step);
+      if (run.done < run.total) {
+        renderTopbar();
+        return void setTimeout(tick, 110);
+      }
+      delete T.publishing[id];
+      finishPublish(pm, failIds);
+    };
+    setTimeout(tick, 110);
+  }
+
+  function finishPublish(m, failIds) {
+    if (failIds.length) {
+      m.status = 'failed';
+      m.publishRun = { failedStoreIds: failIds, tries: (m.publishRun ? m.publishRun.tries : 0) + 1 };
+      dataVersion++;
+      render();
+      toast(`Couldn’t publish ${m.name} at ${plural(failIds.length, 'store', 'stores')}`, 'error', { action: { label: 'View stores', onClick: () => openPublishFailed(m.id) } });
+      return;
+    }
+    m.publishRun = null;
+    m.status = 'published';
+    m.publishedAt = Date.now();
+    m.publishedStoreIds = menuStores(m).map((s) => s.id);
+    m.pricedKeys = menuPriceKeys(m);
+    dataVersion++;
+    render();
+    toast('Menu successfully published');
+  }
+
+  function openPublishFailed(menuId) {
+    const m = menuById(menuId);
+    if (!m || m.status !== 'failed') return;
+    const { failedStoreIds, tries } = m.publishRun;
+    const canRetry = canRetryPublish(m);
+    const n = failedStoreIds.length;
+    const others = menuStores(m).length - n;
+    const now = m.publishedStoreIds.length
+      ? `The other ${plural(others, 'store', 'stores')} have the latest ${esc(m.name)}.`
+      : `${esc(m.name)} goes live at every store once ${n === 1 ? 'this store gets' : 'these stores get'} it.`;
+    const rows = failedStoreIds
+      .map((sid) => storeById.get(sid))
+      .filter(Boolean)
+      .map((s) => `<div class="store-row list-row"><span class="store-name list-name"><span>${esc(s.name)}</span><span class="muted">${esc(s.city)}</span></span></div>`)
+      .join('');
+    openModal({
+      title: `Couldn’t publish at ${plural(n, 'store', 'stores')}`,
+      body: `<p>${now} ${canRetry ? `Retry to send it to ${n === 1 ? 'this store' : 'them'} again.` : `Publishing failed ${tries} times. Contact support to publish it.`}</p>
+        <div class="store-list">${rows}</div>
+        ${callout('info', `Until it’s published, adding, moving and removing items in ${esc(m.name)} is paused.`)}`,
+      actions: [
+        { label: 'Close', kind: 'secondary', onClick: closeModal },
+        ...(canRetry ? [{ label: 'Retry publishing', kind: 'primary', onClick: () => { closeModal(); retryPublish(m); } }] : []),
+      ],
+    });
+  }
+
+  function confirmUnpublish(m) {
+    const live = m.publishedStoreIds.length;
+    if (!live || m.status === 'publishing') return;
+    openModal({
+      title: `Unpublish ${m.name}?`,
+      body: `<p>Customers at ${plural(live, 'store', 'stores')} can no longer order from it. This happens right away.</p>`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        {
+          label: 'Unpublish menu',
+          kind: 'danger',
+          onClick: () => {
+            closeModal();
             settleDelete();
-            m.status = 'publishing';
+            m.status = 'unpublished';
+            m.publishedStoreIds = [];
+            m.publishRun = null;
             dataVersion++;
             render();
-            setTimeout(() => {
-              const pm = menuById(m.id);
-              if (!pm) return;
-              pm.status = 'published';
-              pm.publishedAt = Date.now();
-              pm.publishedStoreIds = menuStores(pm).map((s) => s.id);
-              pm.pricedKeys = menuPriceKeys(pm);
-              dataVersion++;
-              render();
-              toast('Menu successfully published');
-            }, 1400);
+            toast('Menu unpublished');
           },
         },
       ],

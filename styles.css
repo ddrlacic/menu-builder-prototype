@@ -307,6 +307,10 @@ mark {
   background: var(--accent);
 }
 
+.status-dot.tone-error {
+  background: var(--danger);
+}
+
 .topbar-actions {
   margin-left: auto;
   display: flex;
@@ -359,6 +363,7 @@ mark {
   border-radius: var(--radius-full);
   font-size: var(--text-xs);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   background: var(--sunken);
   color: var(--ink-2);
@@ -377,6 +382,25 @@ mark {
 .status-pill.tone-progress {
   background: var(--accent-soft);
   color: var(--accent-ink);
+}
+
+.status-pill.tone-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+button.status-pill {
+  cursor: pointer;
+  transition: box-shadow 140ms var(--ease-out);
+}
+
+button.status-pill:hover {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+button.status-pill:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .spinner {

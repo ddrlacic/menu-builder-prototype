@@ -41,8 +41,8 @@
       ) +
       section(
         '',
-        `<button type="button" class="btn secondary tone-danger" data-action="delete-menu" data-id="${m.id}" ${m.status === 'publishing' ? 'disabled' : ''}>${icon('trash', 15)}Delete menu</button>` +
-          (m.status === 'publishing' ? '<p class="field-help">You can delete the menu once publishing finishes.</p>' : ''),
+        `<button type="button" class="btn secondary tone-danger" data-action="delete-menu" data-id="${m.id}" ${menuDeleteBlock(m) ? 'disabled' : ''}>${icon('trash', 15)}Delete menu</button>` +
+          (menuDeleteBlock(m) ? `<p class="field-help">${esc(menuDeleteBlock(m))}</p>` : ''),
       )
     );
   }
@@ -241,7 +241,30 @@
       <div class="group-cards">${m.storeGroups.map((a, i) => storeGroupCard(m, a, i)).join('')}</div>
       ${field('', `<button type="button" class="btn secondary sm" data-action="menu-manage-stores">${icon('store', 14)}Manage stores</button>`, { error })}`,
       { desc: 'The menu goes live at these stores when you publish.' },
-    );
+    ) + menuLiveSection(m);
+  }
+
+  const MENU_OFF_ROWS = 10;
+
+  function menuLiveSection(m) {
+    const total = menuStores(m).length;
+    if (!total || !m.publishedAt) return '';
+    const live = m.publishedStoreIds.length;
+    const off = notLiveStores(m);
+    const busy = m.status === 'publishing';
+    const row = (s) => `<div class="store-row list-row"><span class="store-name list-name"><span>${esc(s.name)}</span><span class="muted">${esc(s.city)}</span></span></div>`;
+    const list =
+      live && off.length
+        ? `<div class="store-list">${off.slice(0, MENU_OFF_ROWS).map(row).join('')}</div>
+          ${off.length > MENU_OFF_ROWS ? `<p class="field-help">Showing ${MENU_OFF_ROWS} of ${off.length} stores where it’s not live.</p>` : ''}
+          <p class="field-help">It goes live at ${off.length === 1 ? 'this store' : 'these stores'} when you publish.</p>`
+        : '';
+    const unpublish = live
+      ? field('', `<button type="button" class="btn secondary sm tone-danger" data-action="menu-unpublish" ${busy ? 'disabled' : ''}>${icon('eyeOff', 14)}Unpublish menu</button>`, {
+          help: busy ? 'You can unpublish it once publishing finishes.' : 'Customers at every store stop seeing it right away.',
+        })
+      : '';
+    return section('Status at stores', `<p class="store-summary tnum">${live ? `Live at ${live} of ${plural(total, 'store', 'stores')}` : 'Not live at any store'}</p>${list}${unpublish}`);
   }
 
   function storeGroupCard(m, a, i) {
@@ -253,7 +276,7 @@
         <button type="button" class="icon-btn sm" data-action="menu-group-remove" data-id="${a.id}" aria-label="Remove ${esc(name)}" title="Remove store group">${icon('x', 14)}</button>
       </div>
       ${emptyStoreGroupError(a) ? slotError(emptyStoreGroupError(a)) : ''}
-      ${toggle(`m|${m.id}|storeGroups.${i}.newStores`, a.newStores, { label: 'Add new stores automatically', help: 'Stores added to this group later get the menu. Publish it at each new store to make it live.' })}
+      ${toggle(`m|${m.id}|storeGroups.${i}.newStores`, a.newStores, { label: 'Add new stores automatically', help: 'Stores added to this group later get the menu. It goes live there when you publish.' })}
     </div>`;
   }
 
@@ -520,7 +543,7 @@
           : '<p class="field-help">No products match. Check the spelling.</p>'
       }
       ${hidden.length ? `<button type="button" class="btn ghost sm" data-action="cat-show-all" data-path="${esc(path)}">${icon('eye', 14)}${hidden.length === 1 ? 'Show the hidden product' : `Show all ${hidden.length} hidden products`}</button>` : ''}`,
-      { desc: `Hidden products stay in the category. Applies only in ${esc(menu.name)}.` },
+      { desc: `Hidden products stay in the category. Applies only in ${esc(menu.name)}.${liveNote(menu.id)}` },
     );
   }
 
@@ -595,7 +618,7 @@
     if (tab === 'availability') return categoryProductsSection(cat, path, menu) + categoryMenusSection(cat, menu);
     if (tab === 'stores') return categoryStoresTab(cat);
     const inMenus = menusWithCategory(cat.id);
-    const publishing = inMenus.some((m) => m.status === 'publishing');
+    const publishing = categoryDeleteBlock(cat);
     return (
       sourceSection('category', cat, path) +
       section(
@@ -615,7 +638,7 @@
       section(
         '',
         `<button type="button" class="btn secondary tone-danger" data-action="cat-delete" data-id="${cat.id}" ${publishing ? 'disabled' : ''}>${icon('trash', 15)}Delete category</button>
-        <p class="field-help">${publishing ? 'You can delete the category once publishing finishes.' : `Removes it from ${inMenus.length > 1 ? `all ${inMenus.length} menus` : esc(menu.name)}. Its products are not deleted${cat.source === 'pos' ? ', and nothing changes on POS' : ''}.`}</p>`,
+        <p class="field-help">${publishing ? esc(publishing) : `Removes it from ${inMenus.length > 1 ? `all ${inMenus.length} menus` : esc(menu.name)}. Its products are not deleted${cat.source === 'pos' ? ', and nothing changes on POS' : ''}.`}</p>`,
       )
     );
   }

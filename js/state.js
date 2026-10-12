@@ -30,6 +30,7 @@
     revealRow: null,
     posLoading: null,
     importing: false,
+    publishing: {},
     posScrollTo: null,
     inspScrollTo: null,
     focusName: false,
@@ -80,6 +81,7 @@
       ownTimesStoreIds: [],
       status: 'draft',
       publishedAt: null,
+      publishRun: null,
       children: [],
       ...o,
     };
@@ -662,7 +664,8 @@
       const posCat = m.children.map((id) => S.data.entities.category[id]).find((c) => c && c.source === 'pos');
       if (posCat) linkMenuToPosCategory(m, posCat.externalId);
     }
-    if (m.status === 'publishing') m.status = m.publishedAt ? 'changed' : 'draft';
+    if (m.publishRun === undefined) m.publishRun = null;
+    if (m.status === 'publishing') m.status = m.publishRun ? 'failed' : m.publishedAt ? 'changed' : 'draft';
   }
 
   function statsOf(fn, stores = menuStores(activeMenu())) {
@@ -1225,22 +1228,61 @@
 
   /* ---------- history ---------- */
 
-  function commit(fn, { key = null, menu = null } = {}) {
+  function menuStructure(m) {
+    const parts = [JSON.stringify([m.children, m.storeGroups, m.schedule])];
+    const seen = new Set();
+    const rec = (kind, id) => {
+      const key = `${kind}:${id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const e = entity(kind, id);
+      if (!e) return;
+      parts.push(`${key}=${JSON.stringify(kind === 'group' ? [e.children, e.preselected, e.optionSettings, e.propagated] : e.children)}`);
+      const ck = childKind(kind, e);
+      e.children.forEach((c) => rec(ck, c));
+    };
+    m.children.forEach((c) => rec('category', c));
+    return parts.join('|');
+  }
+
+  const menuStructures = () => new Map(S.data.menus.map((m) => [m.id, menuStructure(m)]));
+  const structureChanged = (before) => S.data.menus.filter((m) => before.has(m.id) && before.get(m.id) !== menuStructure(m));
+
+  function publishLockMessage(menus) {
+    const busy = menus.find((m) => m.status === 'publishing');
+    if (busy) return `You can change what’s in ${busy.name} once publishing finishes`;
+    const failed = menus.find((m) => m.status === 'failed');
+    if (!failed) return '';
+    return canRetryPublish(failed) ? `Retry publishing ${failed.name} to change what’s in it` : `Contact support to finish publishing ${failed.name}, then you can change what’s in it`;
+  }
+
+  function markStructureChanged(menus) {
+    menus.forEach((m) => m.status === 'published' && (m.status = 'changed'));
+  }
+
+  function commit(fn, { key = null } = {}) {
     if (T.importing) {
       toast('Editing is paused until the import finishes', 'info');
       render();
       return false;
     }
     const snapshot = JSON.stringify(S.data);
+    const structures = menuStructures();
+    let changedMenus;
     try {
       fn();
       normalizeAll();
+      changedMenus = structureChanged(structures);
+      const locked = publishLockMessage(changedMenus);
+      if (locked) throw new Abort(locked);
       dataVersion++;
     } catch (err) {
       dataVersion++;
       if (err instanceof Abort) {
         S.data = JSON.parse(snapshot);
-        if (err.message) toast(err.message, 'error');
+        const locked = changedMenus && publishLockMessage(changedMenus);
+        if (err.message) toast(err.message, locked ? 'info' : 'error');
+        if (locked) render();
         return false;
       }
       throw err;
@@ -1255,8 +1297,7 @@
     hist.future = [];
     hist.key = key;
     hist.at = now;
-    const m = menu || activeMenu();
-    if (m && m.status === 'published') m.status = 'changed';
+    markStructureChanged(changedMenus);
     render();
     return true;
   }
@@ -1276,7 +1317,7 @@
     hist.deleting = token;
   }
 
-  const PUBLISH_FIELDS = ['status', 'publishedAt', 'publishedStoreIds', 'pricedKeys'];
+  const PUBLISH_FIELDS = ['status', 'publishedAt', 'publishedStoreIds', 'pricedKeys', 'publishRun'];
   const UNDO_NOUN = { menu: ['menu', 'menus'], category: ['category', 'categories'], product: ['product', 'products'], group: ['group', 'groups'] };
 
   function undoSubjects(before, after) {
@@ -1341,8 +1382,21 @@
     if (!from.length || T.importing || T.modal) return;
     const before = S.data;
     const live = new Map(before.menus.map((m) => [m.id, m]));
+    const structures = menuStructures();
+    S.data = JSON.parse(from[from.length - 1]);
+    S.data.publishFailDemo = before.publishFailDemo;
+    for (const m of S.data.menus) {
+      const now = live.get(m.id);
+      if (now) PUBLISH_FIELDS.forEach((f) => (m[f] = now[f]));
+    }
+    const changedMenus = structureChanged(structures);
+    const locked = publishLockMessage(changedMenus);
+    if (locked) {
+      S.data = before;
+      return toast(locked, 'info');
+    }
+    from.pop();
     to.push(JSON.stringify(before));
-    S.data = JSON.parse(from.pop());
     hist.key = null;
     const cancelled = hist.deleting;
     if (cancelled) {
@@ -1350,23 +1404,16 @@
       hist.future = [];
       cancelled.toast.dismiss(true);
     }
-    for (const m of S.data.menus) {
-      const now = live.get(m.id);
-      if (now) PUBLISH_FIELDS.forEach((f) => (m[f] = now[f]));
-    }
+    markStructureChanged(changedMenus);
     dataVersion++;
     const { subjects, parents, paths } = undoSubjects(before, S.data);
-    const touched = new Set();
     let target = null;
     for (const s of subjects.length ? subjects : parents) {
       const p = pathOfSubject(s, paths);
-      if (!p) continue;
-      touched.add(parsePath(p).menuId);
-      if (!target) target = p;
-    }
-    for (const id of touched) {
-      const m = menuById(id);
-      if (m && m.status === 'published') m.status = 'changed';
+      if (p) {
+        target = p;
+        break;
+      }
     }
     if (target) {
       const info = parsePath(target);

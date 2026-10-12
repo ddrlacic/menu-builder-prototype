@@ -24,7 +24,7 @@
         break;
       case 'delete-menu': {
         const m = menuById(el.dataset.id);
-        if (m.status === 'publishing') break;
+        if (menuDeleteBlock(m)) break;
         const remove = () => {
           closeModal();
           const done = commit(() => {
@@ -89,6 +89,12 @@
         break;
       case 'publish':
         publish();
+        break;
+      case 'publish-failed':
+        openPublishFailed(activeMenu().id);
+        break;
+      case 'menu-unpublish':
+        confirmUnpublish(activeMenu());
         break;
       case 'import':
         importStaged();
@@ -779,8 +785,7 @@
         const m = menuById(el.dataset.id);
         const menuName = nameOf('menu', m);
         if (!m.children.includes(catId)) {
-          commit(() => m.children.push(catId), { menu: m });
-          toast(`Added to ${menuName}`, 'success', { action: { label: 'Undo', onClick: undo } });
+          if (commit(() => m.children.push(catId))) toast(`Added to ${menuName}`, 'success', { action: { label: 'Undo', onClick: undo } });
           break;
         }
         confirmRemoveCategory(cat, m);

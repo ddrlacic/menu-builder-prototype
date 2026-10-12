@@ -122,17 +122,43 @@
     $('#inspector-body').innerHTML = '';
   }
 
-  const STATUS = {
-    draft: ['Draft', 'neutral'],
-    publishing: ['Publishing', 'progress'],
-    published: ['Published', 'ok'],
-    changed: ['Unpublished changes', 'warn'],
-  };
+  function menuStatus(m) {
+    const total = menuStores(m).length;
+    const live = m.publishedStoreIds.length;
+    const stores = plural(total, 'store', 'stores');
+    if (m.status === 'publishing') {
+      const run = T.publishing[m.id] || { done: 0, total };
+      return [`Publishing · ${run.done} of ${plural(run.total, 'store', 'stores')}`, 'progress', 'Adding, moving and removing items is paused until it finishes'];
+    }
+    if (m.status === 'failed') return [`Failed at ${plural(m.publishRun.failedStoreIds.length, 'store', 'stores')}`, 'error', 'View the stores and retry'];
+    if (m.status === 'changed') return ['Unpublished changes', 'warn', 'New items and serving times reach stores when you publish. Other edits are already live'];
+    if (m.status === 'published' && live < total) return [`Live at ${live} of ${stores}`, 'warn', `Publish to make it live at the other ${plural(total - live, 'store', 'stores')}`];
+    if (m.status === 'published') return ['Published', 'ok', `Live at ${stores}. Edits reach customers right away`];
+    if (m.status === 'unpublished') return ['Unpublished', 'neutral', 'Not live at any store. Publish to make it live again'];
+    return ['Draft', 'neutral', total ? `Not live yet. Publish to make it live at ${stores}` : 'Not live yet'];
+  }
+
+  function statusPill(m) {
+    const [label, tone, tip] = menuStatus(m);
+    const inner = `${tone === 'progress' ? '<span class="spinner"></span>' : tone === 'error' ? icon('alertCircle', 13) : ''}${esc(label)}`;
+    return m.status === 'failed'
+      ? `<button type="button" class="status-pill tone-${tone}" data-action="publish-failed" title="${esc(tip)}">${inner}</button>`
+      : `<span class="status-pill tone-${tone}" title="${esc(tip)}">${inner}</span>`;
+  }
+
+  function publishButton(m) {
+    if (m.status === 'failed') {
+      const out = !canRetryPublish(m);
+      return `<button class="btn primary" data-action="publish" ${out || T.importing ? 'disabled' : ''}${out ? ` title="Contact support to publish ${esc(m.name)}"` : ''}>${icon('refresh', 15)}Retry publishing</button>`;
+    }
+    const nothing = !needsPublish(m);
+    const off = m.status === 'publishing' || T.importing || nothing;
+    return `<button class="btn primary" data-action="publish" ${off ? 'disabled' : ''}${nothing ? ' title="Nothing to publish. Edits reach customers right away"' : ''}>${icon('send', 15)}Publish menu</button>`;
+  }
 
   function renderTopbar() {
     const menu = activeMenu();
     const { errors, warnings } = ctx.issues;
-    const [statusLabel, statusTone] = STATUS[menu.status] || STATUS.draft;
     const issueTone = errors ? 'error' : warnings ? 'warning' : 'ok';
     const issueLabel = errors ? plural(errors, 'error', 'errors') : warnings ? plural(warnings, 'warning', 'warnings') : 'No issues';
     $('#topbar').innerHTML = `
@@ -146,7 +172,7 @@
             (m) => {
               const shared = S.data.menus.some((o) => o.id !== m.id && (o.name || '').trim() === (m.name || '').trim());
               return `<button class="menu-tab" role="tab" aria-selected="${m.id === menu.id}" data-action="switch-menu" data-id="${m.id}"${m.internalName ? ` title="${esc(m.internalName)}"` : ''}>
-              <span class="status-dot tone-${(STATUS[m.status] || STATUS.draft)[1]}"></span>${esc(m.name || 'Untitled menu')}${shared && m.internalName ? `<span class="muted">${esc(m.internalName)}</span>` : ''}</button>`;
+              <span class="status-dot tone-${menuStatus(m)[1]}"></span>${esc(m.name || 'Untitled menu')}${shared && m.internalName ? `<span class="muted">${esc(m.internalName)}</span>` : ''}</button>`;
             },
           )
           .join('')}
@@ -160,16 +186,18 @@
         <button class="issues-btn tone-${issueTone}" data-action="issues" aria-haspopup="menu">
           ${icon(issueTone === 'ok' ? 'checkCircle' : issueTone === 'error' ? 'alertCircle' : 'alert', 15)}<span>${issueLabel}</span>
         </button>
-        <span class="status-pill tone-${statusTone}">${statusTone === 'progress' ? '<span class="spinner"></span>' : ''}${statusLabel}</span>
+        ${statusPill(menu)}
         <button class="icon-btn" data-action="app-more" aria-label="More options" title="More options">${icon('more', 16)}</button>
         ${importButton()}
-        <button class="btn primary" data-action="publish" ${menu.status === 'publishing' || T.importing ? 'disabled' : ''}>${icon('send', 15)}Publish menu</button>
+        ${publishButton(menu)}
       </div>`;
   }
 
   function importButton() {
     if (T.importing) return '<button class="btn secondary" disabled><span class="spinner"></span>Importing</button>';
     const n = ctx.pending.length;
+    if (n && S.data.menus.some((m) => m.status === 'publishing'))
+      return `<button class="btn secondary" disabled title="You can import once publishing finishes">${icon('download', 15)}Import<span class="btn-count tnum">${n}</span></button>`;
     return `<button class="btn secondary" data-action="import" ${n ? `title="${plural(n, 'item', 'items')} not imported yet"` : 'disabled'}>${icon('download', 15)}Import${n ? `<span class="btn-count tnum">${n}</span>` : ''}</button>`;
   }
 
