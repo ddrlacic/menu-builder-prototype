@@ -206,6 +206,39 @@
     );
   }
 
+  function bulkCodesSection() {
+    const { ok, skipped } = bulkCodeState();
+    const skipNote = skipped ? `<p class="field-help">${plural(skipped, 'product is', 'products are')} skipped. Option folders and choice products do not have modifier codes.</p>` : '';
+    if (!ok.length) return section('Modifier codes', skipNote);
+    const n = ok.length;
+    const codeChips = C.modifierCodes
+      .map(([v, l]) => {
+        const k = ok.filter((p) => p.modifierCodes.includes(v)).length;
+        const all = k === n;
+        return `<button type="button" class="chip${all ? ' is-on' : ''}" aria-pressed="${all ? 'true' : k ? 'mixed' : 'false'}" aria-label="${esc(l)}, on ${k} of ${n}" data-action="bulk-code" data-id="${esc(v)}" data-focus-key="bulk-code~${esc(v)}">${all ? icon('check', 12) : ''}${esc(l)}${k && !all ? `<span class="chip-count tnum">${k} of ${n}</span>` : ''}</button>`;
+      })
+      .join('');
+    const withCodes = ok.filter((p) => p.modifierCodes.length);
+    const req = withCodes.filter((p) => p.isModifierCodeRequired).length;
+    const reqBody = withCodes.length
+      ? `<p class="store-summary tnum">Required on ${req} of ${withCodes.length}</p>
+        <div class="hint-actions">
+          <button type="button" class="btn secondary sm" data-action="bulk-code-req" data-on="1" ${req < withCodes.length ? '' : 'disabled'}>Require code</button>
+          <button type="button" class="btn secondary sm" data-action="bulk-code-req" data-on="0" ${req ? '' : 'disabled'}>Make code optional</button>
+        </div>`
+      : '<p class="store-summary">Add a code first.</p>';
+    return section(
+      'Modifier codes',
+      field('Codes', `<div class="chips">${codeChips}</div>`, { help: 'Each product keeps its own order and preselection. New codes go last.' }) +
+        field('Require a modifier code', reqBody, { help: withCodes.length < n ? 'Products with no codes are skipped.' : '' }) +
+        field('', `<div class="hint-actions"><button type="button" class="btn secondary sm" data-action="bulk-codes-replace">Replace codes</button></div>`, {
+          help: 'Gives all of them the same codes, order and preselection.',
+        }) +
+        skipNote,
+      { desc: 'Select a code to add it to all of them. Select a code they all have to remove it.' },
+    );
+  }
+
   function sectionsSection(p) {
     if (!p.children.length) return '';
     const pb = productBind(p);

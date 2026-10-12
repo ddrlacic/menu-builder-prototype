@@ -450,6 +450,8 @@
       );
     }
 
+    if (kind === 'product' && liveEnts.length) html += bulkCodesSection();
+
     html += section(
       'Optimize',
       `<div class="hint-actions"><button type="button" class="btn secondary sm" data-action="bulk-optimize">${icon('sparkles', 14)}Optimize ${esc(noun(n))}</button></div>`,

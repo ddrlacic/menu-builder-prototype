@@ -22,6 +22,7 @@
     bi: null,
     ms: null,
     ot: null,
+    mc: null,
     halfFilter: 'all',
     flashPaths: new Set(),
     flashExt: new Set(),

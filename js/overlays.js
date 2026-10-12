@@ -226,6 +226,7 @@
     T.bi = null;
     T.ms = null;
     T.ot = null;
+    T.mc = null;
     if (immediate === true) {
       root.innerHTML = '';
       delete root.dataset.state;
@@ -557,6 +558,65 @@
       { heading: 'Set stock at stores' },
       ...STOCK_OPTIONS.map(([value, label]) => ({ label, onClick: () => openBulkStores('stock', value) })),
     ], { align: 'start' });
+  }
+
+  function openReplaceCodes() {
+    if (!bulkCodeState().ok.length) return;
+    openModal({ title: 'Replace modifier codes', body: '<div id="mc"></div>', foot: '<div class="modal-foot" id="mc-foot"></div>' });
+    T.mc = { codes: [], pre: null, req: false };
+    renderReplaceCodes();
+    const first = $('#mc .chip');
+    if (first) first.focus({ preventScroll: true });
+  }
+
+  function renderReplaceCodes() {
+    const o = T.mc;
+    if (!o || !$('#mc')) return;
+    const { ok, skipped, noun } = bulkCodeState();
+    const focus = captureFocus();
+    const codeChips = C.modifierCodes
+      .map(([v, l]) => {
+        const on = o.codes.includes(v);
+        return `<button type="button" class="chip${on ? ' is-on' : ''}" aria-pressed="${on}" data-action="mc-code" data-id="${esc(v)}" data-focus-key="mc-code~${esc(v)}">${on ? icon('check', 12) : ''}${esc(l)}</button>`;
+      })
+      .join('');
+    const rows = o.codes
+      .map((v) => {
+        const on = o.pre === v;
+        const l = codeLabel(v);
+        return `<div class="store-row list-row code-row">
+          <button type="button" class="check-toggle opt-pick" role="radio" aria-checked="${on}" aria-label="Preselect ${esc(l)}" data-action="mc-pre" data-id="${esc(v)}" data-focus-key="mc-pre~${esc(v)}"><span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span></button>
+          <span class="store-name">${esc(l)}</span>
+          ${on ? '<span class="code-hint">Preselected</span>' : ''}
+        </div>`;
+      })
+      .join('');
+    $('#mc').innerHTML = `<p>${esc(noun(ok.length))} get the codes you select, in that order. Their other codes are removed.</p>
+      ${skipped ? `<p class="field-help">${plural(skipped, 'product is', 'products are')} skipped. Option folders and choice products do not have modifier codes.</p>` : ''}
+      ${field('Codes', `<div class="chips">${codeChips}</div>`, { help: o.codes.length ? 'Codes are in the order you select them.' : 'Select none to remove all codes.' })}
+      ${toggle('mc-req', o.req, { label: 'Require a modifier code', action: 'mc-req', help: o.codes.length ? 'Customers need a code to choose these options.' : 'Add a code first.', disabled: !o.codes.length })}
+      ${o.codes.length ? field('Preselection', `<div class="store-list" role="radiogroup" aria-label="Preselected code">${rows}</div>`, { help: `${o.req ? 'One code is always preselected.' : 'Preselect one code at most.'} Customers can change it.` }) : ''}`;
+    $('#mc-foot').innerHTML = `<button type="button" class="btn secondary" data-modal-close>Cancel</button>
+      <button type="button" class="btn primary" data-action="mc-apply">Replace codes</button>`;
+    restoreFocus(focus);
+  }
+
+  function editReplaceCodes(action, v) {
+    const o = T.mc;
+    if (!o) return;
+    if (action === 'mc-code') {
+      o.codes = o.codes.includes(v) ? o.codes.filter((c) => c !== v) : [...o.codes, v];
+      if (!o.codes.includes(o.pre)) o.pre = null;
+      if (!o.codes.length) o.req = false;
+    } else if (action === 'mc-pre') {
+      if (o.pre === v && o.req) return;
+      o.pre = o.pre === v ? null : v;
+    } else if (action === 'mc-req') {
+      if (!o.codes.length) return;
+      o.req = !o.req;
+    }
+    if (o.req && !o.pre) o.pre = o.codes[0];
+    renderReplaceCodes();
   }
 
   function appMenu(anchor) {

@@ -1500,6 +1500,65 @@
     toast(`${who} ${what} at ${where}`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
+  const takesCodes = (p) => p.ptype !== 'container' && p.ptype !== 'size';
+  const codeLabel = (v) => (C.modifierCodes.find(([c]) => c === v) || [v, v])[1];
+
+  function bulkCodeState() {
+    const { ents, noun } = selectionInfo();
+    const live = ents.filter((e) => !e.pending);
+    const ok = live.filter(takesCodes);
+    return { ok, skipped: live.length - ok.length, noun };
+  }
+
+  const codesAllHidden = (p, codes, required) =>
+    required && codes.length > 0 && (ctx.usage.get(`product:${p.id}`) || []).some((path) => codes.every((c) => hiddenCodesAt(path).includes(c)));
+
+  function bulkToggleCode(v) {
+    const { ok, noun } = bulkCodeState();
+    if (!ok.length) return;
+    const label = codeLabel(v);
+    const removing = ok.every((p) => p.modifierCodes.includes(v));
+    const list = removing ? ok : ok.filter((p) => !p.modifierCodes.includes(v));
+    const kept = removing ? list.filter((p) => codesAllHidden(p, p.modifierCodes.filter((c) => c !== v), p.isModifierCodeRequired)) : [];
+    const change = list.filter((p) => !kept.includes(p));
+    if (!change.length) return toast(`Cannot remove ${label}. It’s the only code shown in a group for ${kept.length === 1 ? 'a product that requires' : 'products that require'} one`, 'info');
+    const done = commit(() =>
+      change.forEach((p) => (p.modifierCodes = removing ? p.modifierCodes.filter((c) => c !== v) : [...p.modifierCodes, v])),
+    );
+    if (!done) return;
+    const skip = kept.length ? `. Kept on ${noun(kept.length)} that ${kept.length === 1 ? 'needs' : 'need'} it to stay shown in a group` : '';
+    toast(`${label} ${removing ? 'removed from' : 'added to'} ${noun(change.length)}${skip}`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function bulkSetCodeRequired(on) {
+    const { ok, noun } = bulkCodeState();
+    const list = ok.filter((p) => p.modifierCodes.length && p.isModifierCodeRequired !== on);
+    const blocked = on ? list.filter((p) => codesAllHidden(p, p.modifierCodes, true)) : [];
+    const change = list.filter((p) => !blocked.includes(p));
+    if (!change.length) {
+      if (blocked.length) toast(`Cannot require a code on ${noun(blocked.length)}. All their codes are hidden in a group`, 'info');
+      return;
+    }
+    if (!commit(() => change.forEach((p) => (p.isModifierCodeRequired = on)))) return;
+    const skip = blocked.length ? `. Skipped ${noun(blocked.length)} with all codes hidden in a group` : '';
+    toast(`Modifier code ${on ? 'required' : 'optional'} on ${noun(change.length)}${skip}`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function applyReplaceCodes(o) {
+    const { ok, noun } = bulkCodeState();
+    const required = o.req && o.codes.length > 0;
+    const blocked = ok.filter((p) => codesAllHidden(p, o.codes, required));
+    const change = ok.filter((p) => !blocked.includes(p));
+    closeModal();
+    if (!change.length) return toast(`Cannot replace codes. A group would show none of the codes on ${blocked.length === 1 ? 'this product' : 'these products'}`, 'info');
+    const done = commit(() =>
+      change.forEach((p) => Object.assign(p, { modifierCodes: o.codes.slice(), preselectedCode: o.pre, isModifierCodeRequired: required })),
+    );
+    if (!done) return;
+    const skip = blocked.length ? `. Skipped ${noun(blocked.length)}, as a group would show none of the codes` : '';
+    toast(`Modifier codes ${o.codes.length ? 'replaced on' : 'removed from'} ${noun(change.length)}${skip}`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
   function imageTargets(paths) {
     const out = [];
     paths.forEach((p) => {

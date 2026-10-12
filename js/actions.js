@@ -161,6 +161,23 @@
       case 'bulk-delete':
         bulkDelete();
         break;
+      case 'bulk-code':
+        bulkToggleCode(el.dataset.id);
+        break;
+      case 'bulk-code-req':
+        bulkSetCodeRequired(el.dataset.on === '1');
+        break;
+      case 'bulk-codes-replace':
+        openReplaceCodes();
+        break;
+      case 'mc-code':
+      case 'mc-pre':
+      case 'mc-req':
+        editReplaceCodes(a, el.dataset.id);
+        break;
+      case 'mc-apply':
+        if (T.mc) applyReplaceCodes(T.mc);
+        break;
       case 'create-category':
         createVirtualCategory();
         break;
