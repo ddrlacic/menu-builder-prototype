@@ -17,7 +17,7 @@
         if (it.empty) return `<div class="pop-empty">${it.empty}</div>`;
         const check = it.checked !== undefined;
         return `<button type="button" role="${check ? 'menuitemcheckbox' : 'menuitem'}" ${check ? `aria-checked="${!!it.checked}"` : ''} class="pop-item${it.tone ? ` tone-${it.tone}` : ''}" data-pop="${i}" ${it.disabled ? 'disabled' : ''}>
-            ${it.icon ? icon(it.icon, 15) : ''}<span class="pop-label">${esc(it.label)}${it.hint ? `<span class="pop-hint">${esc(it.hint)}</span>` : ''}</span>${it.kbd ? `<kbd>${it.kbd}</kbd>` : ''}${it.submenu ? icon('chevRight', 14) : ''}${it.checked ? `<span class="pop-check">${icon('check', 15)}</span>` : ''}
+            ${it.icon ? icon(it.icon, 15) : ''}<span class="pop-label"><span class="pop-text">${esc(it.label)}</span>${it.hint ? `<span class="pop-hint">${esc(it.hint)}</span>` : ''}</span>${it.kbd ? `<kbd>${it.kbd}</kbd>` : ''}${it.submenu ? icon('chevRight', 14) : ''}${it.checked ? `<span class="pop-check">${icon('check', 15)}</span>` : ''}
           </button>`;
       })
       .join('');

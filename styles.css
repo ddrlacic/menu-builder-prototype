@@ -4089,9 +4089,15 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .pop-item:hover {
+  .pop-item:not(:disabled):hover {
     background: var(--hover);
   }
+}
+
+.pop-item:disabled .pop-text,
+.pop-item:disabled > .icon,
+.pop-item:disabled kbd {
+  opacity: 0.45;
 }
 
 .pop-item.tone-danger,
