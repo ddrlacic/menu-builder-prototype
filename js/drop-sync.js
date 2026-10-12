@@ -80,7 +80,7 @@
       if (pInfo.kind === 'category' && d.ptype === 'size') keepChoicesInCategory(entity('product', id), parent);
     }
     if (pInfo.kind === 'product' && parent.ptype === 'size') out.alsoIn = keepChoiceInMenu(parentPath, id);
-    S.ui.expanded[parentPath] = true;
+    openRow(parentPath);
     return out;
   }
 

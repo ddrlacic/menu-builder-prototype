@@ -76,7 +76,19 @@
   }
 
   function expandTo(path) {
-    ancestorsOf(path).forEach((a) => (S.ui.expanded[a] = true));
+    ancestorsOf(path).forEach(openRow);
+  }
+
+  function revealSelection() {
+    if (T.cleared) return;
+    (T.sel.length ? T.sel : [S.ui.selected])
+      .filter((p) => p.includes('>'))
+      .forEach((p) => {
+        expandTo(p);
+        const role = halfRole(p);
+        if (role && role.wholePath) openRow(role.wholePath);
+      });
+    if (S.ui.selected.includes('>')) T.revealRow = S.ui.selected;
   }
 
   function flash(path) {
@@ -89,9 +101,9 @@
     const parent = entity(pInfo.kind, pInfo.id);
     S.data.entities[kind][ent.id] = ent;
     parent.children.push(ent.id);
-    S.ui.expanded[parentPath] = true;
+    openRow(parentPath);
     const np = childPath(parentPath, kind, ent.id);
-    S.ui.expanded[np] = true;
+    openRow(np);
     S.ui.selected = np;
     S.ui.tabs[kind] = tab;
     T.focusName = focusName;
@@ -342,7 +354,7 @@
       if (pi.kind === 'category' && ent.ptype === 'size') choices = keepChoicesInCategory(ent, parent);
       if (pi.kind === 'product' && parent.ptype === 'size') keepChoiceInMenu(parentPath, id);
       newPath = childPath(parentPath, kind, id);
-      S.ui.expanded[parentPath] = true;
+      openRow(parentPath);
       S.ui.selected = newPath;
       flash(newPath);
     });
@@ -957,7 +969,7 @@
           added++;
         }
       }
-      S.ui.expanded[productPath] = true;
+      openRow(productPath);
     });
     toast(added ? `${plural(added, 'group', 'groups')} added from POS` : 'All POS groups are already added', added ? 'success' : 'info');
   }
@@ -974,7 +986,7 @@
         g.children.push(res.id);
         stageLink('group', g.id, 'product', res.id);
       }
-      S.ui.expanded[groupPath] = true;
+      openRow(groupPath);
       flash(childPath(groupPath, 'product', res.id));
     });
   }

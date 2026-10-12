@@ -86,6 +86,13 @@
         row.scrollIntoView({ block: 'nearest' });
       }
     }
+    if (T.revealRow) {
+      const row = document.querySelector(`.row[data-path="${cssEsc(T.revealRow)}"]`);
+      T.revealRow = null;
+      const box = row && row.closest('.canvas-scroll').getBoundingClientRect();
+      const r = row && row.getBoundingClientRect();
+      if (r && (r.top < box.top || r.bottom > box.bottom)) row.scrollIntoView({ block: 'center' });
+    }
     if (T.idCard && !T.idCard.anchor.isConnected) hideIdCard(true);
     schedulePersist();
   }
@@ -250,12 +257,7 @@
       if (menuOpen) pm.roots.forEach((r) => rec(r, '', 1, '', menuHit));
     }
 
-    const hl = (name) => {
-      if (!q) return esc(name);
-      const i = name.toLowerCase().indexOf(q);
-      if (i < 0) return esc(name);
-      return `${esc(name.slice(0, i))}<mark>${esc(name.slice(i, i + q.length))}</mark>${esc(name.slice(i + q.length))}`;
-    };
+    const hl = (name) => markMatch(name, q);
 
     $('#pos-tree').innerHTML = rows.length
       ? rows
@@ -277,31 +279,61 @@
       : `<div class="empty-small"><strong>No matching POS items</strong><span>Try a different name or POS ID.</span></div>`;
   }
 
+  const canvasTerm = () => S.ui.canvasQuery.trim().toLowerCase();
+
+  function rowSearchTexts(kind, id, ent, path) {
+    const parent = parsePath(parsePath(path).parentPath);
+    const texts = [nameOf(kind, ent), ent.internalName, posIdOf(kind, ent)];
+    if (kind === 'product' && parent.kind === 'group') texts.push(optionName(entity('group', parent.id), id));
+    return texts;
+  }
+
   function isExpanded(path, depth) {
+    if (T.canvasSearch) return path in T.canvasSearchOpen ? T.canvasSearchOpen[path] : T.canvasSearch.open.has(path);
     const v = S.ui.expanded[path];
     return v == null ? depth <= 1 : v;
   }
 
+  function setExpanded(path, open) {
+    if (T.canvasSearch) T.canvasSearchOpen[path] = open;
+    else S.ui.expanded[path] = open;
+  }
+
+  function openRow(path) {
+    S.ui.expanded[path] = true;
+    if (T.canvasSearch) T.canvasSearchOpen[path] = true;
+  }
+
   function visibleRows(menu) {
-    const q = S.ui.canvasQuery.trim().toLowerCase();
+    const q = canvasTerm();
     const rows = [];
     T.hiddenRows = 0;
+    T.canvasSearch = null;
     if (q) {
-      const keep = new Set();
       const hits = new Set();
+      const open = new Set();
       walkMenu(menu, (k, id, ent, path) => {
-        if (nameOf(k, ent).toLowerCase().includes(q) || (posIdOf(k, ent) || '').toLowerCase().includes(q)) {
-          hits.add(path);
-          keep.add(path);
-          ancestorsOf(path).forEach((a) => keep.add(a));
-          const role = halfRole(path);
-          if (role && role.wholePath) keep.add(role.wholePath);
-        }
+        if (!rowSearchTexts(k, id, ent, path).some((s) => s && s.toLowerCase().includes(q))) return;
+        hits.add(path);
+        ancestorsOf(path).forEach((a) => open.add(a));
+        const role = halfRole(path);
+        if (role && role.wholePath) open.add(role.wholePath);
       });
+      T.canvasSearch = { hits, open };
       walkMenu(menu, (kind, id, ent, path, depth) => {
-        if (!keep.has(path)) return false;
-        rows.push({ kind, id, ent, path, depth, expanded: true, hit: hits.has(path) });
-        return true;
+        const hit = hits.has(path);
+        if (!hit && !open.has(path)) {
+          const role = kind === 'product' ? halfRole(path) : null;
+          const inside = ancestorsOf(path).some((a) => hits.has(a)) || (role && role.wholePath && hits.has(role.wholePath));
+          if (!inside) return false;
+          if (S.ui.hideHidden && groupHiddenAt(path)) {
+            T.hiddenRows++;
+            return false;
+          }
+        }
+        const expanded = isExpanded(path, depth);
+        rows.push({ kind, id, ent, path, depth, expanded, hit });
+        return expanded;
       });
     } else {
       walkMenu(menu, (kind, id, ent, path, depth) => {
@@ -392,11 +424,12 @@
     const issueTone = issues.some((i) => i.level === 'error') ? 'error' : issues.length ? 'warning' : '';
     const ownerGroup = kind === 'product' && parentKind === 'group' ? entity('group', parsePath(info.parentPath).id) : null;
     const name = ownerGroup ? optionName(ownerGroup, id) : nameOf(kind, ent);
+    const q = T.canvasSearch ? canvasTerm() : '';
 
     let meta = '';
     if (kind === 'category') {
       const hiddenKids = ent.children.filter((pid) => placement(childPath(path, 'product', pid)).hidden).length;
-      meta = esc((ent.internalName ? `${ent.internalName} · ` : '') + plural(ent.children.length, 'product', 'products') + (hiddenKids ? ` · ${hiddenKids} hidden` : ''));
+      meta = (ent.internalName ? `${markMatch(ent.internalName, q)} · ` : '') + esc(plural(ent.children.length, 'product', 'products') + (hiddenKids ? ` · ${hiddenKids} hidden` : ''));
     } else if (kind === 'product') {
       const halves = r.half ? null : wholeHalves(path);
       if (r.half) {
@@ -408,7 +441,7 @@
       else if (ent.children.length) meta = esc(plural(ent.children.length, 'group', 'groups'));
       else if (halves)
         meta = `<span class="half-meta">${icon('halves', 11)}${esc(halves.left && halves.right ? 'Left and right halves' : `${SIDE_LABEL[halves.left ? 'left' : 'right']} only`)}</span>`;
-      if (!r.half && ent.internalName) meta = `${esc(ent.internalName)}${meta ? ' · ' : ''}${meta}`;
+      if (!r.half && ent.internalName) meta = `${markMatch(ent.internalName, q)}${meta ? ' · ' : ''}${meta}`;
     } else if (kind === 'group') {
       const rules = rulesOf(ent);
       const host = parsePath(info.parentPath);
@@ -424,8 +457,9 @@
         (withHalves ? ` · ${withHalves} with halves` : '');
       meta = `<span class="type-tag type-${rules.type}">${C.groupTypes[rules.type].label}</span>${esc(ent.isSubstitutionContainer ? 'Substitutes only · Hidden in Web App' : groupRuleShort(rules) + extra)}`;
     }
-    const posId = S.ui.showPosIds ? posIdOf(kind, ent) : '';
-    if (posId) meta = `${meta ? `${meta}<span aria-hidden="true">·</span>` : ''}<span class="tnum">${esc(posId)}</span>`;
+    const rowPosId = posIdOf(kind, ent) || '';
+    const posId = S.ui.showPosIds || (q && rowPosId.toLowerCase().includes(q)) ? rowPosId : '';
+    if (posId) meta = `${meta ? `${meta}<span aria-hidden="true">·</span>` : ''}<span class="tnum">${markMatch(posId, q)}</span>`;
 
     const issueDot = issueTone ? `<span class="issue-dot tone-${issueTone}" title="${esc(issues.map((i) => i.text).join('\n'))}"></span>` : '';
     const stagedRoot = pendingRoot(path);
@@ -497,7 +531,7 @@
       <span class="row-indent" aria-hidden="true"></span>
       ${hasChildren ? `<button class="twisty" data-action="toggle" data-path="${esc(path)}" tabindex="-1" aria-label="${r.expanded ? 'Collapse' : 'Expand'}">${icon('chevRight', 14)}</button>` : '<span class="twisty-spacer"></span>'}
       ${thumbHtml}
-      <span class="row-main"><span class="row-title">${esc(name)}</span>${meta ? `<span class="row-meta">${meta}</span>` : ''}</span>
+      <span class="row-main"><span class="row-title">${markMatch(name, q)}</span>${meta ? `<span class="row-meta">${meta}</span>` : ''}</span>
       ${suggestion}${issueDot}
       ${badges.length ? `<span class="row-badges">${badges.join('')}</span>` : ''}
       ${posLink}
@@ -514,6 +548,7 @@
     const selected = S.ui.selected === menu.id && !T.cleared;
     const changes = ctx.compare.count;
     const rows = visibleRows(menu);
+    const hitCount = T.canvasSearch ? T.canvasSearch.hits.size : 0;
     const hiddenTip = !S.ui.hideHidden ? 'Hide hidden items' : T.hiddenRows ? `Show ${plural(T.hiddenRows, 'hidden item', 'hidden items')}` : 'Show hidden items';
     $('#canvas-head').innerHTML = `
       ${posShowButton()}
@@ -527,6 +562,7 @@
           ${icon('search', 15)}
           <span class="sr-only">Search this menu</span>
           <input id="canvas-search" type="search" data-focus-key="canvas-search" placeholder="Search by name or POS ID" value="${esc(S.ui.canvasQuery)}" autocomplete="off">
+          ${hitCount ? `<span class="search-count tnum">${plural(hitCount, 'match', 'matches')}</span>` : ''}
         </label>
         <button class="icon-btn" data-action="expand-all" aria-label="Expand all" title="Expand all">${icon('expand', 16)}</button>
         <button class="icon-btn" data-action="collapse-all" aria-label="Collapse all" title="Collapse all">${icon('collapse', 16)}</button>

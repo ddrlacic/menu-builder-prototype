@@ -63,6 +63,9 @@
       ['Previous or next row', ['↑'], ['↓']],
       ['Expand or collapse', ['→'], ['←']],
       ['Expand or collapse everything inside', ['⌥', 'Click']],
+      ['Search this menu', ['⌘', 'F']],
+      ['Go to the first match', ['↓'], ['Enter']],
+      ['Clear the search', ['Esc']],
       ['Search POS items', ['/']],
     ]],
     ['Edit', [
@@ -512,7 +515,7 @@
         icon: 'expand',
         kbd: '⌥ Click',
         onClick: () => {
-          walkSubtree(path, (k, id, e, p) => (S.ui.expanded[p] = true));
+          walkSubtree(path, (k, id, e, p) => setExpanded(p, true));
           render();
         },
       });

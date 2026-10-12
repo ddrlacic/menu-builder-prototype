@@ -25,6 +25,9 @@
     flashPaths: new Set(),
     flashExt: new Set(),
     posSearchExpanded: {},
+    canvasSearch: null,
+    canvasSearchOpen: {},
+    revealRow: null,
     posLoading: null,
     importing: false,
     posScrollTo: null,
@@ -1209,7 +1212,7 @@
     closeModal(true);
     useDataset(ds);
     Object.assign(hist, { past: [], future: [], key: null, at: 0 });
-    Object.assign(T, { posSearchExpanded: {}, openCard: null, storeKey: null, focusRow: null, sel: [], selAnchor: null, cleared: null });
+    Object.assign(T, { posSearchExpanded: {}, canvasSearchOpen: {}, openCard: null, storeKey: null, focusRow: null, sel: [], selAnchor: null, cleared: null });
     T.flashPaths.clear();
     T.flashExt.clear();
     const { posCollapsed } = S.ui;

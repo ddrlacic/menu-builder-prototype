@@ -586,6 +586,13 @@ mark {
   height: 30px;
 }
 
+.search-count {
+  flex: none;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 /* ---------- POS panel ---------- */
 
 .pos-head {
@@ -1100,13 +1107,6 @@ mark {
 .row.is-muted .row-main,
 .row.is-muted .thumb {
   opacity: 0.5;
-}
-
-.row.is-hit .row-title {
-  text-decoration: underline;
-  text-decoration-color: var(--accent-line);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
 }
 
 .row.is-dragging {

@@ -57,7 +57,10 @@
       return;
     }
     if (t.id === 'canvas-search') {
+      const was = !!canvasTerm();
       S.ui.canvasQuery = t.value;
+      T.canvasSearchOpen = {};
+      if (was && !canvasTerm()) revealSelection();
       render();
       return;
     }
@@ -664,7 +667,7 @@
         if (!cur) return;
         e.preventDefault();
         if (cur.getAttribute('aria-expanded') === 'false') {
-          S.ui.expanded[cur.dataset.path] = true;
+          setExpanded(cur.dataset.path, true);
           T.focusRow = cur.dataset.path;
           render();
         } else if (cur.getAttribute('aria-expanded') === 'true') go(rows[i + 1]);
@@ -673,7 +676,7 @@
         if (!cur) return;
         e.preventDefault();
         if (cur.getAttribute('aria-expanded') === 'true') {
-          S.ui.expanded[cur.dataset.path] = false;
+          setExpanded(cur.dataset.path, false);
           T.focusRow = cur.dataset.path;
           render();
         } else {
@@ -724,6 +727,12 @@
         return;
       }
       if (T.modal) return closeModal();
+      if (typing && (e.target.id === 'canvas-search' || e.target.id === 'pos-search') && e.target.value) {
+        e.preventDefault();
+        e.target.value = '';
+        e.target.dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+      }
       if (typing) e.target.blur();
       else if (T.sel.length > 1) select(S.ui.selected, { focusRow: true });
       return;
@@ -757,6 +766,20 @@
     if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'a' && !T.modal && !typing && e.target.closest && e.target.closest('#canvas-tree')) {
       e.preventDefault();
       selectAllOfKind();
+      return;
+    }
+    if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f' && !T.modal && $('#canvas-search')) {
+      e.preventDefault();
+      $('#canvas-search').focus();
+      $('#canvas-search').select();
+      return;
+    }
+    if (e.target.id === 'canvas-search' && (e.key === 'ArrowDown' || e.key === 'Enter') && !mod && !e.shiftKey && !e.altKey) {
+      const row = $('#canvas-tree .row.is-hit') || $('#canvas-tree .row');
+      if (row) {
+        e.preventDefault();
+        select(row.dataset.path, { focusRow: true });
+      }
       return;
     }
     if (T.modal || typing || mod) return;

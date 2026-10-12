@@ -53,6 +53,13 @@
     return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
   }
 
+  function markMatch(text, q) {
+    const s = String(text == null ? '' : text);
+    const i = q ? s.toLowerCase().indexOf(q) : -1;
+    if (i < 0) return esc(s);
+    return `${esc(s.slice(0, i))}<mark>${esc(s.slice(i, i + q.length))}</mark>${esc(s.slice(i + q.length))}`;
+  }
+
   function fmtTime(hhmm) {
     if (!hhmm) return '';
     const [h, m] = hhmm.split(':').map(Number);

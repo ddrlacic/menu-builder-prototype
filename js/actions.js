@@ -113,12 +113,12 @@
         select(activeMenu().id);
         break;
       case 'expand-all':
-        walkMenu(activeMenu(), (k, id, ent, p) => (S.ui.expanded[p] = true));
+        walkMenu(activeMenu(), (k, id, ent, p) => setExpanded(p, true));
         render();
         break;
       case 'collapse-all':
         walkMenu(activeMenu(), (k, id, ent, p) => {
-          S.ui.expanded[p] = false;
+          setExpanded(p, false);
         });
         render();
         break;
@@ -188,8 +188,8 @@
         break;
       case 'toggle': {
         const open = !isExpanded(path, parsePath(path).depth);
-        if (e && e.altKey) walkSubtree(path, (k, id, ent, p) => (S.ui.expanded[p] = open));
-        else S.ui.expanded[path] = open;
+        if (e && e.altKey) walkSubtree(path, (k, id, ent, p) => setExpanded(p, open));
+        else setExpanded(path, open);
         render();
         break;
       }

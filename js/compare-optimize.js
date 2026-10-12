@@ -147,7 +147,7 @@
           stageLink(pi.kind, pi.id, m.kind, res.id);
           placed = true;
           places++;
-          S.ui.expanded[path] = true;
+          openRow(path);
           flash(childPath(path, m.kind, res.id));
         }
         if (placed) added.push(it.name);
@@ -458,8 +458,8 @@
         cat.children.splice(cat.children.indexOf(pids[0]), 0, container.id);
         const cp = childPath(catPath, 'product', container.id);
         if (!staged) sizePaths.forEach((sp) => (S.data.placements[sp] = { ...placement(sp), hidden: true }));
-        S.ui.expanded[catPath] = true;
-        S.ui.expanded[cp] = true;
+        openRow(catPath);
+        openRow(cp);
         flash(cp);
         applied += 1;
       }
