@@ -598,18 +598,23 @@
   }
 
   function bulkImageProducts(o) {
-    const out = [];
-    const seen = new Set();
+    const out = new Map();
+    const skip = new Set();
     o.roots.filter(pathExists).forEach((root) =>
       walkSubtree(root, (kind, id, ent, p) => {
-        if (kind !== 'product' || seen.has(id) || pendingRoot(p)) return;
-        seen.add(id);
-        if (halfRole(p) || isHalfName(nameOf('product', ent))) return;
+        if (kind !== 'product' || skip.has(id) || pendingRoot(p)) return;
+        if (halfRole(p) || isHalfName(nameOf('product', ent))) {
+          if (!out.has(id)) skip.add(id);
+          return;
+        }
+        if (!out.has(id)) out.set(id, { ent, path: p, contexts: new Set() });
         const cat = parsePath(p.split('>').slice(0, 2).join('>'));
-        out.push({ ent, path: p, category: cat.kind === 'category' ? nameOf('category', entity('category', cat.id)) : '' });
+        const parent = parsePath(parsePath(p).parentPath);
+        if (cat.kind === 'category') out.get(id).contexts.add(nameOf('category', entity('category', cat.id)));
+        if (parent.kind === 'group') out.get(id).contexts.add(nameOf('group', entity('group', parent.id)));
       }),
     );
-    return out;
+    return [...out.values()].map((x) => ({ ...x, contexts: [...x.contexts] }));
   }
 
   async function filesFromDrop(dt) {

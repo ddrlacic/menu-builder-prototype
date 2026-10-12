@@ -1026,19 +1026,20 @@
       byBase.get(k).push(f);
     });
     const used = new Set();
-    const items = products.map(({ ent, path, category }) => {
+    const items = products.map(({ ent, path, contexts = [] }) => {
       const names = [...new Set([nameOf('product', ent), (posItem(ent) || {}).name].filter(Boolean))];
-      const cat = imageKey(category);
       const cands = [];
       names.forEach((n) => {
         const { base, dropped } = imageBase(n);
         const full = imageKey(n);
         const key = imageKey(base);
         const tries = [[key, dropped]];
-        if (cat && key !== cat) {
-          tries.push([`${key} ${cat}`, [...dropped, category]]);
-          if (key.endsWith(` ${cat}`)) tries.push([key.slice(0, -cat.length - 1), [...dropped, category]]);
-        }
+        contexts.forEach((word) => {
+          const ck = imageKey(word);
+          if (!ck || key === ck) return;
+          tries.push([`${key} ${ck}`, [...dropped, word]]);
+          if (key.endsWith(` ${ck}`)) tries.push([key.slice(0, -ck.length - 1), [...dropped, word]]);
+        });
         tries.forEach(([k, words]) =>
           (byBase.get(k) || []).forEach((file) => {
             if (!cands.some((c) => c.file === file)) cands.push({ file, exact: imageKey(file.title) === full, dropped: words });
