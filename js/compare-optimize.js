@@ -604,7 +604,9 @@
       walkSubtree(root, (kind, id, ent, p) => {
         if (kind !== 'product' || seen.has(id) || pendingRoot(p)) return;
         seen.add(id);
-        out.push({ ent, path: p });
+        if (halfRole(p) || isHalfName(nameOf('product', ent))) return;
+        const cat = parsePath(p.split('>').slice(0, 2).join('>'));
+        out.push({ ent, path: p, category: cat.kind === 'category' ? nameOf('category', entity('category', cat.id)) : '' });
       }),
     );
     return out;
@@ -726,7 +728,7 @@
           const name = nameOf('product', i.ent);
           const c = biChosen(o, i);
           const isOn = !o.off.has(i.ent.id);
-          const meta = [biWhere(i.path), i.cands.length > 1 ? `${i.cands.length} images match` : c.file.rel, !c.exact && c.dropped.length ? `Matched without “${c.dropped.join(' ')}”` : ''].filter(Boolean).join(' · ');
+          const meta = [biWhere(i.path), i.cands.length > 1 ? `${i.cands.length} images match` : c.file.rel, !c.exact && c.dropped.length ? `Matched without ${listJoin(c.dropped.map((w) => `“${w}”`))}` : ''].filter(Boolean).join(' · ');
           const pick =
             i.cands.length > 1
               ? `<select class="input sm bi-pick" data-bi-pick="${esc(i.ent.id)}" aria-label="Image for ${esc(name)}">${i.cands.map((x, n) => `<option value="${n}" ${x === c ? 'selected' : ''}>${esc(x.file.rel)}</option>`).join('')}</select>`

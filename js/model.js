@@ -978,7 +978,6 @@
   }
 
   const IMAGE_EXT_RE = /\.(jpe?g|png|gif)$/i;
-  const SIDE_RE = /^(.+?)\s+(left|right)(?:\s+half)?$/i;
   const SIZE_LEAD_RE = new RegExp(`^(${SIZE_RE_TOKENS})\\s+(.+)$`, 'i');
   const SIZE_TRAIL_RE = new RegExp(`^(.+?)(?:\\s+|\\s*[-(,]\\s*)(${SIZE_RE_TOKENS})\\)?$`, 'i');
 
@@ -990,7 +989,12 @@
       .replace(/&/g, ' and ')
       .split(/[^a-z0-9]+/)
       .filter(Boolean)
-      .map((w) => (w.length < 4 ? w : w.endsWith('ies') ? `${w.slice(0, -3)}y` : w.endsWith('oes') ? w.slice(0, -2) : /[^s]s$/.test(w) ? w.slice(0, -1) : w))
+      .map((w) => {
+        if (w.length < 4) return w;
+        if (w.endsWith('ies')) return `${w.slice(0, -3)}y`;
+        if (/(oes|ches|shes|xes|sses|zes)$/.test(w)) return w.slice(0, -2);
+        return /[^s]s$/.test(w) ? w.slice(0, -1) : w;
+      })
       .join(' ');
   }
 
@@ -998,20 +1002,20 @@
     let base = String(name || '').trim();
     const dropped = [];
     for (let i = 0; i < 3; i += 1) {
-      const side = base.match(SIDE_RE);
-      const lead = !side && base.match(SIZE_LEAD_RE);
-      const trail = !side && !lead && base.match(SIZE_TRAIL_RE);
-      if (side || trail) {
-        const m = side || trail;
-        base = m[1];
-        dropped.unshift(m[2]);
-      } else if (lead) {
+      const lead = base.match(SIZE_LEAD_RE);
+      const trail = !lead && base.match(SIZE_TRAIL_RE);
+      if (lead) {
         base = lead[2];
         dropped.push(lead[1]);
+      } else if (trail) {
+        base = trail[1];
+        dropped.unshift(trail[2]);
       } else break;
     }
     return { base: base.trim(), dropped };
   }
+
+  const isHalfName = (name) => /^(?:left|right)\b|\b(?:left|right)(?:\s+(?:half|side))?$/i.test(String(name || '').trim());
 
   function matchProductImages(products, files) {
     const byBase = new Map();
@@ -1022,15 +1026,24 @@
       byBase.get(k).push(f);
     });
     const used = new Set();
-    const items = products.map(({ ent, path }) => {
+    const items = products.map(({ ent, path, category }) => {
       const names = [...new Set([nameOf('product', ent), (posItem(ent) || {}).name].filter(Boolean))];
+      const cat = imageKey(category);
       const cands = [];
       names.forEach((n) => {
         const { base, dropped } = imageBase(n);
         const full = imageKey(n);
-        (byBase.get(imageKey(base)) || []).forEach((file) => {
-          if (!cands.some((c) => c.file === file)) cands.push({ file, exact: imageKey(file.title) === full, dropped });
-        });
+        const key = imageKey(base);
+        const tries = [[key, dropped]];
+        if (cat && key !== cat) {
+          tries.push([`${key} ${cat}`, [...dropped, category]]);
+          if (key.endsWith(` ${cat}`)) tries.push([key.slice(0, -cat.length - 1), [...dropped, category]]);
+        }
+        tries.forEach(([k, words]) =>
+          (byBase.get(k) || []).forEach((file) => {
+            if (!cands.some((c) => c.file === file)) cands.push({ file, exact: imageKey(file.title) === full, dropped: words });
+          }),
+        );
       });
       cands.sort((a, b) => b.exact - a.exact || a.file.rel.localeCompare(b.file.rel));
       cands.forEach((c) => used.add(c.file));
