@@ -222,6 +222,8 @@
     T.cmp = null;
     T.opt = null;
     T.hh = null;
+    if (T.bi) T.bi.files.forEach((f) => URL.revokeObjectURL(f.url));
+    T.bi = null;
     T.ms = null;
     T.ot = null;
     if (immediate === true) {
@@ -517,6 +519,7 @@
       items.push({ label: targets.length > 1 ? `Optimize ${plural(targets.length, info.kind, OPT_PLURAL[info.kind])}` : 'Optimize', icon: 'sparkles', onClick: () => openOptimize(targets) });
     }
     if (info.kind === 'category' && detectSizeSets(ent).length) items.push({ label: 'Group sizes', icon: 'sparkles', onClick: () => groupSizes(path) });
+    if (info.kind === 'category') items.push(built({ label: 'Upload images', icon: 'upload', onClick: () => openBulkImages(path) }));
     if (!staged) {
       if (info.kind === 'category' && suggestedSizeSets(ent).length) items.push({ label: 'Dismiss suggestion', icon: 'x', onClick: () => dismissSizeHint(path) });
       if (info.kind === 'group' && halfSuggestions(ent).length) items.push({ label: 'Group halves', icon: 'sparkles', onClick: () => openHalfMatch(ent.id) });
@@ -626,20 +629,31 @@
       toast('Could not add the image. Choose a file of 1 MB or less.', 'error');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
+    shrinkImage(file, maxSide).then(done, () => toast('Could not add the image. Use a JPG, PNG, or GIF file.', 'error'));
+  }
+
+  function shrinkImage(file, maxSide, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+      const src = URL.createObjectURL(file);
       const img = new Image();
       img.onload = () => {
+        URL.revokeObjectURL(src);
         const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
         const c = document.createElement('canvas');
         c.width = Math.round(img.width * scale);
         c.height = Math.round(img.height * scale);
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        done(c.toDataURL('image/jpeg', 0.82));
+        const g = c.getContext('2d');
+        g.fillStyle = '#fff';
+        g.fillRect(0, 0, c.width, c.height);
+        g.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/jpeg', quality));
       };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
+      img.onerror = () => {
+        URL.revokeObjectURL(src);
+        reject(new Error('unreadable'));
+      };
+      img.src = src;
+    });
   }
 
   function readImage(file, bind) {

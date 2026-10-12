@@ -19,6 +19,7 @@
     cmp: null,
     opt: null,
     hh: null,
+    bi: null,
     ms: null,
     ot: null,
     halfFilter: 'all',

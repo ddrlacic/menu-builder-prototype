@@ -3847,6 +3847,25 @@ input[type='number']::-webkit-inner-spin-button {
   background: var(--accent-soft);
 }
 
+.bi-drop {
+  padding: 40px 20px;
+  cursor: default;
+}
+
+.bi-drop .link {
+  cursor: pointer;
+}
+
+.bi-row .thumb-lg {
+  width: 54px;
+  height: 36px;
+}
+
+.bi-pick {
+  flex: none;
+  width: 200px;
+}
+
 .image-field {
   display: flex;
   gap: 12px;

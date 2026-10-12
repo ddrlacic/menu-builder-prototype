@@ -197,6 +197,11 @@
       moveChild(t.dataset.path, to - 1);
     } else if (t.matches('input[type="file"][data-image]')) {
       readImage(t.files[0], t.dataset.image);
+    } else if (t.matches('input[type="file"][data-bi-files]') && T.bi) {
+      receiveBulkImages([...t.files].map((file) => ({ file, rel: file.webkitRelativePath || file.name })));
+    } else if (t.matches('select[data-bi-pick]') && T.bi) {
+      T.bi.picks[t.dataset.biPick] = Number(t.value);
+      renderBulkImages();
     } else if (t.id === 'row-image-input' && t.files[0] && T.rowImage) {
       const paths = T.rowImage;
       T.rowImage = null;
@@ -695,7 +700,7 @@
 
   document.addEventListener('dragover', (e) => {
     if (!e.dataTransfer.types.includes('Files')) return;
-    const zone = e.target.closest && e.target.closest('[data-image-drop]');
+    const zone = e.target.closest && e.target.closest('[data-image-drop], [data-bi-drop]');
     if (zone && !T.drag) {
       e.preventDefault();
       zone.classList.add('is-over');
@@ -708,11 +713,17 @@
     } else if (T.imageOverRow) clearImageRows();
   });
   document.addEventListener('dragleave', (e) => {
-    const zone = e.target.closest && e.target.closest('[data-image-drop]');
+    const zone = e.target.closest && e.target.closest('[data-image-drop], [data-bi-drop]');
     if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('is-over');
     if (T.imageOverRow && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('#canvas-tree .row[data-image-ok]'))) clearImageRows();
   });
   document.addEventListener('drop', (e) => {
+    const biZone = e.target.closest && e.target.closest('[data-bi-drop]');
+    if (biZone && T.bi) {
+      e.preventDefault();
+      dropBulkImages(e.dataTransfer);
+      return;
+    }
     const zone = e.target.closest && e.target.closest('[data-image-drop]');
     if (zone && !T.drag && e.dataTransfer.files.length) {
       e.preventDefault();

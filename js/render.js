@@ -602,6 +602,7 @@
         <div class="tools-actions">
         <button class="btn secondary" data-action="compare">${icon('diff', 15)}Compare to POS${changes ? `<span class="btn-count tnum">${changes}</span>` : ''}</button>
         ${optimizeButton(menu)}
+        <button class="btn secondary" data-action="bulk-images" ${c.product ? '' : 'disabled title="Add products first"'}>${icon('upload', 15)}Upload images</button>
         <button class="btn secondary" data-action="add-category" aria-haspopup="menu">${icon('plus', 15)}Add category</button>
         </div>
       </div>`;

@@ -586,3 +586,203 @@
       },
     });
   }
+
+  const BULK_IMAGE_SIDE = 360;
+
+  function openBulkImages(path = null) {
+    const menu = activeMenu();
+    const scopeName = path ? nameOf('category', entity('category', parsePath(path).id)) : menu.name || 'Untitled menu';
+    openModal({ title: 'Upload images', body: '<div id="bi"></div>', size: 'lg', foot: '<div class="modal-foot" id="bi-foot"></div>' });
+    T.bi = { menuId: menu.id, roots: path ? [path] : menu.children.map((cid) => childPath(menu.id, 'category', cid)), scopeName, step: 'pick', files: [], skipped: 0, empty: false };
+    renderBulkImages();
+  }
+
+  function bulkImageProducts(o) {
+    const out = [];
+    const seen = new Set();
+    o.roots.filter(pathExists).forEach((root) =>
+      walkSubtree(root, (kind, id, ent, p) => {
+        if (kind !== 'product' || seen.has(id) || pendingRoot(p)) return;
+        seen.add(id);
+        out.push({ ent, path: p });
+      }),
+    );
+    return out;
+  }
+
+  async function filesFromDrop(dt) {
+    const entries = [...(dt.items || [])].map((it) => it.webkitGetAsEntry && it.webkitGetAsEntry()).filter(Boolean);
+    if (!entries.length) return [...dt.files].map((file) => ({ file, rel: file.name }));
+    const out = [];
+    const walk = async (entry) => {
+      if (entry.isFile) {
+        out.push({ file: await new Promise((res, rej) => entry.file(res, rej)), rel: entry.fullPath.replace(/^\//, '') });
+        return;
+      }
+      const reader = entry.createReader();
+      for (;;) {
+        const batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+        if (!batch.length) break;
+        for (const e of batch) await walk(e);
+      }
+    };
+    for (const e of entries) await walk(e);
+    return out;
+  }
+
+  function dropBulkImages(dt) {
+    const o = T.bi;
+    o.step = 'reading';
+    renderBulkImages();
+    filesFromDrop(dt).then(
+      (list) => T.bi === o && receiveBulkImages(list),
+      () => T.bi === o && receiveBulkImages([]),
+    );
+  }
+
+  function receiveBulkImages(list) {
+    const o = T.bi;
+    if (!o) return;
+    o.files.forEach((f) => URL.revokeObjectURL(f.url));
+    const visible = list.filter((x) => !x.file.name.startsWith('.'));
+    const imgs = visible.filter((x) => IMAGE_EXT_RE.test(x.file.name));
+    const tops = new Set(imgs.map((x) => x.rel.split('/')[0]));
+    const strip = tops.size === 1 && imgs.every((x) => x.rel.includes('/'));
+    o.files = imgs.map((x, n) => ({
+      id: `f${n}`,
+      file: x.file,
+      rel: strip ? x.rel.slice(x.rel.indexOf('/') + 1) : x.rel,
+      title: x.file.name.replace(/\.[^.]+$/, ''),
+      url: URL.createObjectURL(x.file),
+    }));
+    o.skipped = visible.length - imgs.length;
+    if (!o.files.length) {
+      Object.assign(o, { step: 'pick', empty: true });
+      return renderBulkImages();
+    }
+    const { items, unused } = matchProductImages(bulkImageProducts(o), o.files);
+    Object.assign(o, { step: 'review', empty: false, items, unused, picks: {}, tab: 'match', off: new Set(items.filter((i) => i.ent.image).map((i) => i.ent.id)) });
+    renderBulkImages();
+  }
+
+  const biChosen = (o, i) => i.cands[o.picks[i.ent.id] || 0];
+  const biOn = (o) => o.items.filter((i) => i.cands.length && !o.off.has(i.ent.id));
+
+  function biWhere(path) {
+    const p = parsePath(parsePath(path).parentPath);
+    const parent = nameOf(p.kind, entity(p.kind, p.id));
+    return isMenuItemPath(path) ? `In ${parent}` : `Option in ${parent}`;
+  }
+
+  function renderBulkImages() {
+    const o = T.bi;
+    if (!o || !$('#bi')) return;
+    const focus = captureFocus();
+    $('#bi').innerHTML = o.step === 'review' ? bulkImagesReview(o) : bulkImagesPick(o);
+    const n = o.step === 'review' ? biOn(o).length : 0;
+    $('#bi-foot').innerHTML =
+      o.step === 'saving'
+        ? `<span class="opt-progress tnum"><span class="spinner"></span>Uploading ${o.done} of ${plural(o.total, 'image', 'images')}</span>`
+        : o.step === 'review'
+          ? `<button type="button" class="btn ghost" data-action="bi-restart">Choose other images</button><span class="foot-spacer"></span>
+            <button type="button" class="btn secondary" data-modal-close>Cancel</button>
+            <button type="button" class="btn primary" data-action="bi-apply" ${n ? '' : 'disabled'}>${n ? `Upload images to ${plural(n, 'product', 'products')}` : 'Upload images'}</button>`
+          : '<button type="button" class="btn secondary" data-modal-close>Cancel</button>';
+    restoreFocus(focus);
+  }
+
+  function bulkImagesPick(o) {
+    const intro = `<p>Images are matched to products in ${esc(o.scopeName)} by file name. Sizes like Large or 20oz are ignored, so one image covers every size.</p>`;
+    if (o.step === 'reading') return `${intro}<div class="empty-small"><span class="spinner"></span><span>Reading images</span></div>`;
+    return `${intro}
+      ${o.empty ? callout('warning', `No JPG, PNG, or GIF images found${o.skipped ? ` in ${plural(o.skipped, 'file', 'files')}` : ''}. Choose a different folder or images.`) : ''}
+      <div class="dropzone bi-drop" data-bi-drop>${icon('image', 20)}
+        <span>Drop a folder or images here</span>
+        <span><label class="link">Choose a folder<input type="file" data-bi-files webkitdirectory multiple hidden></label> or <label class="link">choose images<input type="file" data-bi-files multiple accept="${IMAGE_TYPES.join(',')}" hidden></label></span>
+        <span class="field-help">JPG, PNG, or GIF. Subfolders are included and large images are made smaller.</span>
+      </div>`;
+  }
+
+  function bulkImagesReview(o) {
+    const match = o.items.filter((i) => i.cands.length);
+    const missing = o.items.filter((i) => !i.cands.length && !i.ent.image);
+    const tabs = [
+      ['match', 'Matched', match.length],
+      ['missing', 'No image found', missing.length],
+      ['unused', 'Not used', o.unused.length],
+    ];
+    const box = (st) => `<span class="check${st === 'off' ? '' : ' is-on'}" aria-hidden="true">${st === 'on' ? icon('check', 12) : st === 'mixed' ? icon('minus', 12) : ''}</span>`;
+    const empty = (title, text) => `<div class="empty-small">${icon('checkCircle', 20)}<strong>${title}</strong>${text ? `<span>${text}</span>` : ''}</div>`;
+    const list = (rows) => `<div class="cmp-list">${rows.join('')}</div>`;
+    let body = `<div class="cmp-tabs">${tabList(tabs, o.tab, (id) => `data-action="bi-tab" data-tab="${id}"`)}</div>`;
+    if (o.skipped) body += `<p class="section-desc">${plural(o.skipped, 'file', 'files')} skipped. Only JPG, PNG, and GIF images can be uploaded.</p>`;
+    if (o.tab === 'match') {
+      if (!match.length) return body + empty('No images match', `No file name matches a product in ${esc(o.scopeName)}. Check the names, or choose other images.`);
+      const on = match.filter((i) => !o.off.has(i.ent.id)).length;
+      const st = on === 0 ? 'off' : on === match.length ? 'on' : 'mixed';
+      const desc = match.some((i) => i.ent.image) ? '<p class="section-desc">Products that already have an image are not selected. Select them to replace their image.</p>' : '';
+      return `${body}<section class="cmp-section">${desc}<header class="cmp-head"><button type="button" class="opt-all" role="checkbox" aria-checked="${st === 'mixed' ? 'mixed' : st === 'on'}" data-action="bi-all">${box(st)}<span>Select all</span></button></header>${list(
+        match.map((i) => {
+          const name = nameOf('product', i.ent);
+          const c = biChosen(o, i);
+          const isOn = !o.off.has(i.ent.id);
+          const meta = [biWhere(i.path), i.cands.length > 1 ? `${i.cands.length} images match` : c.file.rel, !c.exact && c.dropped.length ? `Matched without “${c.dropped.join(' ')}”` : ''].filter(Boolean).join(' · ');
+          const pick =
+            i.cands.length > 1
+              ? `<select class="input sm bi-pick" data-bi-pick="${esc(i.ent.id)}" aria-label="Image for ${esc(name)}">${i.cands.map((x, n) => `<option value="${n}" ${x === c ? 'selected' : ''}>${esc(x.file.rel)}</option>`).join('')}</select>`
+              : '';
+          return `<div class="cmp-row bi-row">
+            <button type="button" class="check${isOn ? ' is-on' : ''}" role="checkbox" aria-checked="${isOn}" aria-label="Upload image to ${esc(name)}" data-action="bi-item" data-key="${esc(i.ent.id)}">${isOn ? icon('check', 12) : ''}</button>
+            <img class="thumb thumb-img thumb-lg" src="${c.file.url}" alt="">
+            <span class="cmp-main"><span class="cmp-name">${esc(name)}</span><span class="cmp-meta">${esc(meta)}</span></span>
+            ${i.ent.image ? `<span class="badge" title="Select it to replace the image">Has an image</span>` : ''}${pick}</div>`;
+        }),
+      )}</section>`;
+    }
+    if (o.tab === 'missing') {
+      if (!missing.length) return body + empty('Every product has an image or a match');
+      const row = (i) => `<div class="cmp-row bi-row">${thumb('product', i.ent, 'thumb-lg')}<span class="cmp-main"><span class="cmp-name">${esc(nameOf('product', i.ent))}</span><span class="cmp-meta">${esc(biWhere(i.path))}</span></span></div>`;
+      const part = (title, rows) => (rows.length ? `<section class="cmp-section"><h3 class="section-title">${title}<span class="tnum"> · ${rows.length}</span></h3>${list(rows.map(row))}</section>` : '');
+      return `${body}<p class="section-desc">No file name matches these products. Rename the images to match, or add them one by one.</p><div class="cmp-groups">${part(
+        'Products',
+        missing.filter((i) => isMenuItemPath(i.path)),
+      )}${part(
+        'Options',
+        missing.filter((i) => !isMenuItemPath(i.path)),
+      )}</div>`;
+    }
+    if (!o.unused.length) return body + empty('Every image matches a product');
+    return `${body}<p class="section-desc">No product in ${esc(o.scopeName)} has a matching name.</p>${list(
+      o.unused.map((f) => `<div class="cmp-row bi-row"><img class="thumb thumb-img thumb-lg" src="${f.url}" alt=""><span class="cmp-main"><span class="cmp-name">${esc(f.title)}</span><span class="cmp-meta">${esc(f.rel)}</span></span></div>`),
+    )}`;
+  }
+
+  async function applyBulkImages() {
+    const o = T.bi;
+    const picks = biOn(o).map((i) => ({ id: i.ent.id, path: i.path, file: biChosen(o, i).file }));
+    if (!picks.length) return;
+    const files = [...new Set(picks.map((p) => p.file))];
+    Object.assign(o, { step: 'saving', done: 0, total: files.length });
+    renderBulkImages();
+    const urls = new Map();
+    for (const f of files) {
+      try {
+        urls.set(f, await shrinkImage(f.file, BULK_IMAGE_SIDE, 0.72));
+      } catch (_) {
+        /* counted below */
+      }
+      if (T.bi !== o) return;
+      o.done += 1;
+      renderBulkImages();
+    }
+    const ok = picks.filter((p) => urls.has(p.file) && entity('product', p.id));
+    const failed = files.length - urls.size;
+    closeModal();
+    if (!ok.length) return toast('Couldn’t read the images. Use JPG, PNG, or GIF files', 'error');
+    if (!commit(() => ok.forEach((p) => (entity('product', p.id).image = urls.get(p.file))))) return;
+    ok.forEach((p) => flash(p.path));
+    render();
+    const one = ok.length === 1 ? nameOf('product', entity('product', ok[0].id)) : '';
+    toast(one ? `Image successfully added to ${one}` : `Images successfully added to ${plural(ok.length, 'product', 'products')}`, 'success', { action: { label: 'Undo', onClick: undo } });
+    if (failed) toast(`Couldn’t read ${plural(failed, 'image', 'images')}. Add ${failed === 1 ? 'it' : 'them'} one by one`, 'error');
+  }

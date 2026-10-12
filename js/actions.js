@@ -965,6 +965,35 @@
       case 'opt-apply':
         applyOptimize();
         break;
+      case 'bulk-images':
+        openBulkImages();
+        break;
+      case 'bi-tab':
+        T.bi.tab = el.dataset.tab;
+        renderBulkImages();
+        $('#modal-root .modal-scroll').scrollTop = 0;
+        break;
+      case 'bi-item': {
+        const k = el.dataset.key;
+        if (T.bi.off.has(k)) T.bi.off.delete(k);
+        else T.bi.off.add(k);
+        renderBulkImages();
+        break;
+      }
+      case 'bi-all': {
+        const ids = T.bi.items.filter((i) => i.cands.length).map((i) => i.ent.id);
+        const allOn = ids.every((k) => !T.bi.off.has(k));
+        ids.forEach((k) => (allOn ? T.bi.off.add(k) : T.bi.off.delete(k)));
+        renderBulkImages();
+        break;
+      }
+      case 'bi-restart':
+        Object.assign(T.bi, { step: 'pick', empty: false });
+        renderBulkImages();
+        break;
+      case 'bi-apply':
+        applyBulkImages();
+        break;
       default:
         break;
     }
