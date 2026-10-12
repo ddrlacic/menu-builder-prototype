@@ -27,13 +27,13 @@
         if (m.status === 'publishing') break;
         const remove = () => {
           closeModal();
-          commit(() => {
+          const done = commit(() => {
             S.data.menus = S.data.menus.filter((x) => x.id !== m.id);
             const next = S.data.menus[0] || null;
             S.ui.activeMenuId = next ? next.id : null;
             S.ui.selected = next ? next.id : null;
           });
-          toast('Menu deleted');
+          if (done) deletedToast('Menu deleted');
         };
         if (!m.publishedAt) {
           openModal({
@@ -49,8 +49,7 @@
         openModal({
           title: `Delete ${m.name}?`,
           size: 'lg',
-          body: `<h3 class="delete-warning-title">This action cannot be undone. Proceed with caution.</h3>
-            <ul class="delete-warning-list">
+          body: `<ul class="delete-warning-list">
               <li>${icon('alertCircle', 18)}<span>This menu will be removed from all stores, online ordering channels, external channels, and associated order types</span></li>
               <li>${icon('alertCircle', 18)}<span>Categories and products within this menu will not be deleted</span></li>
               <li>${icon('alertCircle', 18)}<span>If you have active advanced orders you will not be able to delete this menu. Please cancel all outstanding orders before proceeding.</span></li>
@@ -793,11 +792,11 @@
         if (categoryDeleteBlock(cat)) break;
         const remove = () => {
           closeModal();
-          commit(() => {
+          const done = commit(() => {
             deleteCategoryNow(cat);
             S.ui.selected = activeMenu().id;
           });
-          toast('Category deleted');
+          if (done) deletedToast('Category deleted');
         };
         if (!ms.length) {
           openModal({
@@ -813,8 +812,7 @@
         openModal({
           title: `Delete ${nameOf('category', cat)}?`,
           size: 'lg',
-          body: `<h3 class="delete-warning-title">This action cannot be undone. Proceed with caution.</h3>
-            <ul class="delete-warning-list">
+          body: `<ul class="delete-warning-list">
               <li>${icon('alertCircle', 18)}<span>This category will be removed from all stores, online ordering channels, external channels, and associated order types</span></li>
               <li>${icon('alertCircle', 18)}<span>This category will be removed from all menus</span></li>
               <li>${icon('alertCircle', 18)}<span>Products within this category will not be deleted</span></li>

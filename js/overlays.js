@@ -366,7 +366,7 @@
     toast(`${plural(order.length, o.noun[0], o.noun[1])} added`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
-  function toast(msg, tone = 'success', { action } = {}) {
+  function toast(msg, tone = 'success', { action, onClose } = {}) {
     const root = $('#toast-root');
     const el = document.createElement('div');
     el.className = `toast tone-${tone}`;
@@ -374,18 +374,24 @@
     el.innerHTML = `${icon(tone === 'error' ? 'alertCircle' : tone === 'info' ? 'info' : 'checkCircle', 16)}<span class="toast-msg">${esc(msg)}</span>${action ? `<button type="button" class="toast-action">${esc(action.label)}</button>` : ''}`;
     root.appendChild(el);
     let timer;
-    const dismiss = () => {
+    let closed = false;
+    const dismiss = (silent) => {
+      if (closed) return;
+      closed = true;
       clearTimeout(timer);
       el.dataset.state = 'closing';
       setTimeout(() => el.remove(), 180);
+      if (onClose && silent !== true) onClose();
     };
+    el.dismissToast = dismiss;
     if (action) el.querySelector('.toast-action').addEventListener('click', () => { action.onClick(); dismiss(); });
     requestAnimationFrame(() => requestAnimationFrame(() => (el.dataset.state = 'open')));
     timer = setTimeout(dismiss, action ? 6000 : tone === 'error' ? 5000 : 3200);
     el.addEventListener('mouseenter', () => clearTimeout(timer));
     el.addEventListener('mouseleave', () => (timer = setTimeout(dismiss, 1600)));
     const all = root.querySelectorAll('.toast:not([data-state="closing"])');
-    if (all.length > 3) all[0].remove();
+    if (all.length > 3) all[0].dismissToast();
+    return { dismiss };
   }
 
   function openIssues(anchor) {
@@ -586,8 +592,7 @@
                   normalizeAll();
                   S.ui = defaultUi();
                   focusPosCategory();
-                  hist.past = [];
-                  hist.future = [];
+                  clearHistory();
                   render();
                   toast('Demo data reset');
                 },

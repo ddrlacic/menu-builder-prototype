@@ -462,7 +462,7 @@
         ? `${nameOf(kind, del.blocked[0])} is skipped. ${deleteBlockOf(kind, del.blocked[0])}`
         : del.blocked.length
           ? `${plural(del.blocked.length, one, many)} are skipped. ${nameOf(kind, del.blocked[0])}: ${deleteBlockOf(kind, del.blocked[0])}`
-          : 'Deletes them everywhere they’re used. This cannot be undone.';
+          : 'Deletes them everywhere they’re used.';
     html += section(
       '',
       `<div class="hint-actions">

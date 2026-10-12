@@ -3705,12 +3705,6 @@ input[type='number']::-webkit-inner-spin-button {
   visibility: hidden;
 }
 
-.delete-warning-title {
-  color: var(--ink);
-  font-size: var(--text-md);
-  font-weight: 650;
-}
-
 .delete-warning-list {
   display: flex;
   flex-direction: column;

@@ -955,11 +955,11 @@
     const parents = groupParents(g.id);
     const remove = () => {
       closeModal();
-      commit(() => {
+      const done = commit(() => {
         deleteGroupNow(g);
         S.ui.selected = parsePath(path).parentPath;
       });
-      toast('Group deleted');
+      if (done) deletedToast('Group deleted');
     };
     if (!parents.length) {
       openModal({
@@ -980,8 +980,7 @@
     openModal({
       title: `Delete ${name}?`,
       size: 'lg',
-      body: `<h3 class="delete-warning-title">This action cannot be undone. Proceed with caution.</h3>
-        <ul class="delete-warning-list">${lines.map((t) => `<li>${icon('alertCircle', 18)}<span>${esc(t)}</span></li>`).join('')}</ul>
+      body: `<ul class="delete-warning-list">${lines.map((t) => `<li>${icon('alertCircle', 18)}<span>${esc(t)}</span></li>`).join('')}</ul>
         <button type="button" class="check-toggle delete-confirm-check" role="checkbox" aria-checked="false" data-action="delete-confirm-toggle">
           <span class="check" aria-hidden="true"></span>Yes, I understand
         </button>`,
@@ -1032,8 +1031,7 @@
     const linked = ringsUpAs(p);
     const remove = () => {
       closeModal();
-      commit(() => deleteProductNow(p));
-      toast('Product deleted');
+      if (commit(() => deleteProductNow(p))) deletedToast('Product deleted');
     };
     if (!parents.length) {
       openModal({
@@ -1057,8 +1055,7 @@
     openModal({
       title: `Delete ${name}?`,
       size: 'lg',
-      body: `<h3 class="delete-warning-title">This action cannot be undone. Proceed with caution.</h3>
-        <ul class="delete-warning-list">${lines.map((t) => `<li>${icon('alertCircle', 18)}<span>${esc(t)}</span></li>`).join('')}</ul>
+      body: `<ul class="delete-warning-list">${lines.map((t) => `<li>${icon('alertCircle', 18)}<span>${esc(t)}</span></li>`).join('')}</ul>
         <button type="button" class="check-toggle delete-confirm-check" role="checkbox" aria-checked="false" data-action="delete-confirm-toggle">
           <span class="check" aria-hidden="true"></span>Yes, I understand
         </button>`,
@@ -1410,13 +1407,12 @@
         S.ui.selected = parentPathOf(first);
         T.focusRow = S.ui.selected;
       });
-      if (done) toast(`${noun(n)} deleted`);
+      if (done) deletedToast(`${noun(n)} deleted`);
     };
     openModal({
       title: `Delete ${noun(n)}?`,
       size: 'lg',
-      body: `<h3 class="delete-warning-title">This action cannot be undone. Proceed with caution.</h3>
-        <ul class="delete-warning-list">${lines.map((t) => `<li>${icon('alertCircle', 18)}<span>${esc(t)}</span></li>`).join('')}</ul>
+      body: `<ul class="delete-warning-list">${lines.map((t) => `<li>${icon('alertCircle', 18)}<span>${esc(t)}</span></li>`).join('')}</ul>
         <button type="button" class="check-toggle delete-confirm-check" role="checkbox" aria-checked="false" data-action="delete-confirm-toggle">
           <span class="check" aria-hidden="true"></span>Yes, I understand
         </button>`,

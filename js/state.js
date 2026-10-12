@@ -4,7 +4,7 @@
 
   const S = { data: null, ui: null };
   let dataset = 'example';
-  const hist = { past: [], future: [], key: null, at: 0 };
+  const hist = { past: [], future: [], key: null, at: 0, deleting: null };
   const T = {
     idCard: null,
     tip: null,
@@ -1211,7 +1211,7 @@
     closePopover();
     closeModal(true);
     useDataset(ds);
-    Object.assign(hist, { past: [], future: [], key: null, at: 0 });
+    clearHistory();
     Object.assign(T, { posSearchExpanded: {}, canvasSearchOpen: {}, openCard: null, storeKey: null, focusRow: null, sel: [], selAnchor: null, cleared: null });
     T.flashPaths.clear();
     T.flashExt.clear();
@@ -1245,6 +1245,7 @@
       }
       throw err;
     }
+    if (hist.deleting) settleDelete();
     const now = Date.now();
     const coalesce = key && hist.key === key && now - hist.at < 1500;
     if (!coalesce) {
@@ -1260,18 +1261,137 @@
     return true;
   }
 
-  function undo() {
-    if (!hist.past.length || T.importing) return;
-    hist.future.push(JSON.stringify(S.data));
-    S.data = JSON.parse(hist.past.pop());
+  function clearHistory() {
+    if (hist.deleting) hist.deleting.toast.dismiss(true);
+    Object.assign(hist, { past: [], future: [], key: null, at: 0, deleting: null });
+  }
+
+  function settleDelete() {
+    if (hist.deleting) clearHistory();
+  }
+
+  function deletedToast(msg) {
+    const token = {};
+    token.toast = toast(msg, 'success', { action: { label: 'Undo', onClick: undo }, onClose: () => hist.deleting === token && settleDelete() });
+    hist.deleting = token;
+  }
+
+  const PUBLISH_FIELDS = ['status', 'publishedAt', 'publishedStoreIds', 'pricedKeys'];
+  const UNDO_NOUN = { menu: ['menu', 'menus'], category: ['category', 'categories'], product: ['product', 'products'], group: ['group', 'groups'] };
+
+  function undoSubjects(before, after) {
+    const subjects = [];
+    const created = [];
+    const parents = [];
+    const paths = [];
+    const add = (list, kind, id) => list.some((x) => x.kind === kind && x.id === id) || list.push({ kind, id });
+    const compare = (kind, a, b, id) => {
+      if (JSON.stringify(a) === JSON.stringify(b)) return;
+      if (!a || !b) return add(created, kind, id);
+      const { children: ca = [], ...ra } = a;
+      const { children: cb = [], ...rb } = b;
+      if (JSON.stringify(ra) !== JSON.stringify(rb)) add(subjects, kind, id);
+      if (JSON.stringify(ca) === JSON.stringify(cb)) return;
+      add(parents, kind, id);
+      const ck = childKind(kind, b);
+      const moved = ca.filter((c) => !cb.includes(c)).concat(cb.filter((c) => !ca.includes(c)));
+      if (moved.length) moved.forEach((c) => add(subjects, ck, c));
+      else add(subjects, kind, id);
+    };
+    const menusA = new Map(before.menus.map((m) => [m.id, m]));
+    const menusB = new Map(after.menus.map((m) => [m.id, m]));
+    new Set([...menusA.keys(), ...menusB.keys()]).forEach((id) => compare('menu', menusA.get(id), menusB.get(id), id));
+    for (const kind of ['category', 'product', 'group']) {
+      const a = before.entities[kind];
+      const b = after.entities[kind];
+      new Set([...Object.keys(a), ...Object.keys(b)]).forEach((id) => compare(kind, a[id], b[id], id));
+    }
+    for (const k of new Set([...Object.keys(before.placements), ...Object.keys(after.placements)])) {
+      if (JSON.stringify(before.placements[k]) === JSON.stringify(after.placements[k])) continue;
+      const info = parsePath(k.replace(/^@>/, 'x>'));
+      add(subjects, info.kind, info.id);
+      if (!k.startsWith('@')) paths.push(k);
+    }
+    return { subjects: created.length ? created : subjects, parents, paths };
+  }
+
+  function pathOfSubject(subject, paths) {
+    const at = (p) => {
+      const info = parsePath(p);
+      return info.kind === subject.kind && info.id === subject.id && pathExists(p);
+    };
+    const current = (T.sel.length ? T.sel : [S.ui.selected]).filter(Boolean).find(at);
+    if (current) return current;
+    const placed = paths.find(at);
+    if (placed) return placed;
+    if (subject.kind === 'menu') return menuById(subject.id) ? subject.id : null;
+    const menus = [activeMenu(), ...S.data.menus.filter((m) => m !== activeMenu())].filter(Boolean);
+    for (const m of menus) {
+      let found = null;
+      walkMenu(m, (kind, id, ent, path) => {
+        if (found) return false;
+        if (kind === subject.kind && id === subject.id) found = path;
+      });
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function stepHistory(from, to, verb) {
+    if (!from.length || T.importing || T.modal) return;
+    const before = S.data;
+    const live = new Map(before.menus.map((m) => [m.id, m]));
+    to.push(JSON.stringify(before));
+    S.data = JSON.parse(from.pop());
     hist.key = null;
+    const cancelled = hist.deleting;
+    if (cancelled) {
+      hist.deleting = null;
+      hist.future = [];
+      cancelled.toast.dismiss(true);
+    }
+    for (const m of S.data.menus) {
+      const now = live.get(m.id);
+      if (now) PUBLISH_FIELDS.forEach((f) => (m[f] = now[f]));
+    }
+    dataVersion++;
+    const { subjects, parents, paths } = undoSubjects(before, S.data);
+    const touched = new Set();
+    let target = null;
+    for (const s of subjects.length ? subjects : parents) {
+      const p = pathOfSubject(s, paths);
+      if (!p) continue;
+      touched.add(parsePath(p).menuId);
+      if (!target) target = p;
+    }
+    for (const id of touched) {
+      const m = menuById(id);
+      if (m && m.status === 'published') m.status = 'changed';
+    }
+    if (target) {
+      const info = parsePath(target);
+      if (info.menuId !== S.ui.activeMenuId) S.ui.activeMenuId = info.menuId;
+      if (!T.sel.includes(target)) T.sel = [];
+      S.ui.selected = target;
+      if (target.includes('>')) {
+        expandTo(target);
+        T.revealRow = target;
+        flash(target);
+      }
+    }
     render();
+    if (!subjects.length) return toast(`Change ${verb}`);
+    const one = subjects.length === 1 && subjects[0];
+    const kinds = new Set(subjects.map((s) => s.kind));
+    const noun = kinds.size === 1 ? UNDO_NOUN[subjects[0].kind] : ['item', 'items'];
+    const ent = one && (entity(one.kind, one.id) || (one.kind === 'menu' ? before.menus.find((m) => m.id === one.id) : before.entities[one.kind][one.id]));
+    toast(one ? `Change to ${nameOf(one.kind, ent)} ${verb}` : `Changes to ${plural(subjects.length, noun[0], noun[1])} ${verb}`);
+  }
+
+  function undo() {
+    stepHistory(hist.past, hist.future, 'undone');
   }
 
   function redo() {
-    if (!hist.future.length || T.importing) return;
-    hist.past.push(JSON.stringify(S.data));
-    S.data = JSON.parse(hist.future.pop());
-    hist.key = null;
-    render();
+    stepHistory(hist.future, hist.past, 'redone');
   }

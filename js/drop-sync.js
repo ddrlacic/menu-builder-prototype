@@ -347,7 +347,7 @@
         for (const [id, e] of Object.entries(map)) if (e.pending && !reached.has(`${kind}:${id}`)) delete map[id];
       finishStagedSizes();
       clearPending();
-      Object.assign(hist, { past: [], future: [], key: null, at: 0 });
+      clearHistory();
       dataVersion++;
       render();
       toast('POS items successfully imported');
@@ -462,14 +462,17 @@
           kind: 'primary',
           onClick: () => {
             closeModal();
+            settleDelete();
             m.status = 'publishing';
             dataVersion++;
             render();
             setTimeout(() => {
-              m.status = 'published';
-              m.publishedAt = Date.now();
-              m.publishedStoreIds = menuStores(m).map((s) => s.id);
-              m.pricedKeys = menuPriceKeys(m);
+              const pm = menuById(m.id);
+              if (!pm) return;
+              pm.status = 'published';
+              pm.publishedAt = Date.now();
+              pm.publishedStoreIds = menuStores(pm).map((s) => s.id);
+              pm.pricedKeys = menuPriceKeys(pm);
               dataVersion++;
               render();
               toast('Menu successfully published');
