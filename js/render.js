@@ -585,6 +585,7 @@
       <button class="menu-card${selected ? ' is-selected' : ''}" data-action="select-menu">
         <span class="menu-card-title">${esc(menu.name || 'Untitled menu')}</span>
         <span class="menu-card-meta tnum">${plural(c.category, 'category', 'categories')} · ${plural(c.product, 'product', 'products')} · ${plural(c.group, 'group', 'groups')}<span class="sep">·</span>${icon('clock', 12)}${esc(menuScheduleSummary(menu))}</span>
+        <span class="menu-card-drop"></span>
       </button>
       <div class="canvas-tools">
         <div class="tools-find">

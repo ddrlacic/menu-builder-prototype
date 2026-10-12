@@ -442,9 +442,14 @@
 
   /* drag and drop */
 
+  function unmark(el) {
+    delete el.dataset.drop;
+    el.style.removeProperty('--drop-depth');
+  }
+
   function clearDropMark() {
     if (T.markedRow) {
-      delete T.markedRow.dataset.drop;
+      unmark(T.markedRow);
       T.markedRow = null;
     }
     $('#canvas').classList.remove('drop-end');
@@ -461,6 +466,7 @@
     clearDropMark();
     $$('.row.is-dragging').forEach((r) => r.classList.remove('is-dragging'));
     delete document.body.dataset.dragKind;
+    delete document.body.dataset.menuDrop;
     $('#drag-hint').dataset.show = 'false';
     T.drag = null;
   }
@@ -483,11 +489,13 @@
 
   function autoPlaceHint(d) {
     if (d.kind === 'menu') return `Drop to add all categories from ${d.name}`;
-    if (d.kind === 'category') return 'Drop to add it to the end of the menu';
+    if (d.kind === 'category') return d.origin === 'canvas' ? `Drop to move ${d.multi ? 'them' : 'it'} to the end of the menu` : 'Drop to add it to the end of the menu';
     const chain = d.posPath || [];
     if (chain.length < 2) return DRAG_HINT[d.kind];
     return `Drop to add it under ${posLabel(chain[chain.length - 2])}`;
   }
+
+  const menuCardDrop = (d) => (d.origin === 'pos' ? d.kind === 'menu' || d.kind === 'category' || (d.posPath || []).length >= 2 : d.kind === 'category');
 
   window.addEventListener('beforeunload', (e) => {
     if (!S.data || !pendingRows().length) return;
@@ -530,6 +538,11 @@
     ghost.innerHTML = `<span class="kind-glyph kind-${T.drag.kind}">${icon(KIND_ICON[T.drag.kind], 13)}</span>${esc(T.drag.name)}`;
     e.dataTransfer.setDragImage(ghost, 16, 18);
     document.body.dataset.dragKind = T.drag.kind;
+    const cardText = $('.menu-card-drop');
+    if (cardText && menuCardDrop(T.drag)) {
+      cardText.textContent = autoPlaceHint(T.drag);
+      document.body.dataset.menuDrop = '';
+    }
     setHint(baseHint(T.drag));
     $('#drag-hint').dataset.show = 'true';
   });
@@ -548,16 +561,34 @@
     return y < 0.5 ? 'before' : 'after';
   }
 
+  function snapTarget(row, e, d) {
+    const segs = row.dataset.path.split('>');
+    let anc = null;
+    for (let i = segs.length - 1; i > 1 && !anc; i--) {
+      const p = segs.slice(0, i).join('>');
+      if (parsePath(p).kind === d.kind) anc = p;
+    }
+    if (!anc || (d.origin === 'canvas' && (d.multi || [d]).some((x) => anc === x.path || anc.startsWith(`${x.path}>`)))) return null;
+    const rows = $$('#canvas-tree .row').filter((r) => r.dataset.path === anc || r.dataset.path.startsWith(`${anc}>`));
+    const head = rows.find((r) => r.dataset.path === anc);
+    if (!head) return null;
+    const last = rows[rows.length - 1];
+    const top = head.getBoundingClientRect().top;
+    const bottom = last.getBoundingClientRect().bottom;
+    const pos = e.clientY < (top + bottom) / 2 ? 'before' : 'after';
+    return { path: anc, pos, mark: pos === 'before' ? head : last, depth: head.style.getPropertyValue('--depth') };
+  }
+
   const canvasEl = $('#canvas');
   canvasEl.addEventListener('dragover', (e) => {
     const d = T.drag;
     if (!d) return;
     const row = e.target.closest('.row');
     const menuCard = e.target.closest('.menu-card');
-    if (d.origin === 'pos' && (d.kind === 'menu' || menuCard)) {
+    if ((d.origin === 'pos' && d.kind === 'menu') || (menuCard && menuCardDrop(d))) {
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-      if (T.markedRow && T.markedRow !== menuCard) delete T.markedRow.dataset.drop;
+      e.dataTransfer.dropEffect = d.origin === 'pos' ? 'copy' : 'move';
+      if (T.markedRow && T.markedRow !== menuCard) unmark(T.markedRow);
       T.markedRow = menuCard;
       if (menuCard) menuCard.dataset.drop = 'inside';
       canvasEl.classList.toggle('drop-end', !menuCard);
@@ -566,21 +597,34 @@
       return;
     }
     if (row) {
-      const pos = dropPositionFor(row, e, d);
-      if (T.markedRow && T.markedRow !== row) delete T.markedRow.dataset.drop;
+      let pos = dropPositionFor(row, e, d);
+      let path = row.dataset.path;
+      let mark = row;
+      let depth = null;
+      if (!pos && row.dataset.kind !== d.kind) {
+        const snap = snapTarget(row, e, d);
+        if (snap) ({ pos, path, mark, depth } = snap);
+      }
+      if (T.markedRow && T.markedRow !== mark) unmark(T.markedRow);
       canvasEl.classList.remove('drop-end');
-      T.markedRow = row;
+      T.markedRow = mark;
       if (!pos) {
-        delete row.dataset.drop;
+        unmark(row);
         T.dropTarget = null;
         setHint(baseHint(d));
         return;
       }
+      if (depth !== null) mark.style.setProperty('--drop-depth', depth);
+      else mark.style.removeProperty('--drop-depth');
       const link = d.origin === 'canvas' && e.altKey;
-      const target = { path: row.dataset.path, pos, link };
+      const target = { path, pos, link };
       const { parentPath } = resolveDrop(d, target);
       const err = d.multi ? (link ? 'Drag one row at a time to add it to another place' : multiDropError(parentPath, d.multi)) : link ? linkError(d, parentPath) : dropError(parentPath, d);
       if (err) {
+        if (mark !== row) {
+          unmark(mark);
+          T.markedRow = row;
+        }
         row.dataset.drop = 'invalid';
         T.dropTarget = null;
         setHint(err, 'error');
@@ -588,14 +632,14 @@
       }
       e.preventDefault();
       e.dataTransfer.dropEffect = d.origin === 'pos' || link ? 'copy' : 'move';
-      row.dataset.drop = pos;
+      mark.dataset.drop = pos;
       T.dropTarget = target;
       const pi = parsePath(parentPath);
       setHint(link ? `Drop to also add it to ${nameOf(pi.kind, entity(pi.kind, pi.id))}` : baseHint(d));
       return;
     }
     if (T.markedRow) {
-      delete T.markedRow.dataset.drop;
+      unmark(T.markedRow);
       T.markedRow = null;
     }
     const overEmpty = e.target.closest('#canvas-scroll');
@@ -605,7 +649,7 @@
       e.dataTransfer.dropEffect = d.origin === 'pos' ? 'copy' : 'move';
       canvasEl.classList.add('drop-end');
       T.dropTarget = { auto: true };
-      setHint(d.origin === 'canvas' ? baseHint(d) : autoPlaceHint(d));
+      setHint(autoPlaceHint(d));
     } else {
       canvasEl.classList.remove('drop-end');
       T.dropTarget = null;
