@@ -53,6 +53,11 @@
     return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
   }
 
+  const searchTerm = (s) => {
+    const q = String(s || '').trim().toLowerCase();
+    return q.length >= 2 ? q : '';
+  };
+
   function markMatch(text, q) {
     const s = String(text == null ? '' : text);
     const i = q ? s.toLowerCase().indexOf(q) : -1;

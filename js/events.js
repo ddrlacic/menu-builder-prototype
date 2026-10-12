@@ -1,7 +1,7 @@
 'use strict';
 
   function togglePosRow(row) {
-    const state = S.ui.posQuery.trim() ? T.posSearchExpanded : S.ui.posExpanded;
+    const state = searchTerm(S.ui.posQuery) ? T.posSearchExpanded : S.ui.posExpanded;
     state[row.dataset.key] = row.getAttribute('aria-expanded') !== 'true';
     renderPos();
     if (state === S.ui.posExpanded) schedulePersist();

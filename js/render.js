@@ -221,7 +221,7 @@
       return;
     }
 
-    const q = S.ui.posQuery.trim().toLowerCase();
+    const q = searchTerm(S.ui.posQuery);
     const matches = (id) => {
       const it = pos.items[id];
       return it.name.toLowerCase().includes(q) || id.toLowerCase().includes(q) || posLabel(id).toLowerCase().includes(q);
@@ -279,7 +279,7 @@
       : `<div class="empty-small"><strong>No matching POS items</strong><span>Try a different name or POS ID.</span></div>`;
   }
 
-  const canvasTerm = () => S.ui.canvasQuery.trim().toLowerCase();
+  const canvasTerm = () => searchTerm(S.ui.canvasQuery);
 
   function rowSearchTexts(kind, id, ent, path) {
     const parent = parsePath(parsePath(path).parentPath);
