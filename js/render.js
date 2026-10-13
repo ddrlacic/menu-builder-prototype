@@ -463,10 +463,11 @@
     const name = ownerGroup ? optionName(ownerGroup, id) : nameOf(kind, ent);
     const q = T.canvasSearch ? canvasTerm() : '';
 
+    const internal = ent.internalName && (!S.ui.hideInternalNames || (q && ent.internalName.toLowerCase().includes(q))) ? ent.internalName : '';
     let meta = '';
     if (kind === 'category') {
       const hiddenKids = ent.children.filter((pid) => placement(childPath(path, 'product', pid)).hidden).length;
-      meta = (ent.internalName ? `${markMatch(ent.internalName, q)} · ` : '') + esc(plural(ent.children.length, 'product', 'products') + (hiddenKids ? ` · ${hiddenKids} hidden` : ''));
+      meta = (internal ? `${markMatch(internal, q)} · ` : '') + esc(plural(ent.children.length, 'product', 'products') + (hiddenKids ? ` · ${hiddenKids} hidden` : ''));
     } else if (kind === 'product') {
       const halves = r.half ? null : wholeHalves(path);
       if (r.half) {
@@ -478,7 +479,7 @@
       else if (ent.children.length) meta = esc(plural(ent.children.length, 'group', 'groups'));
       else if (halves)
         meta = `<span class="half-meta">${icon('halves', 11)}${esc(halves.left && halves.right ? 'Left and right halves' : `${SIDE_LABEL[halves.left ? 'left' : 'right']} only`)}</span>`;
-      if (!r.half && ent.internalName) meta = `${markMatch(ent.internalName, q)}${meta ? ' · ' : ''}${meta}`;
+      if (!r.half && internal) meta = `${markMatch(internal, q)}${meta ? ' · ' : ''}${meta}`;
     } else if (kind === 'group') {
       const rules = rulesOf(ent);
       const host = parsePath(info.parentPath);

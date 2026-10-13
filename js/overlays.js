@@ -719,34 +719,21 @@
         { label: 'Optimize', icon: 'sparkles', hint: opt.hint, onClick: openOptimize },
         { label: 'Upload images', icon: 'upload', disabled: !ctx.counts.product, hint: ctx.counts.product ? '' : 'Add products first', onClick: openBulkImages },
         '-',
-        {
-          label: 'Show images',
-          icon: 'image',
-          hint: 'In the menu tree',
-          checked: !S.ui.hideImages,
-          onClick: () => {
-            S.ui.hideImages = !S.ui.hideImages;
-            render();
-          },
-        },
+        { label: 'Show POS IDs', icon: 'link', hint: 'In the menu tree and the POS items list', checked: !!S.ui.showPosIds, onClick: () => toggleView('showPosIds') },
+        { label: 'Show internal names', icon: 'tag', hint: 'In the menu tree', checked: !S.ui.hideInternalNames, onClick: () => toggleView('hideInternalNames') },
+        { label: 'Show images', icon: 'image', hint: 'In the menu tree', checked: !S.ui.hideImages, onClick: () => toggleView('hideImages') },
       ],
       { align: 'end', label: 'More actions' },
     );
   }
 
+  function toggleView(key) {
+    S.ui[key] = !S.ui[key];
+    render();
+  }
+
   function appMenu(anchor) {
     openPopover(anchor, [
-      {
-        label: 'Show POS IDs',
-        icon: 'link',
-        hint: 'In the menu tree and the POS items list',
-        checked: !!S.ui.showPosIds,
-        onClick: () => {
-          S.ui.showPosIds = !S.ui.showPosIds;
-          render();
-        },
-      },
-      '-',
       { label: 'Discard items not imported', icon: 'x', disabled: !ctx.pending.length || T.importing, onClick: discardStaged },
       { label: 'Export menu as JSON', icon: 'download', onClick: exportMenu },
       '-',

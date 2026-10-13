@@ -1024,6 +1024,7 @@
       posCollapsed: false,
       hideHidden: false,
       hideImages: false,
+      hideInternalNames: false,
     };
   }
 
@@ -1197,13 +1198,13 @@
   function persistNow() {
     clearTimeout(persistTimer);
     try {
-      const { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed, showPosIds, posCollapsed, hideHidden, hideImages } = S.ui;
+      const { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed, showPosIds, posCollapsed, hideHidden, hideImages, hideInternalNames } = S.ui;
       localStorage.setItem(
         storageKey(),
         JSON.stringify({
           version: 2,
           data: S.data,
-          ui: { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed, showPosIds, posCollapsed, hideHidden, hideImages },
+          ui: { activeMenuId, selected, expanded, posExpanded, tabs, storeGroupId, posMenuId, sizeHintDismissed, showPosIds, posCollapsed, hideHidden, hideImages, hideInternalNames },
         }),
       );
     } catch (_) {
