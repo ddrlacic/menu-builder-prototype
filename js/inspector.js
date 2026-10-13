@@ -431,6 +431,17 @@
       );
     }
 
+    const choiceBlock = kind === 'product' ? choiceFromBlock(paths) : null;
+    if (choiceBlock !== null) {
+      const cat = sharedParent(paths);
+      html += section(
+        'Choice product',
+        `<div class="hint-actions"><button type="button" class="btn secondary sm" data-action="bulk-choice" ${choiceBlock ? 'disabled' : ''}>${icon('package', 14)}Create choice product</button></div>
+        ${choiceBlock ? `<p class="field-help">${esc(choiceBlock)}</p>` : ''}`,
+        { desc: `Customers pick one of them, like a size. They stay in ${cat || 'their category'}, hidden there, so they keep their POS prices.` },
+      );
+    }
+
     if (kind !== 'group' && liveEnts.length) {
       const withImage = liveEnts.filter((e) => e.image).length;
       html += section(

@@ -401,6 +401,11 @@
     return { dismiss };
   }
 
+  function copyText(value, label) {
+    const done = () => toast(`${label} copied`);
+    if (navigator.clipboard) navigator.clipboard.writeText(value).then(done, () => toast(`Couldn’t copy the ${label}. Select it and copy it manually.`, 'error'));
+  }
+
   function openIssues(anchor) {
     if (!anchor) return;
     const list = ctx.issues.list;
@@ -518,10 +523,18 @@
         ...existingMenuItems(path, built),
       ]);
     }
+    const targets = T.sel.length > 1 && T.sel.includes(path) ? T.sel.slice() : [path];
+    const many = targets.length > 1;
     const items = [];
+    const choiceBlock = choiceFromBlock(targets);
+    if (choiceBlock !== null)
+      items.push({ label: 'Create choice product', icon: 'package', disabled: !!choiceBlock, hint: choiceBlock, onClick: () => createChoiceFromSelection(targets) });
+    if (!many && canCustomizeProduct(path)) items.push(built({ label: 'Create custom product', icon: 'link', onClick: () => createCustomProductFrom(path) }));
+    if (!many && canCustomizeGroup(path)) items.push(built({ label: 'Create custom group', icon: 'link', onClick: () => createCustomGroupFrom(path) }));
+    if (!many && canUngroup(path)) items.push({ label: 'Ungroup', icon: 'layers', onClick: () => ungroupChoiceProduct(path) });
+    if (items.length) items.push('-');
     if (['category', 'product', 'group'].includes(info.kind)) {
-      const targets = T.sel.length > 1 && T.sel.includes(path) ? T.sel.slice() : [path];
-      items.push({ label: targets.length > 1 ? `Optimize ${plural(targets.length, info.kind, OPT_PLURAL[info.kind])}` : 'Optimize', icon: 'sparkles', onClick: () => openOptimize(targets) });
+      items.push({ label: many ? `Optimize ${plural(targets.length, info.kind, OPT_PLURAL[info.kind])}` : 'Optimize', icon: 'sparkles', onClick: () => openOptimize(targets) });
     }
     if (info.kind === 'category' && detectSizeSets(ent).length) items.push({ label: 'Group sizes', icon: 'sparkles', onClick: () => groupSizes(path) });
     if (info.kind === 'category') items.push(built({ label: 'Upload images', icon: 'upload', onClick: () => openBulkImages(path) }));
@@ -532,13 +545,13 @@
     }
     const role = info.kind === 'product' ? halfRole(path) : null;
     if (['product', 'group'].includes(info.kind) && !(role && role.wholePath)) {
-      const targets = T.sel.length > 1 && T.sel.includes(path) ? T.sel.slice() : [path];
-      const noun = targets.length > 1 ? ` ${plural(placeDescs(targets, 'move').length, ...BULK_NOUN[info.kind])}` : '';
+      const noun = many ? ` ${plural(placeDescs(targets, 'move').length, ...BULK_NOUN[info.kind])}` : '';
       const place = (mode, label, iconName) => {
         const fits = placeTargets(placeDescs(targets, mode), mode).length > 0;
         return { label, icon: iconName, disabled: !fits, hint: fits ? '' : 'No other place in this menu fits', onClick: () => openPlacePicker(targets, mode) };
       };
       if (items.length) items.push('-');
+      if (!staged) items.push(...hideShowItems(targets));
       if (!targets.some((p) => inheritedAt(p).length)) items.push(place('move', `Move${noun} to another place`, 'moveTo'));
       items.push(place('add', `Add${noun} to another place`, 'copy'));
     }
@@ -552,9 +565,65 @@
           render();
         },
       });
+    const posId = !many && posIdOf(info.kind, ent);
+    if (posId) items.push({ label: 'Copy POS ID', icon: 'copy', hint: posId, onClick: () => copyText(posId, 'POS ID') });
     if (items.length) items.push('-');
-    items.push({ label: `Remove from ${parentName}`, icon: 'trash', tone: 'danger', kbd: '⌫', onClick: () => confirmRemove(path) });
+    if (many) {
+      const removable = removableRows(targets);
+      const where = sharedParent(removable.length ? removable : targets);
+      items.push({
+        label: info.kind === 'category' ? 'Remove from menu' : where ? `Remove from ${where}` : `Remove ${BULK_NOUN[info.kind][1]}`,
+        icon: 'trash',
+        tone: 'danger',
+        kbd: '⌫',
+        disabled: !removable.length,
+        onClick: bulkRemove,
+      });
+    } else items.push({ label: `Remove from ${parentName}`, icon: 'trash', tone: 'danger', kbd: '⌫', onClick: () => confirmRemove(path) });
+    items.push(...deleteItems(path, targets));
     openPopover(anchor, items, opts);
+  }
+
+  function hideShowItems(targets) {
+    const rows = targets.filter((p) => !pendingRoot(p));
+    if (!rows.length) return [];
+    const where = sharedParent(rows);
+    const scope = where ? `in ${where}` : 'in each place';
+    if (rows.length > 1) {
+      const [one, many] = BULK_NOUN[parsePath(rows[0]).kind];
+      const hideN = rows.filter((p) => !groupHiddenAt(p) && canHideHere(p)).length;
+      const showN = rows.filter((p) => groupHiddenAt(p) && canShowHere(p)).length;
+      return [
+        hideN && { label: `Hide ${plural(hideN, one, many)} ${scope}`, icon: 'eyeOff', onClick: () => bulkSetHidden(true, rows) },
+        showN && { label: `Show ${plural(showN, one, many)} ${scope}`, icon: 'eye', onClick: () => bulkSetHidden(false, rows) },
+      ].filter(Boolean);
+    }
+    const [path] = rows;
+    const info = parsePath(path);
+    const hidden = groupHiddenAt(path);
+    let why = '';
+    if (hidden && !canShowHere(path)) why = 'Hidden only in one product. Change it on the Options tab of its group';
+    else if (!hidden && info.kind === 'group') {
+      const g = entity('group', info.id);
+      if (!g.children.length) why = 'It has no options to hide';
+      else if (rulesOf(g).min > 0) why = 'Required groups can’t be hidden. Set the minimum to 0 first';
+    }
+    return [{ label: `${hidden ? 'Show' : 'Hide'} ${scope}`, icon: hidden ? 'eye' : 'eyeOff', disabled: !!why, hint: why, onClick: () => bulkSetHidden(!hidden, [path]) }];
+  }
+
+  function deleteItems(path, targets) {
+    const info = parsePath(path);
+    if (targets.length > 1) {
+      const { ok, noun } = bulkDeleteState();
+      const tooMany = ok.length > DELETE_MAX;
+      if (!ok.length) return [];
+      return [{ label: `Delete ${noun(ok.length)}`, icon: 'trash', tone: 'danger', disabled: tooMany, hint: tooMany ? `Delete up to ${DELETE_MAX} at a time` : '', onClick: bulkDelete }];
+    }
+    const ent = entity(info.kind, info.id);
+    if (!ent || ent.pending || pendingRoot(path)) return [];
+    const block = deleteBlockOf(info.kind, ent);
+    const run = () => (info.kind === 'product' ? confirmDeleteProduct(ent) : info.kind === 'group' ? confirmDeleteGroup(ent, path) : confirmDeleteCategory(ent));
+    return [{ label: `Delete ${KIND_LABEL[info.kind].toLowerCase()}`, icon: 'trash', tone: 'danger', disabled: !!block, hint: block, onClick: run }];
   }
 
   function bulkStockMenu(anchor) {

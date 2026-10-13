@@ -150,6 +150,9 @@
       case 'bulk-image':
         uploadRowImage(T.sel.slice());
         break;
+      case 'bulk-choice':
+        createChoiceFromSelection(selectionInfo().paths);
+        break;
       case 'row-image':
         e.stopPropagation();
         uploadRowImage(T.sel.length > 1 && T.sel.includes(path) ? T.sel.slice() : [path]);
@@ -814,56 +817,15 @@
         confirmRemoveCategory(cat, m);
         break;
       }
-      case 'cat-delete': {
-        const cat = entity('category', el.dataset.id);
-        const ms = menusWithCategory(cat.id);
-        if (categoryDeleteBlock(cat)) break;
-        const remove = () => {
-          closeModal();
-          const done = commit(() => {
-            deleteCategoryNow(cat);
-            S.ui.selected = activeMenu().id;
-          });
-          if (done) deletedToast('Category deleted');
-        };
-        if (!ms.length) {
-          openModal({
-            title: `Delete ${nameOf('category', cat)}?`,
-            body: '<p>This will permanently delete the category</p>',
-            actions: [
-              { label: 'Cancel', kind: 'secondary', onClick: closeModal },
-              { label: 'Delete', kind: 'danger', onClick: remove },
-            ],
-          });
-          break;
-        }
-        openModal({
-          title: `Delete ${nameOf('category', cat)}?`,
-          size: 'lg',
-          body: `<ul class="delete-warning-list">
-              <li>${icon('alertCircle', 18)}<span>This category will be removed from all stores, online ordering channels, external channels, and associated order types</span></li>
-              <li>${icon('alertCircle', 18)}<span>This category will be removed from all menus</span></li>
-              <li>${icon('alertCircle', 18)}<span>Products within this category will not be deleted</span></li>
-            </ul>
-            <button type="button" class="check-toggle delete-confirm-check" role="checkbox" aria-checked="false" data-action="delete-confirm-toggle">
-              <span class="check" aria-hidden="true"></span>Yes, I understand
-            </button>`,
-          actions: [
-            { label: 'Cancel', kind: 'secondary', onClick: closeModal },
-            { label: 'Delete forever', kind: 'danger', disabled: true, onClick: remove },
-          ],
-        });
+      case 'cat-delete':
+        confirmDeleteCategory(entity('category', el.dataset.id));
         break;
-      }
       case 'prod-delete':
         confirmDeleteProduct(entity('product', el.dataset.id));
         break;
-      case 'copy-text': {
-        const { value, label } = el.dataset;
-        const done = () => toast(`${label} copied`);
-        if (navigator.clipboard) navigator.clipboard.writeText(value).then(done, () => toast(`Couldn’t copy the ${label}. Select it and copy it manually.`, 'error'));
+      case 'copy-text':
+        copyText(el.dataset.value, el.dataset.label);
         break;
-      }
       case 'image-remove':
         commit(() => setBind(el.dataset.bind, null));
         break;

@@ -509,6 +509,166 @@
     toast('Choice product created. Add the products customers choose between', 'success');
   }
 
+  function placeAfter(parent, id, afterId) {
+    const list = parent.children.filter((c) => c !== id);
+    list.splice(list.indexOf(afterId) + 1, 0, id);
+    parent.children.splice(0, parent.children.length, ...list);
+  }
+
+  const categoryPathsOf = (cat) => S.data.menus.filter((m) => m.children.includes(cat.id)).map((m) => childPath(m.id, 'category', cat.id));
+
+  function sharedName(names) {
+    const words = names.map((n) => n.trim().split(/\s+/));
+    const same = (i, at) => words.every((w) => at(w, i) !== undefined && at(w, i).toLowerCase() === at(words[0], i).toLowerCase());
+    const head = (w, i) => w[i];
+    const tail = (w, i) => (i < w.length ? w[w.length - 1 - i] : undefined);
+    let pre = 0;
+    while (same(pre, head)) pre++;
+    let suf = 0;
+    if (pre < words[0].length) while (same(suf, tail)) suf++;
+    const picked = pre >= suf ? words[0].slice(0, pre) : words[0].slice(words[0].length - suf);
+    const name = picked.join(' ').replace(/^[\s,(-]+|[\s,(-]+$/g, '');
+    return name.length >= 3 ? name : '';
+  }
+
+  function choiceFromBlock(paths) {
+    const infos = paths.map(parsePath);
+    if (!infos.every((i) => i.kind === 'product' && i.parentPath && parsePath(i.parentPath).kind === 'category')) return null;
+    if (paths.length < 2) return ['pos', 'linked'].includes((entity('product', infos[0].id) || {}).ptype) ? 'Select two or more products in this category first' : null;
+    if (new Set(infos.map((i) => i.parentPath)).size > 1) return 'Select products from one category';
+    const cat = entity('category', parsePath(infos[0].parentPath).id);
+    const ents = infos.map((i) => entity('product', i.id));
+    if (ents.some((p) => p.ptype === 'size')) return 'A choice product can’t be a choice in another one';
+    for (const p of ents) {
+      const holder = choiceProductsHolding(cat, p.id)[0];
+      if (holder) return `${nameOf('product', p)} is already in ${nameOf('product', holder)}`;
+    }
+    return '';
+  }
+
+  function createChoiceFromSelection(paths) {
+    if (choiceFromBlock(paths) !== '') return;
+    const catPath = parsePath(paths[0]).parentPath;
+    const cat = entity('category', parsePath(catPath).id);
+    const picked = new Set(paths.map((p) => parsePath(p).id));
+    const inOrder = cat.children.filter((pid) => picked.has(pid));
+    const set = detectSizeSets({ children: inOrder }).find((s) => s.items.length === inOrder.length);
+    const pids = set ? set.items.map((x) => x.pid) : inOrder;
+    const name = (set && containerName(set)) || sharedName(pids.map((pid) => nameOf('product', entity('product', pid)))) || 'New choice product';
+    const staged = !!pendingRoot(catPath) || pids.some((pid) => isPendingLink(childPath(catPath, 'product', pid)));
+    const catName = nameOf('category', cat);
+    const ok = commit(() => {
+      const container = newProduct({ ptype: 'size', name, children: pids });
+      if (staged) Object.assign(container, { pending: true, hideOnImport: pids.map((pid) => childPath(catPath, 'product', pid)) });
+      S.data.entities.product[container.id] = container;
+      cat.children.splice(cat.children.indexOf(inOrder[0]), 0, container.id);
+      if (!staged)
+        categoryPathsOf(cat).forEach((cp) =>
+          pids.forEach((pid) => {
+            const sp = childPath(cp, 'product', pid);
+            S.data.placements[sp] = { ...placement(sp), hidden: true };
+          }),
+        );
+      const np = childPath(catPath, 'product', container.id);
+      openRow(catPath);
+      openRow(np);
+      flash(np);
+      T.sel = [];
+      T.selAnchor = np;
+      S.ui.selected = np;
+      S.ui.tabs.product = 'general';
+      T.focusName = true;
+    });
+    if (!ok) return;
+    const n = plural(pids.length, 'product', 'products');
+    toast(
+      staged
+        ? `Choice product created. The ${n} are hidden in ${catName} when you import`
+        : `Choice product created. The ${n} stay in ${catName}, hidden there, so they keep their POS prices`,
+      'success',
+      { action: { label: 'Undo', onClick: undo } },
+    );
+  }
+
+  const canUngroup = (path) => {
+    const info = parsePath(path);
+    return info.kind === 'product' && !!info.parentPath && parsePath(info.parentPath).kind === 'category' && (entity('product', info.id) || {}).ptype === 'size';
+  };
+
+  function ungroupChoiceProduct(path) {
+    if (!canUngroup(path)) return;
+    const info = parsePath(path);
+    const cp = entity('product', info.id);
+    const cat = entity('category', parsePath(info.parentPath).id);
+    const name = nameOf('product', cp);
+    const catName = nameOf('category', cat);
+    const back = cp.children.filter((pid) => cat.children.includes(pid) && !choiceProductsHolding(cat, pid).some((x) => x.id !== cp.id));
+    let deleted = false;
+    const ok = commit(() => {
+      categoryPathsOf(cat).forEach((catPath) =>
+        back.forEach((pid) => {
+          const sp = childPath(catPath, 'product', pid);
+          const pl = { ...placement(sp) };
+          delete pl.hidden;
+          if (Object.keys(pl).length) S.data.placements[sp] = pl;
+          else delete S.data.placements[sp];
+        }),
+      );
+      unlinkPath(path);
+      if (!productParents(cp).length) {
+        deleteProductNow(cp);
+        deleted = true;
+      }
+      const paths = back.map((pid) => childPath(info.parentPath, 'product', pid));
+      paths.forEach(flash);
+      T.sel = paths.length > 1 ? paths : [];
+      S.ui.selected = paths[0] || info.parentPath;
+      T.selAnchor = S.ui.selected;
+      T.focusRow = S.ui.selected;
+    });
+    if (!ok) return;
+    const shown = plural(back.length, 'product is', 'products are');
+    if (deleted) deletedToast(`${name} ungrouped. ${shown} shown in ${catName} again`);
+    else toast(`${name} removed from ${catName}. ${shown} shown there again`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  const canCustomizeProduct = (path) => {
+    const info = parsePath(path);
+    const p = info.kind === 'product' && entity('product', info.id);
+    if (!p || p.ptype !== 'pos' || !posItemById(p.externalId) || !info.parentPath) return false;
+    const pi = parsePath(info.parentPath);
+    return pi.kind === 'category' || (pi.kind === 'group' && (entity('group', pi.id) || {}).gtype === 'standalone');
+  };
+
+  function createCustomProductFrom(path) {
+    if (!canCustomizeProduct(path)) return;
+    const info = parsePath(path);
+    const p = entity('product', info.id);
+    const pi = parsePath(info.parentPath);
+    const ok = commit(() => {
+      const custom = newProduct({ ptype: 'linked', posParentExt: p.externalId, name: `${nameOf('product', p)} (copy)`, description: p.description || '', ...dietaryOf(p) });
+      insertNew(info.parentPath, 'product', custom);
+      placeAfter(entity(pi.kind, pi.id), custom.id, p.id);
+    });
+    if (ok) toast('Custom product created. Add its groups next', 'success');
+  }
+
+  const canCustomizeGroup = (path) => {
+    const info = parsePath(path);
+    const g = info.kind === 'group' && entity('group', info.id);
+    if (!g || g.gtype !== 'pos' || !posItemById(g.externalId)) return false;
+    return parsePath(info.parentPath).kind === 'product' && allowedPosGroupsFor(info.parentPath).includes(g.externalId);
+  };
+
+  function createCustomGroupFrom(path) {
+    if (!canCustomizeGroup(path)) return;
+    const info = parsePath(path);
+    const g = entity('group', info.id);
+    const productName = nameOf('product', entity('product', parsePath(info.parentPath).id));
+    if (createVirtualGroup(info.parentPath, 'linked', g.externalId, g.id))
+      toast(`Custom group created. If it replaces ${nameOf('group', g)} on POS, remove that one from ${productName}`, 'success');
+  }
+
   function posProductChoices() {
     const out = [];
     const seen = new Set();
@@ -1031,6 +1191,45 @@
     delete S.data.entities.category[cat.id];
   }
 
+  function confirmDeleteCategory(cat) {
+    if (categoryDeleteBlock(cat)) return;
+    const remove = () => {
+      closeModal();
+      const done = commit(() => {
+        deleteCategoryNow(cat);
+        S.ui.selected = activeMenu().id;
+      });
+      if (done) deletedToast('Category deleted');
+    };
+    if (!menusWithCategory(cat.id).length) {
+      openModal({
+        title: `Delete ${nameOf('category', cat)}?`,
+        body: '<p>This will permanently delete the category</p>',
+        actions: [
+          { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+          { label: 'Delete', kind: 'danger', onClick: remove },
+        ],
+      });
+      return;
+    }
+    openModal({
+      title: `Delete ${nameOf('category', cat)}?`,
+      size: 'lg',
+      body: `<ul class="delete-warning-list">
+          <li>${icon('alertCircle', 18)}<span>This category will be removed from all stores, online ordering channels, external channels, and associated order types</span></li>
+          <li>${icon('alertCircle', 18)}<span>This category will be removed from all menus</span></li>
+          <li>${icon('alertCircle', 18)}<span>Products within this category will not be deleted</span></li>
+        </ul>
+        <button type="button" class="check-toggle delete-confirm-check" role="checkbox" aria-checked="false" data-action="delete-confirm-toggle">
+          <span class="check" aria-hidden="true"></span>Yes, I understand
+        </button>`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
+        { label: 'Delete forever', kind: 'danger', disabled: true, onClick: remove },
+      ],
+    });
+  }
+
   function confirmDeleteProduct(p) {
     if (productDeleteBlock(p)) return;
     const name = nameOf('product', p);
@@ -1073,8 +1272,8 @@
     });
   }
 
-  function createVirtualGroup(productPath, mode, posGroupId) {
-    commit(() => {
+  function createVirtualGroup(productPath, mode, posGroupId, afterId = null) {
+    return commit(() => {
       let g;
       if (mode === 'linked') {
         const it = posItemById(posGroupId);
@@ -1092,6 +1291,7 @@
         g = newGroup({ gtype: 'standalone', name: 'Add to your order', min: 0, max: null });
       }
       insertNew(productPath, 'group', g, { tab: mode === 'linked' ? 'options' : 'general' });
+      if (afterId) placeAfter(entity('product', parsePath(productPath).id), g.id, afterId);
     });
   }
 
@@ -1358,8 +1558,8 @@
   }
   const canShowHere = (path) => parsePath(path).kind !== 'category' && !hiddenInProduct(path);
 
-  function bulkSetHidden(hide) {
-    const { paths, noun } = selectionInfo();
+  function bulkSetHidden(hide, rows = null) {
+    const { paths, noun } = rows ? { paths: rows, noun: (n) => plural(n, ...BULK_NOUN[parsePath(rows[0]).kind]) } : selectionInfo();
     const list = paths.filter((p) => !pendingRoot(p) && groupHiddenAt(p) !== hide && (hide ? canHideHere(p) : canShowHere(p)));
     if (!list.length) return;
     const where = sharedParent(list);
