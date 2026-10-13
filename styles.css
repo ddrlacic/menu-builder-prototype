@@ -936,7 +936,7 @@ button.status-pill:focus-visible {
 .canvas-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   padding: 14px 20px 12px;
   flex-wrap: wrap;
 }
@@ -1012,7 +1012,7 @@ body[data-menu-drop] .menu-card-drop {
 }
 
 .canvas-tools {
-  flex: 1 1 auto;
+  flex: 1 0 100%;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
