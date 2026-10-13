@@ -493,7 +493,7 @@
       const extra =
         (ent.gtype === 'linked' ? ` · Based on ${posLabel(ent.posGroupExt)}` : ent.gtype === 'standalone' ? ' · Each one added as its own item' : '') +
         (withHalves ? ` · ${withHalves} with halves` : '');
-      meta = `<span class="type-tag type-${rules.type}">${C.groupTypes[rules.type].label}</span>${esc(ent.isSubstitutionContainer ? 'Substitutes only · Hidden in Web App' : groupRuleShort(rules) + extra)}`;
+      meta = `${internal ? `${markMatch(internal, q)} · ` : ''}<span class="type-tag type-${rules.type}">${C.groupTypes[rules.type].label}</span>${esc(ent.isSubstitutionContainer ? 'Substitutes only · Hidden in Web App' : groupRuleShort(rules) + extra)}`;
     }
     const rowPosId = posIdOf(kind, ent) || '';
     const posId = S.ui.showPosIds || (q && rowPosId.toLowerCase().includes(q)) ? rowPosId : '';
