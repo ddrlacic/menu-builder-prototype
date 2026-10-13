@@ -580,13 +580,24 @@
     if (halfCache.has(key)) return halfCache.get(key);
     const seen = new Set();
     const candidates = [];
-    for (const x of siblingPosGroups(g)) {
+    const siblings = siblingPosGroups(g);
+    const claimed = new Set();
+    for (const x of siblings) {
+      if (x.id === g.id) continue;
+      Object.values(x.halves || {}).forEach((h) => [h.left, h.right].forEach((pid) => pid && claimed.add(pid)));
+      const wholes = new Set(x.children.filter(isHalfOption).map((pid) => normName(nameOf('product', entity('product', pid)))).filter((n) => !parseHalfName(n)).map(stemKey));
+      x.children.forEach((pid) => {
+        const parsed = isHalfOption(pid) && parseHalfName(nameOf('product', entity('product', pid)));
+        if (parsed && wholes.has(stemKey(parsed.base))) claimed.add(pid);
+      });
+    }
+    for (const x of siblings) {
       const own = x.id === g.id;
       const groupSide = own ? null : parseHalfName(nameOf('group', x), { minWord: 2 });
       const names = x.children.filter(isHalfOption).map((pid) => normName(nameOf('product', entity('product', pid))));
       const hostsWhole = own ? null : new Set(names.filter((n) => !parseHalfName(n)).map(stemKey));
       x.children.forEach((pid) => {
-        if (seen.has(pid) || !isHalfOption(pid)) return;
+        if (seen.has(pid) || !isHalfOption(pid) || (!own && claimed.has(pid))) return;
         const name = nameOf('product', entity('product', pid));
         const parsed = parseHalfName(name) || (groupSide ? { side: groupSide.side, base: normName(name) } : null);
         if (!parsed || (hostsWhole && hostsWhole.has(stemKey(parsed.base)))) return;
