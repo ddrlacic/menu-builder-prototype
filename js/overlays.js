@@ -708,6 +708,32 @@
     );
   }
 
+  function canvasMoreMenu(anchor) {
+    const menu = activeMenu();
+    const changes = ctx.compare.count;
+    const opt = optimizeState(menu);
+    openPopover(
+      anchor,
+      [
+        { label: 'Compare to POS', icon: 'diff', hint: changes ? `${plural(changes, 'change', 'changes')} to review` : '', onClick: openCompare },
+        { label: 'Optimize', icon: 'sparkles', hint: opt.hint, onClick: openOptimize },
+        { label: 'Upload images', icon: 'upload', disabled: !ctx.counts.product, hint: ctx.counts.product ? '' : 'Add products first', onClick: openBulkImages },
+        '-',
+        {
+          label: 'Show images',
+          icon: 'image',
+          hint: 'In the menu tree',
+          checked: !S.ui.hideImages,
+          onClick: () => {
+            S.ui.hideImages = !S.ui.hideImages;
+            render();
+          },
+        },
+      ],
+      { align: 'end', label: 'More actions' },
+    );
+  }
+
   function appMenu(anchor) {
     openPopover(anchor, [
       {

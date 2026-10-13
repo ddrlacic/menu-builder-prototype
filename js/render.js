@@ -202,12 +202,19 @@
     return `<button class="btn secondary" data-action="import" ${n ? `title="${plural(n, 'item', 'items')} not imported yet"` : 'disabled'}>${icon('download', 15)}Import${n ? `<span class="btn-count tnum">${n}</span>` : ''}</button>`;
   }
 
-  function optimizeButton(menu) {
+  function optimizeState(menu) {
     const run = T.optRun && !T.optRun.sizesOnly && T.optRun.scope.menuId === menu.id ? T.optRun : null;
-    const busy = run && run.running;
+    const busy = !!(run && run.running);
     const n = run && !busy && !T.opt ? run.items.length : 0;
-    const tip = busy ? ' title="Finding suggestions"' : n ? ` title="${plural(n, 'suggestion', 'suggestions')} to review"` : '';
-    return `<button class="btn secondary" data-action="optimize"${tip}>${busy ? '<span class="spinner"></span>' : icon('sparkles', 15)}Optimize${n ? `<span class="btn-count tnum">${n}</span>` : ''}</button>`;
+    return { busy, n, hint: busy ? 'Finding suggestions' : n ? `${plural(n, 'suggestion', 'suggestions')} to review` : '' };
+  }
+
+  function canvasMoreButton(menu, changes) {
+    const opt = optimizeState(menu);
+    const review = [changes ? plural(changes, 'POS change', 'POS changes') : '', opt.n ? plural(opt.n, 'suggestion', 'suggestions') : ''].filter(Boolean);
+    const notes = [review.length ? `${review.join(' and ')} to review` : '', opt.busy ? 'Finding suggestions' : ''].filter(Boolean);
+    const tip = ['More actions', ...notes].join('. ');
+    return `<button class="btn secondary is-square" data-action="canvas-more" aria-haspopup="menu" aria-label="${esc(tip)}" title="${esc(tip)}">${opt.busy ? '<span class="spinner"></span>' : icon('more', 16)}${review.length && !opt.busy ? '<span class="btn-dot" aria-hidden="true"></span>' : ''}</button>`;
   }
 
   function posShowButton() {
@@ -554,9 +561,10 @@
     const imageOk = (kind === 'product' || kind === 'category') && !stagedRoot;
     const inMulti = T.sel.length > 1 && T.sel.includes(path);
     const uploadTitle = inMulti ? `Upload image for ${plural(T.sel.length, ...BULK_NOUN[kind])}` : 'Upload image';
+    const shown = S.ui.hideImages && ent.image ? { ...ent, image: null } : ent;
     const thumbHtml = imageOk
-      ? `<span class="thumb-wrap">${thumb(kind, ent)}<button type="button" class="thumb-upload" data-action="row-image" data-path="${esc(path)}" tabindex="-1" aria-label="${esc(uploadTitle)}" title="${esc(uploadTitle)}">${icon('upload', 14)}</button></span>`
-      : thumb(kind, ent);
+      ? `<span class="thumb-wrap">${thumb(kind, shown)}<button type="button" class="thumb-upload" data-action="row-image" data-path="${esc(path)}" tabindex="-1" aria-label="${esc(uploadTitle)}" title="${esc(uploadTitle)}">${icon('upload', 14)}</button></span>`
+      : thumb(kind, shown);
     return `<div class="row${selected ? ' is-selected' : ''}${hiddenHere ? ' is-muted' : ''}${r.hit ? ' is-hit' : ''}${r.nestedHalf ? ' is-half' : ''}${flashCls}" role="treeitem" aria-level="${depth}" aria-selected="${selected}" ${hasChildren ? `aria-expanded="${r.expanded}"` : ''} tabindex="${S.ui.selected === path ? 0 : -1}" draggable="${r.nestedHalf ? 'false' : 'true'}"${r.nestedHalf ? ` data-half-of="${esc(r.half.wholePath)}"` : ''}${imageOk ? ' data-image-ok' : ''} data-path="${esc(path)}" data-kind="${kind}" data-child-kind="${childKind(kind, ent)}" data-parent-kind="${parentKind}" data-name="${esc(name)}" style="--depth:${depth - 1}">
       <span class="row-indent" aria-hidden="true"></span>
       ${hasChildren ? `<button class="twisty" data-action="toggle" data-path="${esc(path)}" tabindex="-1" aria-label="${r.expanded ? 'Collapse' : 'Expand'}">${icon('chevRight', 14)}</button>` : '<span class="twisty-spacer"></span>'}
@@ -600,10 +608,8 @@
         <button class="icon-btn${S.ui.hideHidden ? ' is-on' : ''}" data-action="toggle-hidden" aria-pressed="${!S.ui.hideHidden}" aria-label="Show hidden items" title="${hiddenTip}">${icon(S.ui.hideHidden ? 'eyeOff' : 'eye', 16)}</button>
         </div>
         <div class="tools-actions">
-        <button class="btn secondary" data-action="compare">${icon('diff', 15)}Compare to POS${changes ? `<span class="btn-count tnum">${changes}</span>` : ''}</button>
-        ${optimizeButton(menu)}
-        <button class="btn secondary" data-action="bulk-images" ${c.product ? '' : 'disabled title="Add products first"'}>${icon('upload', 15)}Upload images</button>
         <button class="btn secondary" data-action="add-category" aria-haspopup="menu">${icon('plus', 15)}Add category</button>
+        ${canvasMoreButton(menu, changes)}
         </div>
       </div>`;
 

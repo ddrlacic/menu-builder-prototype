@@ -211,6 +211,10 @@
         );
         break;
       }
+      case 'canvas-more':
+        if (T.popover && T.popover.anchor === el) closePopover();
+        else canvasMoreMenu(el);
+        break;
       case 'compare':
         openCompare();
         break;

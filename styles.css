@@ -1034,6 +1034,23 @@ body[data-menu-drop] .menu-card-drop {
   gap: 8px;
 }
 
+.btn.is-square {
+  position: relative;
+  width: 34px;
+  padding: 0;
+}
+
+.btn-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--panel);
+}
+
 .canvas-tools .search-field {
   flex: 1;
   min-width: 0;
