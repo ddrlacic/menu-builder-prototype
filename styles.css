@@ -730,12 +730,6 @@ button.status-pill:focus-visible {
   box-shadow: var(--shadow-border);
 }
 
-.pos-alt {
-  margin-left: 6px;
-  color: var(--ink-3);
-  font-size: var(--text-xs);
-}
-
 .pos-search {
   padding: 0 12px 10px;
   border-bottom: 1px solid var(--line);
