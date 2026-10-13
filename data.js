@@ -251,6 +251,7 @@ window.MENU_CONSTANTS = {
   segmentTags: ['Corporate accounts', 'Loyalty members', 'Staff'],
   orderTypeChannels: {
     dine_in: ['mobile', 'web', 'kiosk'],
+    preorder: ['mobile', 'web', 'kiosk'],
     take_out: ['mobile', 'web', 'kiosk'],
     delivery: ['mobile', 'web'],
     curbside: ['mobile', 'web'],
