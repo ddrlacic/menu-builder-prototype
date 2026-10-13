@@ -526,16 +526,12 @@
     const targets = T.sel.length > 1 && T.sel.includes(path) ? T.sel.slice() : [path];
     const many = targets.length > 1;
     const items = [];
-    const choiceBlock = choiceFromBlock(targets);
-    if (choiceBlock !== null)
-      items.push({ label: 'Create choice product', icon: 'package', disabled: !!choiceBlock, hint: choiceBlock, onClick: () => createChoiceFromSelection(targets) });
+    const sep = () => items.length && items[items.length - 1] !== '-' && items.push('-');
+    if (choiceFromBlock(targets) === '') items.push({ label: 'Create choice product', icon: 'package', onClick: () => createChoiceFromSelection(targets) });
     if (!many && canCustomizeProduct(path)) items.push(built({ label: 'Create custom product', icon: 'link', onClick: () => createCustomProductFrom(path) }));
     if (!many && canCustomizeGroup(path)) items.push(built({ label: 'Create custom group', icon: 'link', onClick: () => createCustomGroupFrom(path) }));
     if (!many && canUngroup(path)) items.push({ label: 'Ungroup', icon: 'layers', onClick: () => ungroupChoiceProduct(path) });
-    if (items.length) items.push('-');
-    if (['category', 'product', 'group'].includes(info.kind)) {
-      items.push({ label: many ? `Optimize ${plural(targets.length, info.kind, OPT_PLURAL[info.kind])}` : 'Optimize', icon: 'sparkles', onClick: () => openOptimize(targets) });
-    }
+    sep();
     if (info.kind === 'category' && detectSizeSets(ent).length) items.push({ label: 'Group sizes', icon: 'sparkles', onClick: () => groupSizes(path) });
     if (info.kind === 'category') items.push(built({ label: 'Upload images', icon: 'upload', onClick: () => openBulkImages(path) }));
     if (!staged) {
@@ -550,7 +546,7 @@
         const fits = placeTargets(placeDescs(targets, mode), mode).length > 0;
         return { label, icon: iconName, disabled: !fits, hint: fits ? '' : 'No other place in this menu fits', onClick: () => openPlacePicker(targets, mode) };
       };
-      if (items.length) items.push('-');
+      sep();
       if (!staged) items.push(...hideShowItems(targets));
       if (!targets.some((p) => inheritedAt(p).length)) items.push(place('move', `Move${noun} to another place`, 'moveTo'));
       items.push(place('add', `Add${noun} to another place`, 'copy'));
@@ -567,7 +563,7 @@
       });
     const posId = !many && posIdOf(info.kind, ent);
     if (posId) items.push({ label: 'Copy POS ID', icon: 'copy', hint: posId, onClick: () => copyText(posId, 'POS ID') });
-    if (items.length) items.push('-');
+    sep();
     if (many) {
       const removable = removableRows(targets);
       const where = sharedParent(removable.length ? removable : targets);

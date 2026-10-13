@@ -534,7 +534,7 @@
   function choiceFromBlock(paths) {
     const infos = paths.map(parsePath);
     if (!infos.every((i) => i.kind === 'product' && i.parentPath && parsePath(i.parentPath).kind === 'category')) return null;
-    if (paths.length < 2) return ['pos', 'linked'].includes((entity('product', infos[0].id) || {}).ptype) ? 'Select two or more products in this category first' : null;
+    if (paths.length < 2) return null;
     if (new Set(infos.map((i) => i.parentPath)).size > 1) return 'Select products from one category';
     const cat = entity('category', parsePath(infos[0].parentPath).id);
     const ents = infos.map((i) => entity('product', i.id));
