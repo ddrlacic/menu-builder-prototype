@@ -113,7 +113,7 @@
     $('#canvas-head').innerHTML = posShowButton();
     $('#canvas-tree').innerHTML = `
       <div class="blank">
-        <div class="blank-art">${icon('layers', 22)}</div>
+        <div class="blank-art">${icon('book', 22)}</div>
         <h3>No menus yet</h3>
         <p>Menus hold the categories and products customers order from. Create one, then add categories from POS.</p>
         <div class="blank-actions"><button class="btn primary" data-action="new-menu">${icon('plus', 15)}Create menu</button></div>
@@ -416,7 +416,7 @@
     const v = isVirtual(ent) ? ' is-virtual' : '';
     if (kind === 'category') return `<span class="thumb kind-category${v} ${cls}">${icon('folder', 15)}</span>`;
     if (kind === 'group') return `<span class="thumb kind-group${v} ${cls}">${icon('layers', 15)}</span>`;
-    if (kind === 'menu') return `<span class="thumb kind-menu ${cls}">${icon('layers', 15)}</span>`;
+    if (kind === 'menu') return `<span class="thumb kind-menu ${cls}">${icon('book', 15)}</span>`;
     if (ent.ptype === 'container') return `<span class="thumb kind-virtual is-virtual ${cls}">${icon('dashed', 15)}</span>`;
     if (ent.ptype === 'size') return `<span class="thumb kind-container is-virtual ${cls}">${icon('package', 15)}</span>`;
     return `<span class="thumb thumb-product${ent.ptype === 'linked' ? ' is-linked' : ''} ${cls}">${icon('utensils', 15)}</span>`;
