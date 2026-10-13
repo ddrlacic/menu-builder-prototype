@@ -83,6 +83,10 @@
       ['Expand or collapse', ['→'], ['←']],
       ['Add to the menu', ['Enter']],
     ]],
+    ['Menu tabs', [
+      ['Move left or right', ['⌥', '←'], ['⌥', '→']],
+      ['Duplicate, move, or delete', ['Right-click'], ['⇧', 'F10']],
+    ]],
     ['View', [
       ['Show or hide POS items', ['⌘', 'B']],
       ['Keyboard shortcuts', ['?'], ['⌘', '/']],
@@ -617,6 +621,26 @@
     }
     if (o.req && !o.pre) o.pre = o.codes[0];
     renderReplaceCodes();
+  }
+
+  function menuTabMenu(anchor, id, opts) {
+    const m = menuById(id);
+    if (!m) return;
+    const i = S.data.menus.indexOf(m);
+    const dupBlock = menuDuplicateBlock(m);
+    const delBlock = menuDeleteBlock(m);
+    openPopover(
+      anchor,
+      [
+        { label: 'Duplicate menu', icon: 'copy', disabled: !!dupBlock, hint: dupBlock, onClick: () => duplicateMenu(id) },
+        '-',
+        { label: 'Move left', icon: 'chevLeft', disabled: i === 0, onClick: () => moveMenu(id, i - 1) },
+        { label: 'Move right', icon: 'chevRight', disabled: i === S.data.menus.length - 1, onClick: () => moveMenu(id, i + 1) },
+        '-',
+        { label: 'Delete menu', icon: 'trash', tone: 'danger', disabled: !!delBlock, hint: delBlock, onClick: () => handleAction({ dataset: { action: 'delete-menu', id } }) },
+      ],
+      { align: 'start', label: `${nameOf('menu', m)} actions`, ...opts },
+    );
   }
 
   function appMenu(anchor) {

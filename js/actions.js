@@ -22,6 +22,12 @@
           T.focusName = true;
         });
         break;
+      case 'menu-move':
+        moveMenu(el.dataset.id, S.data.menus.findIndex((m) => m.id === el.dataset.id) + Number(el.dataset.delta));
+        break;
+      case 'duplicate-menu':
+        duplicateMenu(el.dataset.id);
+        break;
       case 'delete-menu': {
         const m = menuById(el.dataset.id);
         if (menuDeleteBlock(m)) break;

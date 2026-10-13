@@ -172,7 +172,7 @@
           .map(
             (m) => {
               const shared = S.data.menus.some((o) => o.id !== m.id && (o.name || '').trim() === (m.name || '').trim());
-              return `<button class="menu-tab" role="tab" aria-selected="${m.id === menu.id}" data-action="switch-menu" data-id="${m.id}"${m.internalName ? ` title="${esc(m.internalName)}"` : ''}>
+              return `<button class="menu-tab" role="tab" aria-selected="${m.id === menu.id}" data-action="switch-menu" data-id="${m.id}" data-focus-key="menu-tab|${m.id}" draggable="${S.data.menus.length > 1}"${m.internalName ? ` title="${esc(m.internalName)}"` : ''}>
               <span class="status-dot tone-${menuStatus(m)[1]}"></span>${esc(m.name || 'Untitled menu')}${shared && m.internalName ? `<span class="muted">${esc(m.internalName)}</span>` : ''}</button>`;
             },
           )

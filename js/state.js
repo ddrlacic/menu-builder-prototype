@@ -58,6 +58,7 @@
     rowImage: null,
     imageOverRow: null,
     hiddenRows: 0,
+    tabDrag: null,
   };
   let ctx = null;
 

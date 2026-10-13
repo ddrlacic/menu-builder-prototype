@@ -84,11 +84,18 @@
   });
 
   document.addEventListener('contextmenu', (e) => {
+    const fromKeyboard = !e.clientX && !e.clientY;
+    const tab = e.target.closest('.menu-tab');
+    if (tab) {
+      e.preventDefault();
+      hideTip();
+      menuTabMenu(tab, tab.dataset.id, fromKeyboard ? undefined : { at: { x: e.clientX, y: e.clientY } });
+      return;
+    }
     const row = e.target.closest('#canvas-tree .row');
     if (!row) return;
     e.preventDefault();
     hideTip();
-    const fromKeyboard = !e.clientX && !e.clientY;
     rowMenu(row.querySelector('[data-action="remove-row"]'), row.dataset.path, 'more', fromKeyboard ? undefined : { at: { x: e.clientX, y: e.clientY }, align: 'start' });
   });
 
@@ -195,6 +202,11 @@
       const to = Number.isFinite(n) ? Math.max(1, Math.min(siblings.length, n)) : siblings.indexOf(info.id) + 1;
       t.value = String(to);
       moveChild(t.dataset.path, to - 1);
+    } else if (t.matches('[data-menu-order]')) {
+      const n = parseInt(t.value, 10);
+      const to = Number.isFinite(n) ? clamp(n, 1, S.data.menus.length) : S.data.menus.findIndex((m) => m.id === t.dataset.id) + 1;
+      t.value = String(to);
+      moveMenu(t.dataset.id, to - 1);
     } else if (t.matches('input[type="file"][data-image]')) {
       readImage(t.files[0], t.dataset.image);
     } else if (t.matches('input[type="file"][data-bi-files]') && T.bi) {
@@ -554,6 +566,44 @@
 
   document.addEventListener('dragend', endDrag);
 
+  function endTabDrag() {
+    T.tabDrag = null;
+    $$('.menu-tab[data-drop]').forEach((t) => delete t.dataset.drop);
+    $$('.menu-tab.is-dragging').forEach((t) => t.classList.remove('is-dragging'));
+  }
+
+  document.addEventListener('dragstart', (e) => {
+    const tab = e.target.closest && e.target.closest('.menu-tab');
+    if (!tab || T.importing) return;
+    T.tabDrag = tab.dataset.id;
+    tab.classList.add('is-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', tab.textContent.trim());
+  });
+  document.addEventListener('dragend', endTabDrag);
+  document.addEventListener('dragover', (e) => {
+    if (!T.tabDrag) return;
+    const tab = e.target.closest && e.target.closest('.menu-tab');
+    $$('.menu-tab[data-drop]').forEach((t) => t !== tab && delete t.dataset.drop);
+    if (!tab) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (tab.dataset.id === T.tabDrag) return delete tab.dataset.drop;
+    const r = tab.getBoundingClientRect();
+    tab.dataset.drop = e.clientX < r.left + r.width / 2 ? 'before' : 'after';
+  });
+  document.addEventListener('drop', (e) => {
+    if (!T.tabDrag) return;
+    const id = T.tabDrag;
+    const tab = e.target.closest && e.target.closest('.menu-tab');
+    const pos = tab && tab.dataset.drop;
+    if (tab) e.preventDefault();
+    endTabDrag();
+    if (!pos) return;
+    const rest = S.data.menus.map((m) => m.id).filter((x) => x !== id);
+    moveMenu(id, rest.indexOf(tab.dataset.id) + (pos === 'after' ? 1 : 0));
+  });
+
   function dropPositionFor(row, e, d) {
     const path = row.dataset.path;
     if (d.origin === 'canvas' && (d.multi || [d]).some((x) => path === x.path || path.startsWith(`${x.path}>`))) return null;
@@ -906,6 +956,19 @@
       return;
     }
     if (T.modal || typing || mod) return;
+    const tab = e.target.closest && e.target.closest('.menu-tab');
+    if (tab && e.shiftKey && e.key === 'F10') {
+      e.preventDefault();
+      hideTip();
+      menuTabMenu(tab, tab.dataset.id);
+      return;
+    }
+    if (tab && e.altKey && !e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      const id = tab.dataset.id;
+      moveMenu(id, S.data.menus.findIndex((m) => m.id === id) + (e.key === 'ArrowRight' ? 1 : -1));
+      return;
+    }
     if (e.key === '?') {
       e.preventDefault();
       toggleShortcuts();

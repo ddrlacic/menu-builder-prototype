@@ -1214,6 +1214,58 @@
     );
   }
 
+  function moveMenu(id, to) {
+    const from = S.data.menus.findIndex((m) => m.id === id);
+    const dest = clamp(to, 0, S.data.menus.length - 1);
+    if (from < 0 || dest === from) return false;
+    return commit(() => S.data.menus.splice(dest, 0, ...S.data.menus.splice(from, 1)));
+  }
+
+  const menuDuplicateBlock = (m) =>
+    pendingRows().some((p) => parsePath(p).menuId === m.id) ? 'Import or discard the items not imported first, then duplicate the menu.' : '';
+
+  function duplicateMenu(id) {
+    const m = menuById(id);
+    if (!m || menuDuplicateBlock(m)) return;
+    const copy = {
+      ...JSON.parse(JSON.stringify(m)),
+      id: uid('menu'),
+      name: `Copy of ${m.name}`,
+      status: 'draft',
+      publishedAt: null,
+      publishRun: null,
+      publishedStoreIds: [],
+      pricedKeys: [],
+      ownTimesStoreIds: [],
+    };
+    const rekey = (k) => copy.id + k.slice(m.id.length);
+    const own = (k) => k === m.id || k.startsWith(`${m.id}>`);
+    const done = commit(() => {
+      S.data.menus.push(copy);
+      Object.entries(S.data.placements).forEach(([k, pl]) => own(k) && (S.data.placements[rekey(k)] = JSON.parse(JSON.stringify(pl))));
+      Object.entries(S.ui.expanded).forEach(([k, v]) => own(k) && (S.ui.expanded[rekey(k)] = v));
+      S.ui.activeMenuId = copy.id;
+      S.ui.selected = copy.id;
+      S.ui.tabs.menu = 'general';
+      S.ui.canvasQuery = '';
+      T.focusName = true;
+    });
+    if (!done) return;
+    toast('Menu successfully duplicated', 'success', {
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          undo();
+          if (!menuById(copy.id) && menuById(m.id)) {
+            S.ui.activeMenuId = m.id;
+            S.ui.selected = m.id;
+            render();
+          }
+        },
+      },
+    });
+  }
+
   function dropRemovedStores(m) {
     const on = new Set(menuStores(m).map((s) => s.id));
     const gone = m.publishedStoreIds.filter((id) => !on.has(id));

@@ -750,6 +750,7 @@
       internal_name: m.internalName || null,
       description: m.description || null,
       external_id: m.externalId || null,
+      position: S.data.menus.indexOf(m) + 1,
       has_image: !!m.image,
       pos_id: m.posExt,
       menu_channels: m.channels,
