@@ -12,13 +12,15 @@
   function menuTab(tab, m) {
     const mb = (f) => `m|${m.id}|${f}`;
     if (tab === 'general') {
-      return section(
-        '',
-        field('Name', inputText(mb('name'), m.name, { id: 'insp-name' }), { id: 'insp-name', error: lengthError(m.name, 'Add a name'), help: 'Customers see it when a store has more than one menu.' }) +
-          field('Internal name', inputText(mb('internalName'), m.internalName, { id: 'm-int' }), { id: 'm-int', error: lengthError(m.internalName), help: 'Use it to tell apart menus with the same name. Only your team sees it.' }) +
-          descriptionField(mb('description'), m.description, 'm-desc', MENU_PARTNER_ONLY) +
-          imageField(mb('image'), m.image, { help: MENU_PARTNER_ONLY, posSrc: posImageOf(m) }) +
-          menuOrderField(m),
+      return (
+        menuOrderSection(m) +
+        section(
+          '',
+          field('Name', inputText(mb('name'), m.name, { id: 'insp-name' }), { id: 'insp-name', error: lengthError(m.name, 'Add a name'), help: 'Customers see it when a store has more than one menu.' }) +
+            field('Internal name', inputText(mb('internalName'), m.internalName, { id: 'm-int' }), { id: 'm-int', error: lengthError(m.internalName), help: 'Use it to tell apart menus with the same name. Only your team sees it.' }) +
+            descriptionField(mb('description'), m.description, 'm-desc', MENU_PARTNER_ONLY) +
+            imageField(mb('image'), m.image, { help: MENU_PARTNER_ONLY, posSrc: posImageOf(m) }),
+        )
       );
     }
     if (tab === 'ordering') return menuOrderingTab(m, mb);
@@ -62,20 +64,23 @@
     );
   }
 
-  function menuOrderField(m) {
+  function menuOrderSection(m) {
     const count = S.data.menus.length;
     const index = S.data.menus.indexOf(m);
     if (index < 0 || count < 2) return '';
     const btn = (delta, ic, label) =>
       `<button type="button" class="icon-btn sm" data-action="menu-move" data-id="${m.id}" data-delta="${delta}" data-focus-key="menu-move|${delta}" aria-label="${label}" title="${label}" ${index + delta < 0 || index + delta >= count ? 'disabled' : ''}>${icon(ic, 14)}</button>`;
     const live = S.data.menus.some((x) => x.publishedStoreIds.length) ? ' Customers see the change right away.' : '';
-    return field(
-      'Order in apps',
-      `<div class="position-control">
-        <input type="number" id="m-order" class="input tnum" inputmode="numeric" min="1" max="${count}" step="1" value="${index + 1}" data-menu-order data-id="${m.id}" data-focus-key="m-order">
-        <span class="muted tnum">of ${count}</span>${btn(-1, 'chevUp', 'Move up')}${btn(1, 'chevDown', 'Move down')}
-      </div>`,
-      { id: 'm-order', help: `Customers see menus in this order when a store has more than one.${live}` },
+    return section(
+      'In apps',
+      field(
+        'Position',
+        `<div class="position-control">
+          <input type="number" id="m-order" class="input tnum" inputmode="numeric" min="1" max="${count}" step="1" value="${index + 1}" data-menu-order data-id="${m.id}" data-focus-key="m-order">
+          <span class="muted tnum">of ${count}</span>${btn(-1, 'chevUp', 'Move up')}${btn(1, 'chevDown', 'Move down')}
+        </div>`,
+        { id: 'm-order', help: `Order customers see in the apps when a store has more than one menu.${live}` },
+      ),
     );
   }
 
