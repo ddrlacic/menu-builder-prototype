@@ -238,7 +238,8 @@
         const auto = isAutoAdded(op);
         const folder = p.ptype === 'container';
         const name = optionName(g, pid);
-        const open = T.openCard === `opt:${pid}`;
+        const hasDetail = !onlyHere || (rules.type === 1 && productCodes(p).length > 0);
+        const open = hasDetail && T.openCard === `opt:${pid}`;
         const pre = g.preselected[pid] || 0;
         let preCell = '';
         if (preHere && !(pick && !folder)) {
@@ -263,7 +264,7 @@
             <button type="button" class="opt-name" data-action="goto" data-path="${esc(op)}">${thumb('product', p, 'thumb-sm')}<span class="opt-name-text"><span class="opt-name-label" title="${esc(name)}">${esc(name)}</span>${sub ? `<span class="opt-name-sub">${sub}</span>` : ''}</span></button>
             ${preCell}
             ${shownCell}
-            <button type="button" class="icon-btn sm opt-expand" data-action="card-open" data-id="opt:${esc(pid)}" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings">${icon('chevDown', 14)}</button>
+            ${hasDetail ? `<button type="button" class="icon-btn sm opt-expand" data-action="card-open" data-id="opt:${esc(pid)}" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings">${icon('chevDown', 14)}</button>` : '<span aria-hidden="true"></span>'}
           </div>`;
         return `<div class="opt-item${open ? ' is-open' : ''}">${row}${open ? optionDetail(g, pid, p, op, i, listed.length, gb, rules, max, onlyHere) : ''}</div>`;
       })
