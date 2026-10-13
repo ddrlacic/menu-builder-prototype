@@ -339,7 +339,7 @@
         ]
           .map(([d, ic, w, off]) => `<button type="button" class="icon-btn sm" data-action="opt-move" data-id="${esc(pid)}" data-delta="${d}" aria-label="Move ${esc(name)} ${w}" title="Move ${w}" ${off ? 'disabled' : ''}>${icon(ic, 14)}</button>`)
           .join('')}</div>
-        <button type="button" class="btn ghost sm tone-danger" data-action="remove" data-path="${esc(op)}">${icon('trash', 14)}Remove from group</button>
+        <button type="button" class="btn ghost sm tone-danger" data-action="remove" data-path="${esc(op)}">${icon('x', 14)}Remove from group</button>
       </div>`;
     return `<div class="opt-detail">${body}</div>`;
   }

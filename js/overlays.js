@@ -569,13 +569,13 @@
       const where = sharedParent(removable.length ? removable : targets);
       items.push({
         label: info.kind === 'category' ? 'Remove from menu' : where ? `Remove from ${where}` : `Remove ${BULK_NOUN[info.kind][1]}`,
-        icon: 'trash',
+        icon: 'x',
         tone: 'danger',
         kbd: '⌫',
         disabled: !removable.length,
         onClick: bulkRemove,
       });
-    } else items.push({ label: `Remove from ${parentName}`, icon: 'trash', tone: 'danger', kbd: '⌫', onClick: () => confirmRemove(path) });
+    } else items.push({ label: `Remove from ${parentName}`, icon: 'x', tone: 'danger', kbd: '⌫', onClick: () => confirmRemove(path) });
     items.push(...deleteItems(path, targets));
     openPopover(anchor, items, opts);
   }

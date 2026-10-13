@@ -576,7 +576,7 @@
       ${posLink}
       <span class="row-actions">
         <button class="icon-btn sm" data-action="add" data-path="${esc(path)}" aria-label="${addTitle}" title="${addTitle}">${icon('plus', 15)}</button>
-        <button class="icon-btn sm" data-action="remove-row" data-path="${esc(path)}" aria-label="${esc(removeTitle)}" title="${esc(removeTitle)}"${from ? ' aria-disabled="true"' : ' data-tip-kbd="⌫"'}>${icon('trash', 15)}</button>
+        <button class="icon-btn sm" data-action="remove-row" data-path="${esc(path)}" aria-label="${esc(removeTitle)}" title="${esc(removeTitle)}"${from ? ' aria-disabled="true"' : ' data-tip-kbd="⌫"'}>${icon('x', 15)}</button>
       </span>
     </div>`;
   }

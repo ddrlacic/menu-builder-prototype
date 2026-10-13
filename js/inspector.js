@@ -325,7 +325,7 @@
         : `The ${KIND_LABEL[kind].toLowerCase()} stays on POS. You can add it back from POS items.`;
     return section(
       '',
-      `<button type="button" class="btn secondary tone-danger" data-action="remove" data-path="${esc(path)}" ${from.length ? 'disabled' : ''}>${icon('trash', 15)}Remove from ${esc(parentName)}</button>
+      `<button type="button" class="btn secondary tone-danger" data-action="remove" data-path="${esc(path)}" ${from.length ? 'disabled' : ''}>${icon('x', 15)}Remove from ${esc(parentName)}</button>
        <p class="field-help">${esc(help)}</p>`,
     );
   };

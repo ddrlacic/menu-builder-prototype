@@ -63,7 +63,7 @@
   const addButton = (action, label, attrs = '') => `<button type="button" class="btn ghost sm" data-action="${action}" ${attrs}>${icon('plus', 14)}${esc(label)}</button>`;
 
   const substituteActions = (add, bind, count) =>
-    `<div class="hint-actions">${add}${count > 1 ? `<button type="button" class="btn ghost sm tone-danger" data-action="subs-clear" data-bind="${esc(bind)}">${icon('trash', 14)}Remove all</button>` : ''}</div>`;
+    `<div class="hint-actions">${add}${count > 1 ? `<button type="button" class="btn ghost sm tone-danger" data-action="subs-clear" data-bind="${esc(bind)}">${icon('x', 14)}Remove all</button>` : ''}</div>`;
 
   function choicesSection(p, path) {
     const pb = productBind(p);
@@ -91,7 +91,7 @@
         const detail = open
           ? `<div class="opt-detail"><div class="opt-detail-foot">
               <div class="position-control"><span class="tnum">${i + 1} of ${p.children.length}</span>${moveButtons(pb('children'), i, p.children.length, name)}</div>
-              <button type="button" class="btn ghost sm tone-danger" data-action="remove" data-path="${esc(op)}">${icon('trash', 14)}Remove from ${esc(pName)}</button>
+              <button type="button" class="btn ghost sm tone-danger" data-action="remove" data-path="${esc(op)}">${icon('x', 14)}Remove from ${esc(pName)}</button>
             </div></div>`
           : '';
         return `<div class="opt-item${open ? ' is-open' : ''}"><div class="opt-row${hidden ? ' is-muted' : ''}">
