@@ -506,7 +506,7 @@
 
   function createChoiceProduct(categoryPath) {
     commit(() => insertNew(categoryPath, 'product', newProduct({ ptype: 'size', name: 'New choice product' })));
-    toast('Choice product created. Add the products customers choose between', 'success');
+    toast('Choice product successfully created. Add the products customers choose between', 'success');
   }
 
   function placeAfter(parent, id, afterId) {
@@ -583,8 +583,8 @@
     const n = plural(pids.length, 'product', 'products');
     toast(
       staged
-        ? `Choice product created. The ${n} are hidden in ${catName} when you import`
-        : `Choice product created. The ${n} stay in ${catName}, hidden there, so they keep their POS prices`,
+        ? `Choice product successfully created. The ${n} are hidden in ${catName} when you import`
+        : `Choice product successfully created. The ${n} stay in ${catName}, hidden there, so they keep their POS prices`,
       'success',
       { action: { label: 'Undo', onClick: undo } },
     );
@@ -646,11 +646,11 @@
     const p = entity('product', info.id);
     const pi = parsePath(info.parentPath);
     const ok = commit(() => {
-      const custom = newProduct({ ptype: 'linked', posParentExt: p.externalId, name: `${nameOf('product', p)} (copy)`, description: p.description || '', ...dietaryOf(p) });
+      const custom = newProduct({ ptype: 'linked', posParentExt: p.externalId, name: nameOf('product', p), description: p.description || '', ...dietaryOf(p) });
       insertNew(info.parentPath, 'product', custom);
       placeAfter(entity(pi.kind, pi.id), custom.id, p.id);
     });
-    if (ok) toast('Custom product created. Add its groups next', 'success');
+    if (ok) toast('Custom product successfully created. Add its groups next', 'success');
   }
 
   const canCustomizeGroup = (path) => {
@@ -701,13 +701,13 @@
             newProduct({
               ptype: 'linked',
               posParentExt: posId,
-              name: `${posLabel(posId)} (copy)`,
+              name: posLabel(posId),
               description: source ? source.description : parentItem.description || '',
               ...(source ? dietaryOf(source) : {}),
             }),
           );
         });
-        toast('Custom product created. Add its groups next', 'success');
+        toast('Custom product successfully created. Add its groups next', 'success');
       },
     });
   }
@@ -941,7 +941,7 @@
                 x.image = p.image;
               }),
             );
-            toast(`Description and image copied to ${plural(kids.length, 'choice', 'choices')}`, 'success', { action: { label: 'Undo', onClick: undo } });
+            toast(`Description and image successfully copied to ${plural(kids.length, 'choice', 'choices')}`, 'success', { action: { label: 'Undo', onClick: undo } });
           },
         },
       ],
@@ -1314,7 +1314,7 @@
   }
 
   function createVirtualContainer(groupPath) {
-    commit(() => insertNew(groupPath, 'product', newProduct({ ptype: 'container', name: 'New option' })));
+    commit(() => insertNew(groupPath, 'product', newProduct({ ptype: 'container', name: 'New option folder' })));
   }
 
   function addPosOption(groupPath, posId) {

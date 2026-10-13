@@ -541,7 +541,7 @@
       ${
         uses.length > 1
           ? `<details class="shared">
-              <summary>${icon('copy', 14)}<span><strong>Used in ${uses.length} places.</strong> Edits apply everywhere, except settings marked ${scopePill('this placement')}</span>${icon('chevDown', 14)}</summary>
+              <summary>${icon('copy', 14)}<span><strong>Used in ${uses.length} places.</strong> Edits apply everywhere, except settings marked ${scopePill(crumbText(path))}</span>${icon('chevDown', 14)}</summary>
               <ul>${uses
                 .map((u) => `<li><button type="button" class="crumb-link${u === path ? ' is-current' : ''}" data-action="goto" data-path="${esc(u)}">${esc(crumbText(u))}</button></li>`)
                 .join('')}</ul>
