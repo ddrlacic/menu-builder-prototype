@@ -12,16 +12,6 @@
         S.ui.canvasQuery = '';
         render();
         break;
-      case 'new-menu':
-        commit(() => {
-          const m = newMenu();
-          S.data.menus.push(m);
-          S.ui.activeMenuId = m.id;
-          S.ui.selected = m.id;
-          S.ui.tabs.menu = 'general';
-          T.focusName = true;
-        });
-        break;
       case 'menu-move':
         moveMenu(el.dataset.id, S.data.menus.findIndex((m) => m.id === el.dataset.id) + Number(el.dataset.delta));
         break;

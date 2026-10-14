@@ -105,9 +105,7 @@
         <span class="brand-mark">${icon('layers', 16)}</span>
         <span class="brand-name">Menu builder</span>
       </div>
-      <nav class="menu-tabs" role="tablist" aria-label="Menus">
-        <button class="icon-btn" data-action="new-menu" aria-label="Create menu" title="Create menu">${icon('plus', 16)}</button>
-      </nav>`;
+      <nav class="menu-tabs" role="tablist" aria-label="Menus"></nav>`;
     renderPos();
     $('#canvas').classList.add('is-no-menu');
     $('#canvas-head').innerHTML = posShowButton();
@@ -115,8 +113,8 @@
       <div class="blank">
         <div class="blank-art">${icon('book', 22)}</div>
         <h3>No menus yet</h3>
-        <p>Menus hold the categories and products customers order from. Create one, then add categories from POS.</p>
-        <div class="blank-actions"><button class="btn primary" data-action="new-menu">${icon('plus', 15)}Create menu</button></div>
+        <p>Menus come from POS. Add a POS menu, category, or product from POS items, and its menu is added with it.</p>
+        ${S.ui.posCollapsed ? `<div class="blank-actions"><button class="btn primary" data-action="pos-panel">${icon('panelOpen', 15)}Show POS items</button></div>` : ''}
       </div>`;
     $('#inspector-head').innerHTML = '';
     $('#inspector-tabs').innerHTML = '';
@@ -177,7 +175,6 @@
             },
           )
           .join('')}
-        <button class="icon-btn" data-action="new-menu" aria-label="Create menu" title="Create menu">${icon('plus', 16)}</button>
       </nav>
       <div class="topbar-actions">
         <div class="btn-pair">

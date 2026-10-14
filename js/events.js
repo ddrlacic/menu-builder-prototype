@@ -505,11 +505,16 @@
   };
 
   function autoPlaceHint(d) {
-    if (d.kind === 'menu') return `Drop to add all categories from ${d.name}`;
-    if (d.kind === 'category') return d.origin === 'canvas' ? `Drop to move ${d.multi ? 'them' : 'it'} to the end of the menu` : 'Drop to add it to the end of the menu';
+    if (d.origin === 'canvas') return `Drop to move ${d.multi ? 'them' : 'it'} to the end of the menu`;
     const chain = d.posPath || [];
-    if (chain.length < 2) return DRAG_HINT[d.kind];
-    return `Drop to add it under ${posLabel(chain[chain.length - 2])}`;
+    if (d.kind !== 'menu' && d.kind !== 'category' && chain.length < 2) return DRAG_HINT[d.kind];
+    const pm = posMenuOf(d);
+    const menu = pm && menuOfPosMenu(pm);
+    if (pm && !menu) return d.kind === 'menu' ? `Drop to add ${pm.name} as a menu` : 'Drop to add it with its POS menu';
+    const other = menu && menu !== activeMenu() ? menu.name : '';
+    if (d.kind === 'menu') return `Drop to add all categories from ${d.name}${other ? ` to ${other}` : ''}`;
+    if (d.kind === 'category') return `Drop to add it to the end of ${other || 'the menu'}`;
+    return `Drop to add it under ${posLabel(chain[chain.length - 2])}${other ? ` in ${other}` : ''}`;
   }
 
   const menuCardDrop = (d) => (d.origin === 'pos' ? d.kind === 'menu' || d.kind === 'category' || (d.posPath || []).length >= 2 : d.kind === 'category');

@@ -180,12 +180,29 @@
     });
   }
 
+  const posMenuOf = (d) => (d.kind === 'menu' ? S.data.pos.menus.find((m) => m.id === d.posId) : posMenu()) || null;
+
+  function menuOfPosMenu(pm) {
+    const active = activeMenu();
+    if (active && active.posExt === pm.id) return active;
+    return S.data.menus.find((m) => m.posExt === pm.id) || null;
+  }
+
   function autoPlace(d) {
-    const menu = activeMenu();
-    if (d.kind === 'menu') return placePosMenu(d);
+    const chain = d.kind === 'category' ? [d.posId] : d.posPath || [];
+    if (d.kind !== 'menu' && d.kind !== 'category' && chain.length < 2) return toast(`${d.name} is sold only as an option on POS. Drop it on a group instead`, 'error');
+    const pm = posMenuOf(d);
+    if (!pm) return;
+    const menu = menuOfPosMenu(pm);
+    if (!menu) return addMenuFromPos(pm, d.kind === 'menu' ? null : chain);
+    if (menu !== activeMenu()) {
+      S.ui.activeMenuId = menu.id;
+      S.ui.selected = menu.id;
+      S.ui.canvasQuery = '';
+      render();
+    }
+    if (d.kind === 'menu') return placePosMenu(menu, pm);
     if (d.kind === 'category') return performDrop(d, { path: menu.id, pos: 'inside' });
-    const chain = d.posPath || [];
-    if (chain.length < 2) return toast(`${d.name} is sold only as an option on POS. Drop it on a group instead`, 'error');
 
     let path = menu.id;
     let depth = 0;
@@ -208,53 +225,67 @@
     }
     if (depth === chain.length - 1) return performDrop(d, { path, pos: 'inside' });
 
-    let newPath = null;
-    let linked = null;
+    let r = {};
     commit(() => {
-      if (depth === 0) linked = linkMenuToPosCategory(menu, chain[0]);
-      const leaf = importPos(chain[chain.length - 1]);
-      let topKind = leaf.kind;
-      let childId = leaf.id;
-      for (let i = chain.length - 2; i >= depth; i--) {
-        const posId = chain[i];
-        const kind = posItemById(posId).type;
-        const ent = findByExt(kind, posId) || newPosEntity(posId);
-        if (!ent.children.includes(childId)) {
-          if (reaches(topKind, childId, kind, ent.id)) {
-            throw new Abort(`${nameOf(topKind, entity(topKind, childId))} already contains ${nameOf(kind, ent)}, so it cannot go inside it`);
-          }
-          ent.children.push(childId);
-          stageLink(kind, ent.id, topKind, childId);
-        }
-        topKind = kind;
-        childId = ent.id;
-      }
-      const info = parsePath(path);
-      const anchor = entity(info.kind, info.id);
-      if (info.kind !== 'menu' && reaches(topKind, childId, info.kind, info.id)) {
-        throw new Abort(`${nameOf(topKind, entity(topKind, childId))} already contains ${nameOf(info.kind, anchor)}, so it cannot go inside it`);
-      }
-      anchor.children.push(childId);
-      stageLink(info.kind, info.id, topKind, childId);
-      newPath = path;
-      for (let i = depth; i < chain.length; i++) {
-        const ni = parsePath(newPath);
-        const k = childKind(ni.kind, entity(ni.kind, ni.id));
-        const ent = findByExt(k, chain[i]);
-        newPath = childPath(newPath, k, ent.id);
-      }
-      expandTo(newPath);
-      S.ui.selected = newPath;
-      flash(newPath);
+      r = addPosChain(menu, chain, path, depth);
+      S.ui.selected = r.newPath;
     });
-    if (newPath) toast(`Added to ${crumbText(parsePath(newPath).parentPath)}`, 'info');
-    if (newPath && linked) toast(`Linked to POS menu ${linked.name}`);
+    if (r.newPath) toast(`Added to ${crumbText(parsePath(r.newPath).parentPath)}`, 'info');
+    if (r.newPath && r.linked) toast(`Linked to POS menu ${r.linked.name}`);
   }
 
-  function placePosMenu(d) {
-    const menu = activeMenu();
-    const pm = S.data.pos.menus.find((m) => m.id === d.posId);
-    if (!pm) return;
+  function addPosChain(menu, chain, path, depth) {
+    const linked = depth === 0 ? linkMenuToPosCategory(menu, chain[0]) : null;
+    const leaf = importPos(chain[chain.length - 1]);
+    let topKind = leaf.kind;
+    let childId = leaf.id;
+    for (let i = chain.length - 2; i >= depth; i--) {
+      const posId = chain[i];
+      const kind = posItemById(posId).type;
+      const ent = findByExt(kind, posId) || newPosEntity(posId);
+      if (!ent.children.includes(childId)) {
+        if (reaches(topKind, childId, kind, ent.id)) {
+          throw new Abort(`${nameOf(topKind, entity(topKind, childId))} already contains ${nameOf(kind, ent)}, so it cannot go inside it`);
+        }
+        ent.children.push(childId);
+        stageLink(kind, ent.id, topKind, childId);
+      }
+      topKind = kind;
+      childId = ent.id;
+    }
+    const info = parsePath(path);
+    const anchor = entity(info.kind, info.id);
+    if (info.kind !== 'menu' && reaches(topKind, childId, info.kind, info.id)) {
+      throw new Abort(`${nameOf(topKind, entity(topKind, childId))} already contains ${nameOf(info.kind, anchor)}, so it cannot go inside it`);
+    }
+    anchor.children.push(childId);
+    stageLink(info.kind, info.id, topKind, childId);
+    let newPath = path;
+    for (let i = depth; i < chain.length; i++) {
+      const ni = parsePath(newPath);
+      const k = childKind(ni.kind, entity(ni.kind, ni.id));
+      newPath = childPath(newPath, k, findByExt(k, chain[i]).id);
+    }
+    expandTo(newPath);
+    flash(newPath);
+    return { newPath, linked };
+  }
+
+  function addPosCategories(menu, posIds) {
+    let firstPath = null;
+    for (const r of posIds) {
+      const res = importPos(r);
+      if (!res) continue;
+      menu.children.push(res.id);
+      stageLink('menu', menu.id, 'category', res.id);
+      const p = childPath(menu.id, 'category', res.id);
+      if (!firstPath) firstPath = p;
+      flash(p);
+    }
+    return firstPath;
+  }
+
+  function placePosMenu(menu, pm) {
     const present = new Set(menu.children.map((cid) => entity('category', cid).externalId).filter(Boolean));
     const missing = pm.roots.filter((r) => !present.has(r));
     if (!missing.length) return toast(`All categories from ${pm.name} are already in ${menu.name}`, 'info');
@@ -264,18 +295,22 @@
         menu.posExt = pm.id;
         if (!menu.image && pm.image) menu.image = pm.image;
       }
-      for (const r of missing) {
-        const res = importPos(r);
-        if (!res) continue;
-        menu.children.push(res.id);
-        stageLink('menu', menu.id, 'category', res.id);
-        const p = childPath(menu.id, 'category', res.id);
-        if (!firstPath) firstPath = p;
-        flash(p);
-      }
+      firstPath = addPosCategories(menu, missing);
       if (firstPath) S.ui.selected = firstPath;
     });
     if (firstPath) toast(missing.length === 1 ? `1 category added from ${pm.name}` : `${missing.length} categories added from ${pm.name}`);
+  }
+
+  function addMenuFromPos(pm, chain) {
+    const ok = commit(() => {
+      const menu = newMenu({ name: pm.name, posExt: pm.id, image: pm.image || null });
+      S.data.menus.push(menu);
+      S.ui.activeMenuId = menu.id;
+      S.ui.canvasQuery = '';
+      const first = chain ? addPosChain(menu, chain, menu.id, 0).newPath : addPosCategories(menu, pm.roots);
+      S.ui.selected = first || menu.id;
+    });
+    if (ok) toast(`${pm.name} successfully added as a menu. Choose its channels and order types next`);
   }
 
   const POS_LOAD_MS = 1400;
