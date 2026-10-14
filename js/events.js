@@ -85,7 +85,7 @@
 
   document.addEventListener('contextmenu', (e) => {
     const fromKeyboard = !e.clientX && !e.clientY;
-    const tab = e.target.closest('.menu-tab');
+    const tab = e.target.closest('.menu-tab[data-id]');
     if (tab) {
       e.preventDefault();
       hideTip();
@@ -509,6 +509,7 @@
     const chain = d.posPath || [];
     if (d.kind !== 'menu' && d.kind !== 'category' && chain.length < 2) return DRAG_HINT[d.kind];
     const pm = posMenuOf(d);
+    if (pm && T.newMenu) return `Drop to link the new menu to ${pm.name}`;
     const menu = pm && menuOfPosMenu(pm);
     if (pm && !menu) return d.kind === 'menu' ? `Drop to add ${pm.name} as a menu` : 'Drop to add it with its POS menu';
     const other = menu && menu !== activeMenu() ? menu.name : '';
@@ -588,7 +589,7 @@
   document.addEventListener('dragend', endTabDrag);
   document.addEventListener('dragover', (e) => {
     if (!T.tabDrag) return;
-    const tab = e.target.closest && e.target.closest('.menu-tab');
+    const tab = e.target.closest && e.target.closest('.menu-tab[data-id]');
     $$('.menu-tab[data-drop]').forEach((t) => t !== tab && delete t.dataset.drop);
     if (!tab) return;
     e.preventDefault();
@@ -600,7 +601,7 @@
   document.addEventListener('drop', (e) => {
     if (!T.tabDrag) return;
     const id = T.tabDrag;
-    const tab = e.target.closest && e.target.closest('.menu-tab');
+    const tab = e.target.closest && e.target.closest('.menu-tab[data-id]');
     const pos = tab && tab.dataset.drop;
     if (tab) e.preventDefault();
     endTabDrag();
@@ -961,7 +962,7 @@
       return;
     }
     if (T.modal || typing || mod) return;
-    const tab = e.target.closest && e.target.closest('.menu-tab');
+    const tab = e.target.closest && e.target.closest('.menu-tab[data-id]');
     if (tab && e.shiftKey && e.key === 'F10') {
       e.preventDefault();
       hideTip();

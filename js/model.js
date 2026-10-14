@@ -3,7 +3,7 @@
   /* ---------- model helpers ---------- */
 
   const menuById = (id) => S.data.menus.find((m) => m.id === id);
-  const activeMenu = () => menuById(S.ui.activeMenuId) || (S.ui.activeMenuId === null ? null : S.data.menus[0]);
+  const activeMenu = () => (T.newMenu ? null : menuById(S.ui.activeMenuId) || (S.ui.activeMenuId === null ? null : S.data.menus[0]));
   const entity = (kind, id) => (kind === 'menu' ? menuById(id) : S.data.entities[kind] && S.data.entities[kind][id]);
   const placement = (path) => S.data.placements[path] || {};
 

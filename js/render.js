@@ -103,7 +103,8 @@
   }
 
   function syncOpenMenu() {
-    if (menuById(S.ui.activeMenuId)) return;
+    if (T.newMenu && T.newMenu.from !== S.ui.activeMenuId) T.newMenu = null;
+    if (T.newMenu || menuById(S.ui.activeMenuId)) return;
     const pm = S.data.pos.menus.find((m) => m.id === S.ui.posMenuId);
     const linked = pm && S.data.menus.find((m) => m.posExt === pm.id);
     S.ui.activeMenuId = linked ? linked.id : pm || !S.data.menus.length ? null : S.data.menus[0].id;
@@ -115,6 +116,11 @@
     T.shownMenuId = null;
     const pm = posMenu();
     const none = !S.data.menus.length;
+    const [title, text] = T.newMenu
+      ? ['New menu', 'Drag categories or products here from POS items. The menu is linked to their POS menu.']
+      : none || !pm
+        ? ['No menus yet', 'Menus come from POS. Add a POS menu, category, or product from POS items, and its menu is added with it.']
+        : [`${pm.name} has no menu yet`, 'Drag categories or products here from POS items to create its menu.'];
     $('#topbar').innerHTML = `
       <div class="brand">
         <span class="brand-mark">${icon('layers', 16)}</span>
@@ -127,8 +133,8 @@
     $('#canvas-tree').innerHTML = `
       <div class="blank">
         <div class="blank-art">${icon('book', 22)}</div>
-        <h3>${none || !pm ? 'No menus yet' : `${esc(pm.name)} has no menu yet`}</h3>
-        <p>${none || !pm ? 'Menus come from POS. Add a POS menu, category, or product from POS items, and its menu is added with it.' : 'Drag categories or products here from POS items to create its menu.'}</p>
+        <h3>${esc(title)}</h3>
+        <p>${esc(text)}</p>
         ${S.ui.posCollapsed ? `<div class="blank-actions"><button class="btn primary" data-action="pos-panel">${icon('panelOpen', 15)}Show POS items</button></div>` : ''}
       </div>`;
     $('#inspector-head').innerHTML = '';
@@ -177,7 +183,9 @@
         return `<button class="menu-tab" role="tab" aria-selected="${m.id === activeId}" data-action="switch-menu" data-id="${m.id}" data-focus-key="menu-tab|${m.id}" draggable="${S.data.menus.length > 1}"${m.internalName ? ` title="${esc(m.internalName)}"` : ''}>
               <span class="status-dot tone-${menuStatus(m)[1]}"></span>${esc(m.name || 'Untitled menu')}${shared && m.internalName ? `<span class="muted">${esc(m.internalName)}</span>` : ''}</button>`;
       })
-      .join('');
+      .join('') +
+      (T.newMenu ? '<button class="menu-tab" role="tab" aria-selected="true" data-focus-key="menu-tab|new"><span class="status-dot"></span>New menu</button>' : '') +
+      `<button class="icon-btn" data-action="new-menu" aria-label="New menu" title="New menu" ${T.newMenu || T.importing ? 'disabled' : ''}>${icon('plus', 16)}</button>`;
   }
 
   function renderTopbar() {

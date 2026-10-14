@@ -6,7 +6,14 @@
     const a = el.dataset.action;
     const path = el.dataset.path;
     switch (a) {
+      case 'new-menu':
+        T.newMenu = { from: S.ui.activeMenuId };
+        S.ui.selected = null;
+        S.ui.canvasQuery = '';
+        render();
+        break;
       case 'switch-menu':
+        T.newMenu = null;
         S.ui.activeMenuId = el.dataset.id;
         S.ui.selected = el.dataset.id;
         S.ui.canvasQuery = '';
@@ -101,7 +108,7 @@
       case 'pos-menu': {
         S.ui.posMenuId = el.dataset.id;
         const linked = menuOfPosMenu(posMenu());
-        if (linked !== activeMenu()) {
+        if (!T.newMenu && linked !== activeMenu()) {
           S.ui.activeMenuId = linked ? linked.id : null;
           S.ui.selected = linked ? linked.id : null;
           S.ui.canvasQuery = '';

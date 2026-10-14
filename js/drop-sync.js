@@ -193,7 +193,7 @@
     if (d.kind !== 'menu' && d.kind !== 'category' && chain.length < 2) return toast(`${d.name} is sold only as an option on POS. Drop it on a group instead`, 'error');
     const pm = posMenuOf(d);
     if (!pm) return;
-    const menu = menuOfPosMenu(pm);
+    const menu = T.newMenu ? null : menuOfPosMenu(pm);
     if (!menu) return addMenuFromPos(pm, d.kind === 'menu' ? null : chain);
     if (menu !== activeMenu()) {
       S.ui.activeMenuId = menu.id;
@@ -302,7 +302,9 @@
   }
 
   function addMenuFromPos(pm, chain) {
+    const wasNew = T.newMenu;
     const ok = commit(() => {
+      T.newMenu = null;
       const menu = newMenu({ name: pm.name, posExt: pm.id, image: pm.image || null });
       S.data.menus.push(menu);
       S.ui.activeMenuId = menu.id;
@@ -310,7 +312,9 @@
       const first = chain ? addPosChain(menu, chain, menu.id, 0).newPath : addPosCategories(menu, pm.roots);
       S.ui.selected = first || menu.id;
     });
-    if (ok) toast(`${pm.name} successfully added as a menu. Choose its channels and order types next`);
+    if (ok) return toast(`${pm.name} successfully added as a menu. Choose its channels and order types next`);
+    T.newMenu = wasNew;
+    render();
   }
 
   const POS_LOAD_MS = 1400;
@@ -425,6 +429,7 @@
 
   function switchStoreGroup(id) {
     const next = datasetOf(id);
+    T.newMenu = null;
     if (next === dataset) {
       S.ui.storeGroupId = id;
       loadPos('store-group', render);

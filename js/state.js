@@ -1223,7 +1223,7 @@
     closeModal(true);
     useDataset(ds);
     clearHistory();
-    Object.assign(T, { posSearchExpanded: {}, canvasSearchOpen: {}, openCard: null, storeKey: null, focusRow: null, sel: [], selAnchor: null, cleared: null });
+    Object.assign(T, { posSearchExpanded: {}, canvasSearchOpen: {}, openCard: null, storeKey: null, focusRow: null, sel: [], selAnchor: null, cleared: null, newMenu: null });
     T.flashPaths.clear();
     T.flashExt.clear();
     const { posCollapsed } = S.ui;
@@ -1406,6 +1406,7 @@
     from.pop();
     to.push(JSON.stringify(before));
     hist.key = null;
+    T.newMenu = null;
     const cancelled = hist.deleting;
     if (cancelled) {
       hist.deleting = null;
