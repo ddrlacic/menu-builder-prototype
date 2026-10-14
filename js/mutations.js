@@ -160,7 +160,8 @@
 
   function openPosCategoryPicker() {
     const menu = activeMenu();
-    const ids = [...new Set(S.data.pos.menus.flatMap((m) => m.roots))];
+    const pm = linkedPosMenu(menu);
+    const ids = pm ? pm.roots : [...new Set(S.data.pos.menus.flatMap((m) => m.roots))];
     openAddPicker({
       title: 'Add POS category',
       intro: 'Each category comes with its POS products, options, and prices.',

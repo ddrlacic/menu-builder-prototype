@@ -101,9 +101,9 @@
       case 'pos-menu': {
         S.ui.posMenuId = el.dataset.id;
         const linked = menuOfPosMenu(posMenu());
-        if (linked && linked !== activeMenu()) {
-          S.ui.activeMenuId = linked.id;
-          S.ui.selected = linked.id;
+        if (linked !== activeMenu()) {
+          S.ui.activeMenuId = linked ? linked.id : null;
+          S.ui.selected = linked ? linked.id : null;
           S.ui.canvasQuery = '';
           render();
         } else renderPos();

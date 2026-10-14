@@ -36,6 +36,7 @@
   function render() {
     hideTip();
     const focus = captureFocus();
+    syncOpenMenu();
     const menu = activeMenu();
     if (!menu) {
       renderNoMenus();
@@ -101,23 +102,33 @@
     schedulePersist();
   }
 
+  function syncOpenMenu() {
+    if (menuById(S.ui.activeMenuId)) return;
+    const pm = S.data.pos.menus.find((m) => m.id === S.ui.posMenuId);
+    const linked = pm && S.data.menus.find((m) => m.posExt === pm.id);
+    S.ui.activeMenuId = linked ? linked.id : pm || !S.data.menus.length ? null : S.data.menus[0].id;
+  }
+
   function renderNoMenus() {
     ctx = null;
     T.cmp = null;
+    T.shownMenuId = null;
+    const pm = posMenu();
+    const none = !S.data.menus.length;
     $('#topbar').innerHTML = `
       <div class="brand">
         <span class="brand-mark">${icon('layers', 16)}</span>
         <span class="brand-name">Menu builder</span>
       </div>
-      <nav class="menu-tabs" role="tablist" aria-label="Menus"></nav>`;
+      <nav class="menu-tabs" role="tablist" aria-label="Menus">${menuTabs(null)}</nav>`;
     renderPos();
     $('#canvas').classList.add('is-no-menu');
     $('#canvas-head').innerHTML = posShowButton();
     $('#canvas-tree').innerHTML = `
       <div class="blank">
         <div class="blank-art">${icon('book', 22)}</div>
-        <h3>No menus yet</h3>
-        <p>Menus come from POS. Add a POS menu, category, or product from POS items, and its menu is added with it.</p>
+        <h3>${none || !pm ? 'No menus yet' : `${esc(pm.name)} has no menu yet`}</h3>
+        <p>${none || !pm ? 'Menus come from POS. Add a POS menu, category, or product from POS items, and its menu is added with it.' : 'Drag categories or products here from POS items to create its menu.'}</p>
         ${S.ui.posCollapsed ? `<div class="blank-actions"><button class="btn primary" data-action="pos-panel">${icon('panelOpen', 15)}Show POS items</button></div>` : ''}
       </div>`;
     $('#inspector-head').innerHTML = '';
@@ -159,6 +170,16 @@
     return `<button class="btn primary" data-action="publish" ${off ? 'disabled' : ''}${nothing ? ' title="Nothing to publish. Edits reach customers right away"' : ''}>${icon('send', 15)}Publish menu</button>`;
   }
 
+  function menuTabs(activeId) {
+    return S.data.menus
+      .map((m) => {
+        const shared = S.data.menus.some((o) => o.id !== m.id && (o.name || '').trim() === (m.name || '').trim());
+        return `<button class="menu-tab" role="tab" aria-selected="${m.id === activeId}" data-action="switch-menu" data-id="${m.id}" data-focus-key="menu-tab|${m.id}" draggable="${S.data.menus.length > 1}"${m.internalName ? ` title="${esc(m.internalName)}"` : ''}>
+              <span class="status-dot tone-${menuStatus(m)[1]}"></span>${esc(m.name || 'Untitled menu')}${shared && m.internalName ? `<span class="muted">${esc(m.internalName)}</span>` : ''}</button>`;
+      })
+      .join('');
+  }
+
   function renderTopbar() {
     const menu = activeMenu();
     const { errors, warnings } = ctx.issues;
@@ -169,17 +190,7 @@
         <span class="brand-mark">${icon('layers', 16)}</span>
         <span class="brand-name">Menu builder</span>
       </div>
-      <nav class="menu-tabs" role="tablist" aria-label="Menus">
-        ${S.data.menus
-          .map(
-            (m) => {
-              const shared = S.data.menus.some((o) => o.id !== m.id && (o.name || '').trim() === (m.name || '').trim());
-              return `<button class="menu-tab" role="tab" aria-selected="${m.id === menu.id}" data-action="switch-menu" data-id="${m.id}" data-focus-key="menu-tab|${m.id}" draggable="${S.data.menus.length > 1}"${m.internalName ? ` title="${esc(m.internalName)}"` : ''}>
-              <span class="status-dot tone-${menuStatus(m)[1]}"></span>${esc(m.name || 'Untitled menu')}${shared && m.internalName ? `<span class="muted">${esc(m.internalName)}</span>` : ''}</button>`;
-            },
-          )
-          .join('')}
-      </nav>
+      <nav class="menu-tabs" role="tablist" aria-label="Menus">${menuTabs(menu.id)}</nav>
       <div class="topbar-actions">
         <div class="btn-pair">
           <button class="icon-btn" data-action="undo" aria-label="Undo" title="Undo (⌘Z)" ${hist.past.length ? '' : 'disabled'}>${icon('undo', 16)}</button>
