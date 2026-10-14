@@ -180,13 +180,29 @@
     });
   }
 
+  const posMenuOf = (d) => (d.kind === 'menu' ? S.data.pos.menus.find((m) => m.id === d.posId) : posMenu()) || null;
+
+  function menuOfPosMenu(pm) {
+    const active = activeMenu();
+    if (active && active.posExt === pm.id) return active;
+    return S.data.menus.find((m) => m.posExt === pm.id) || null;
+  }
+
   function autoPlace(d) {
-    const menu = activeMenu();
-    if (!menu) return;
-    if (d.kind === 'menu') return placePosMenu(menu, S.data.pos.menus.find((m) => m.id === d.posId));
+    const chain = d.kind === 'category' ? [d.posId] : d.posPath || [];
+    if (d.kind !== 'menu' && d.kind !== 'category' && chain.length < 2) return toast(`${d.name} is sold only as an option on POS. Drop it on a group instead`, 'error');
+    const pm = posMenuOf(d);
+    if (!pm) return;
+    const menu = menuOfPosMenu(pm);
+    if (!menu) return addMenuFromPos(pm, d.kind === 'menu' ? null : chain);
+    if (menu !== activeMenu()) {
+      S.ui.activeMenuId = menu.id;
+      S.ui.selected = menu.id;
+      S.ui.canvasQuery = '';
+      render();
+    }
+    if (d.kind === 'menu') return placePosMenu(menu, pm);
     if (d.kind === 'category') return performDrop(d, { path: menu.id, pos: 'inside' });
-    const chain = d.posPath || [];
-    if (chain.length < 2) return toast(`${d.name} is sold only as an option on POS. Drop it on a group instead`, 'error');
 
     let path = menu.id;
     let depth = 0;
@@ -270,7 +286,6 @@
   }
 
   function placePosMenu(menu, pm) {
-    if (!pm) return;
     const present = new Set(menu.children.map((cid) => entity('category', cid).externalId).filter(Boolean));
     const missing = pm.roots.filter((r) => !present.has(r));
     if (!missing.length) return toast(`All categories from ${pm.name} are already in ${menu.name}`, 'info');
@@ -286,57 +301,16 @@
     if (firstPath) toast(missing.length === 1 ? `1 category added from ${pm.name}` : `${missing.length} categories added from ${pm.name}`);
   }
 
-  const posMenusWithoutMenu = () => S.data.pos.menus.filter((pm) => !S.data.menus.some((m) => m.posExt === pm.id));
-
-  function openAddMenuFromPos() {
-    const groups = posMenusWithoutMenu().map((pm) => ({
-      id: pm.id,
-      name: pm.name,
-      items: pm.roots.filter((r) => posItemById(r)).map((r) => ({ id: `${pm.id}|${r}`, name: posLabel(r), meta: plural(posChildren(r).length, 'product', 'products') })),
-    }));
-    const menusPicked = () => new Set([...T.lp.sel].map((id) => id.split('|')[0])).size;
-    openListPicker({
-      title: 'Add menu from POS',
-      intro: 'Each POS menu you pick from becomes a menu. Categories come with their POS products, options, and prices.',
-      groups,
-      empty: 'Every POS menu already has a menu',
-      noun: ['category', 'categories'],
-      placeholder: 'Search by name',
-      cta: () => (menusPicked() > 1 ? `Add ${menusPicked()} menus` : 'Add menu'),
-      onSave: addMenusFromPos,
-    });
-  }
-
-  function addMenusFromPos(ids) {
-    const byMenu = new Map();
-    ids.forEach((id) => {
-      const [pmId, catId] = id.split('|');
-      if (!byMenu.has(pmId)) byMenu.set(pmId, []);
-      byMenu.get(pmId).push(catId);
-    });
-    const added = [];
+  function addMenuFromPos(pm, chain) {
     const ok = commit(() => {
-      for (const [pmId, cats] of byMenu) {
-        const pm = S.data.pos.menus.find((m) => m.id === pmId);
-        const menu = newMenu({ name: pm.name, posExt: pm.id, image: pm.image || null });
-        S.data.menus.push(menu);
-        const first = addPosCategories(menu, cats);
-        if (!added.length) {
-          S.ui.activeMenuId = menu.id;
-          S.ui.selected = first || menu.id;
-        }
-        added.push(pm.name);
-      }
+      const menu = newMenu({ name: pm.name, posExt: pm.id, image: pm.image || null });
+      S.data.menus.push(menu);
+      S.ui.activeMenuId = menu.id;
       S.ui.canvasQuery = '';
+      const first = chain ? addPosChain(menu, chain, menu.id, 0).newPath : addPosCategories(menu, pm.roots);
+      S.ui.selected = first || menu.id;
     });
-    if (!ok) return;
-    toast(
-      added.length === 1
-        ? `${added[0]} successfully added as a menu. Choose its channels and order types next`
-        : `${added.length} menus successfully added from POS. Choose their channels and order types next`,
-      'success',
-      { action: { label: 'Undo', onClick: undo } },
-    );
+    if (ok) toast(`${pm.name} successfully added as a menu. Choose its channels and order types next`);
   }
 
   const POS_LOAD_MS = 1400;

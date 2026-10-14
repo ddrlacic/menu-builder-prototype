@@ -98,8 +98,10 @@
       case 'sync-pos':
         syncPos();
         break;
-      case 'add-menu':
-        openAddMenuFromPos();
+      case 'pos-menu':
+        S.ui.posMenuId = el.dataset.id;
+        renderPos();
+        schedulePersist();
         break;
       case 'pos-toggle':
         e.stopPropagation();
