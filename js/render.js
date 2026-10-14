@@ -43,6 +43,10 @@
       schedulePersist();
       return;
     }
+    if (T.shownMenuId !== menu.id) {
+      T.shownMenuId = menu.id;
+      if (linkedPosMenu(menu)) S.ui.posMenuId = menu.posExt;
+    }
     $('#canvas').classList.remove('is-no-menu');
     document.body.classList.toggle('is-importing', T.importing);
     if (!S.ui.selected || !pathExists(S.ui.selected) || parsePath(S.ui.selected).menuId !== menu.id) S.ui.selected = menu.id;

@@ -98,11 +98,18 @@
       case 'sync-pos':
         syncPos();
         break;
-      case 'pos-menu':
+      case 'pos-menu': {
         S.ui.posMenuId = el.dataset.id;
-        renderPos();
+        const linked = menuOfPosMenu(posMenu());
+        if (linked && linked !== activeMenu()) {
+          S.ui.activeMenuId = linked.id;
+          S.ui.selected = linked.id;
+          S.ui.canvasQuery = '';
+          render();
+        } else renderPos();
         schedulePersist();
         break;
+      }
       case 'pos-toggle':
         e.stopPropagation();
         togglePosRow(el.closest('.pos-row'));
