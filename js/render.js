@@ -97,6 +97,11 @@
     schedulePersist();
   }
 
+  function addMenuButton() {
+    const none = !posMenusWithoutMenu().length;
+    return `<button class="icon-btn" data-action="add-menu" aria-label="Add menu from POS" title="${none ? 'Every POS menu already has a menu' : 'Add menu from POS'}" ${none || T.importing ? 'disabled' : ''}>${icon('plus', 16)}</button>`;
+  }
+
   function renderNoMenus() {
     ctx = null;
     T.cmp = null;
@@ -105,7 +110,7 @@
         <span class="brand-mark">${icon('layers', 16)}</span>
         <span class="brand-name">Menu builder</span>
       </div>
-      <nav class="menu-tabs" role="tablist" aria-label="Menus"></nav>`;
+      <nav class="menu-tabs" role="tablist" aria-label="Menus">${addMenuButton()}</nav>`;
     renderPos();
     $('#canvas').classList.add('is-no-menu');
     $('#canvas-head').innerHTML = posShowButton();
@@ -113,8 +118,8 @@
       <div class="blank">
         <div class="blank-art">${icon('book', 22)}</div>
         <h3>No menus yet</h3>
-        <p>Menus come from POS. Add a POS menu, category, or product from POS items, and its menu is added with it.</p>
-        ${S.ui.posCollapsed ? `<div class="blank-actions"><button class="btn primary" data-action="pos-panel">${icon('panelOpen', 15)}Show POS items</button></div>` : ''}
+        <p>Menus come from POS. Pick a POS menu and the categories customers can order from.</p>
+        <div class="blank-actions"><button class="btn primary" data-action="add-menu">${icon('plus', 15)}Add menu from POS</button></div>
       </div>`;
     $('#inspector-head').innerHTML = '';
     $('#inspector-tabs').innerHTML = '';
@@ -175,6 +180,7 @@
             },
           )
           .join('')}
+        ${addMenuButton()}
       </nav>
       <div class="topbar-actions">
         <div class="btn-pair">
@@ -244,13 +250,14 @@
             .join('')}</select>${icon('chevDown', 14)}
         </div>
         <button class="btn secondary pos-sync" data-action="sync-pos" data-focus-key="sync-pos" aria-label="${syncLabel}" title="${syncLabel}" ${loading || T.importing ? 'disabled' : ''}>${loading === 'sync' ? '<span class="spinner"></span>' : icon('refresh', 15)}</button>
-      </div>
-      <div class="pos-menus" role="tablist" aria-label="POS menus">${pos.menus
-        .map((m) => `<button type="button" role="tab" class="pos-menu-tab" aria-selected="${m.id === pm.id}" data-action="pos-menu" data-id="${m.id}">${esc(m.name)}</button>`)
-        .join('')}</div>`;
+      </div>`;
 
     if (loading) {
       $('#pos-tree').innerHTML = `<div class="empty-small"><span class="spinner"></span><strong>${loading === 'sync' ? 'Syncing with POS' : `Loading ${esc(storeGroup().name)}`}</strong><span>Large menus can take a few minutes.</span></div>`;
+      return;
+    }
+    if (!S.data.menus.length) {
+      $('#pos-tree').innerHTML = '<div class="empty-small"><strong>No menu yet</strong><span>Add a menu from POS. Its POS items show here.</span></div>';
       return;
     }
 

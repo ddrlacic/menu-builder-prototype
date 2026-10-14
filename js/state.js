@@ -475,8 +475,8 @@
   let halfCache = new Map();
   const storePriceCache = new WeakMap();
   let dataVersion = 0;
-  const posMenu = () => S.data.pos.menus.find((m) => m.id === S.ui.posMenuId) || S.data.pos.menus[0];
   const linkedPosMenu = (m) => (m && m.posExt && S.data.pos.menus.find((pm) => pm.id === m.posExt)) || null;
+  const posMenu = () => linkedPosMenu(S.data.menus.find((m) => m.id === S.ui.activeMenuId) || S.data.menus[0]) || S.data.pos.menus.find((m) => m.id === S.ui.posMenuId) || S.data.pos.menus[0];
   const posImageOf = (m) => (linkedPosMenu(m) || {}).image || null;
   function linkMenuToPosCategory(m, posCatId) {
     if (m.posExt) return null;
