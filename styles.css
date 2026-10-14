@@ -788,12 +788,6 @@ button.status-pill:focus-visible {
   font-weight: 400;
 }
 
-.pos-meta {
-  font-size: var(--text-xs);
-  color: var(--grp);
-  white-space: nowrap;
-}
-
 .pos-added {
   width: 14px;
   color: var(--ok);
