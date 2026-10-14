@@ -757,6 +757,11 @@ button.status-pill:focus-visible {
   cursor: grabbing;
 }
 
+.pos-row.is-selected {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
 .pos-row:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--accent);
@@ -803,7 +808,7 @@ button.status-pill:focus-visible {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .pos-row:hover {
+  .pos-row:not(.is-selected):hover {
     background: var(--hover);
   }
   .pos-row .pos-add {

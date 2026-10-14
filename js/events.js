@@ -30,6 +30,11 @@
       e.preventDefault();
       focusPosRow(r);
     };
+    if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      extendPosSelection(cur, e.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
     switch (e.key) {
       case 'ArrowDown':
         go(rows[i + 1]);
@@ -499,13 +504,34 @@
     product: 'Drop between products to change the order, or on a category or group to move it. Hold ⌥ to add it there too',
     group: 'Drop between groups to change the order, or on a product to move it. Hold ⌥ to add it there too',
   };
+  const DRAG_HINT_MANY = {
+    category: 'Drop on the menu to add the categories',
+    product: 'Drop on their POS category, a group, or a menu-only category',
+    group: 'Drop on a product that has these groups on POS',
+  };
   const baseHint = (d) => {
+    if (d.multi && d.origin === 'pos') return DRAG_HINT_MANY[d.kind];
     const hint = (d.origin === 'canvas' ? MOVE_HINT : DRAG_HINT)[d.kind];
     return d.multi ? hint.replace('. Hold ⌥ to add it there too', '').replace(/\bit\b/, 'them') : hint;
   };
 
+  function autoPlaceManyHint(d) {
+    const pm = posMenu();
+    if (T.newMenu) return `Drop to link the new menu to ${pm.name}`;
+    const menu = menuOfPosMenu(pm);
+    if (!menu) return 'Drop to add them with their POS menu';
+    const other = menu !== activeMenu() ? menu.name : '';
+    if (d.kind === 'category') return `Drop to add them to the end of ${other || 'the menu'}`;
+    const inOther = other ? ` in ${other}` : '';
+    const parents = [...new Set(d.multi.map((x) => x.posPath[x.posPath.length - 2]))];
+    if (parents.length === 1) return `Drop to add them under ${posLabel(parents[0])}${inOther}`;
+    const types = [...new Set(parents.map((p) => (posItemById(p) || {}).type))];
+    return types.length === 1 && BULK_NOUN[types[0]] ? `Drop to add them under their POS ${BULK_NOUN[types[0]][1]}${inOther}` : `Drop to add them where they are on POS${inOther}`;
+  }
+
   function autoPlaceHint(d) {
     if (d.origin === 'canvas') return `Drop to move ${d.multi ? 'them' : 'it'} to the end of the menu`;
+    if (d.multi) return autoPlaceManyHint(d);
     const chain = d.posPath || [];
     if (d.kind !== 'menu' && d.kind !== 'category' && chain.length < 2) return DRAG_HINT[d.kind];
     const pm = posMenuOf(d);
@@ -534,18 +560,8 @@
     const posRow = e.target.closest && e.target.closest('.pos-row');
     const row = e.target.closest && e.target.closest('.row');
     if (posRow) {
-      const kind = posRow.dataset.kind;
-      T.drag = {
-        origin: 'pos',
-        posId: posRow.dataset.posId,
-        kind,
-        name: posRow.dataset.name,
-        source: 'pos',
-        ptype: kind === 'product' ? 'pos' : null,
-        gtype: kind === 'group' ? 'pos' : null,
-        chainCat: posRow.dataset.chainCat || null,
-        posPath: posRow.dataset.posPath ? posRow.dataset.posPath.split('/') : [],
-      };
+      const multi = posSelFor(posRow);
+      T.drag = multi ? { ...multi[0], multi, name: plural(multi.length, ...BULK_NOUN[multi[0].kind]) } : posRowDesc(posRow);
     } else if (row && T.sel.length > 1 && T.sel.includes(row.dataset.path)) {
       const multi = multiDragDescs(T.sel);
       T.drag = { ...dragDescFromPath(row.dataset.path), multi, name: plural(multi.length, ...BULK_NOUN[row.dataset.kind]) };
@@ -680,7 +696,15 @@
       const link = d.origin === 'canvas' && e.altKey;
       const target = { path, pos, link };
       const { parentPath } = resolveDrop(d, target);
-      const err = d.multi ? (link ? 'Drag one row at a time to add it to another place' : multiDropError(parentPath, d.multi)) : link ? linkError(d, parentPath) : dropError(parentPath, d);
+      const err = d.multi
+        ? link
+          ? 'Drag one row at a time to add it to another place'
+          : d.origin === 'pos'
+            ? posMultiDropError(parentPath, d.multi)
+            : multiDropError(parentPath, d.multi)
+        : link
+          ? linkError(d, parentPath)
+          : dropError(parentPath, d);
       if (err) {
         if (mark !== row) {
           unmark(mark);
@@ -731,7 +755,7 @@
     e.preventDefault();
     endDrag();
     if (!t) return;
-    if (d.multi) return confirmMultiDrop(d.multi, t);
+    if (d.multi) return d.origin === 'pos' ? performPosMultiDrop(d.multi, t) : confirmMultiDrop(d.multi, t);
     if (t.link) {
       const { parentPath, index } = resolveDrop(d, t);
       return linkExisting(parentPath, d.kind, d.id, index);
@@ -899,7 +923,9 @@
         e.target.dispatchEvent(new Event('input', { bubbles: true }));
         return;
       }
+      const posRow = e.target.closest && e.target.closest('#pos-tree .pos-row');
       if (typing) e.target.blur();
+      else if (posRow && T.posSel.length) clearPosSelection(posRow.dataset.rowKey);
       else if (T.sel.length > 1) select(S.ui.selected, { focusRow: true });
       return;
     }

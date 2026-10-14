@@ -155,6 +155,46 @@
     if (ok && moved) toast(`${plural(moved, one, many)} moved to ${nameOf(pi.kind, entity(pi.kind, pi.id))}`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
+  function posDropSplit(parentPath, ds) {
+    const pi = parsePath(parentPath);
+    const parent = entity(pi.kind, pi.id);
+    const isIn = (d) => {
+      const e = findByExt(d.kind, d.posId);
+      return !!e && parent.children.includes(e.id);
+    };
+    return { fresh: ds.filter((d) => !isIn(d)), present: ds.filter(isIn).length };
+  }
+
+  function posMultiDropError(parentPath, ds) {
+    const { fresh } = posDropSplit(parentPath, ds);
+    if (fresh.length) return multiDropError(parentPath, fresh);
+    const pi = parsePath(parentPath);
+    return `These ${BULK_NOUN[ds[0].kind][1]} are already in ${nameOf(pi.kind, entity(pi.kind, pi.id))}`;
+  }
+
+  function performPosMultiDrop(ds, t) {
+    if (t.auto) return autoPlaceMany(ds);
+    const { parentPath, index } = resolveDrop(ds[0], t);
+    const err = posMultiDropError(parentPath, ds);
+    if (err) return toast(err, 'error');
+    const { fresh, present } = posDropSplit(parentPath, ds);
+    const paths = [];
+    let linked = null;
+    const ok = commit(() => {
+      let at = index;
+      fresh.forEach((d) => {
+        const r = dropInto(d, parentPath, at);
+        at = r.index + 1;
+        linked = linked || r.linked;
+        paths.push(r.newPath);
+      });
+      selectAdded(paths);
+    });
+    if (!ok) return;
+    toast(addedText(paths.length, ds[0].kind, crumbText(parentPath), present));
+    if (linked) toast(`Linked to POS menu ${linked.name}`);
+  }
+
   function confirmMultiDrop(ds, t) {
     const { parentPath } = resolveDrop(ds[0], t.auto ? { path: activeMenu().id, pos: 'inside' } : t);
     const to = parsePath(parentPath);
@@ -204,18 +244,7 @@
     if (d.kind === 'menu') return placePosMenu(menu, pm);
     if (d.kind === 'category') return performDrop(d, { path: menu.id, pos: 'inside' });
 
-    let path = menu.id;
-    let depth = 0;
-    for (; depth < chain.length; depth++) {
-      const info = parsePath(path);
-      const ck = childKind(info.kind, entity(info.kind, info.id));
-      const match = entity(info.kind, info.id).children.find((cid) => {
-        const c = entity(ck, cid);
-        return c && c.source === 'pos' && c.externalId === chain[depth];
-      });
-      if (!match) break;
-      path = childPath(path, ck, match);
-    }
+    const { path, depth } = posChainIn(menu, chain);
     if (depth === chain.length) {
       const parent = parsePath(parsePath(path).parentPath);
       expandTo(path);
@@ -232,6 +261,101 @@
     });
     if (r.newPath) toast(`Added to ${crumbText(parsePath(r.newPath).parentPath)}`, 'info');
     if (r.newPath && r.linked) toast(`Linked to POS menu ${r.linked.name}`);
+  }
+
+  function posChainIn(menu, chain) {
+    let path = menu.id;
+    let depth = 0;
+    for (; depth < chain.length; depth++) {
+      const info = parsePath(path);
+      const ck = childKind(info.kind, entity(info.kind, info.id));
+      const match = entity(info.kind, info.id).children.find((cid) => {
+        const c = entity(ck, cid);
+        return c && c.source === 'pos' && c.externalId === chain[depth];
+      });
+      if (!match) break;
+      path = childPath(path, ck, match);
+    }
+    return { path, depth };
+  }
+
+  const posChainOf = (d) => (d.kind === 'category' ? [d.posId] : d.posPath || []);
+
+  function selectAdded(paths) {
+    paths.forEach((p) => {
+      expandTo(p);
+      flash(p);
+    });
+    T.sel = paths.length > 1 ? paths : [];
+    S.ui.selected = paths[paths.length - 1];
+    T.selAnchor = paths[0];
+    T.focusRow = S.ui.selected;
+  }
+
+  function addedText(n, kind, where, present) {
+    const [one, many] = BULK_NOUN[kind];
+    const already = present ? `. ${present} ${present === 1 ? 'was' : 'were'} already there` : '';
+    return `${plural(n, one, many)} successfully added to ${where}${already}`;
+  }
+
+  function autoPlaceMany(ds) {
+    const loose = ds.find((d) => d.kind !== 'category' && posChainOf(d).length < 2);
+    if (loose) return toast(`${loose.name} is sold only as an option on POS. Drop it on a group instead`, 'error');
+    const pm = posMenu();
+    const wasNew = T.newMenu;
+    let menu = wasNew ? null : menuOfPosMenu(pm);
+    if (menu && menu !== activeMenu()) {
+      S.ui.activeMenuId = menu.id;
+      S.ui.selected = menu.id;
+      S.ui.canvasQuery = '';
+      render();
+    }
+    const paths = [];
+    const presentIn = new Set();
+    let present = 0;
+    let linked = null;
+    let created = false;
+    const ok = commit(() => {
+      if (!menu) {
+        created = true;
+        T.newMenu = null;
+        menu = newMenu({ name: pm.name, posExt: pm.id, image: pm.image || null });
+        S.data.menus.push(menu);
+        S.ui.activeMenuId = menu.id;
+        S.ui.canvasQuery = '';
+      }
+      ds.forEach((d) => {
+        const chain = posChainOf(d);
+        const { path, depth } = posChainIn(menu, chain);
+        if (depth === chain.length) {
+          presentIn.add(parsePath(path).parentPath);
+          return present++;
+        }
+        let r;
+        if (depth === chain.length - 1) {
+          const err = dropError(path, d);
+          if (err) throw new Abort(err);
+          r = dropInto(d, path, Infinity);
+        } else r = addPosChain(menu, chain, path, depth);
+        linked = linked || r.linked;
+        paths.push(r.newPath);
+      });
+      if (!paths.length) {
+        const [only] = presentIn.size === 1 ? [...presentIn] : [];
+        const where = only ? nameOf(parsePath(only).kind, entity(parsePath(only).kind, parsePath(only).id)) : menu.name;
+        throw new Abort(`These ${BULK_NOUN[ds[0].kind][1]} are already in ${where}`);
+      }
+      selectAdded(paths);
+    });
+    if (!ok) {
+      T.newMenu = wasNew;
+      return render();
+    }
+    if (created) return toast(`${pm.name} successfully added as a menu. Choose its channels and order types next`);
+    const parents = [...new Set(paths.map((p) => parsePath(p).parentPath))];
+    const where = parents.length === 1 ? crumbText(parents[0]) : menu.name;
+    toast(addedText(paths.length, ds[0].kind, where, present));
+    if (linked) toast(`Linked to POS menu ${linked.name}`);
   }
 
   function addPosChain(menu, chain, path, depth) {

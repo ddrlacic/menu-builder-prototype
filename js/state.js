@@ -53,6 +53,8 @@
     rangeOpen: new Set(),
     sel: [],
     selAnchor: null,
+    posSel: [],
+    posAnchor: null,
     cleared: null,
     dismissing: false,
     rowImage: null,
@@ -1223,7 +1225,7 @@
     closeModal(true);
     useDataset(ds);
     clearHistory();
-    Object.assign(T, { posSearchExpanded: {}, canvasSearchOpen: {}, openCard: null, storeKey: null, focusRow: null, sel: [], selAnchor: null, cleared: null, newMenu: null });
+    Object.assign(T, { posSearchExpanded: {}, canvasSearchOpen: {}, openCard: null, storeKey: null, focusRow: null, sel: [], selAnchor: null, posSel: [], posAnchor: null, cleared: null, newMenu: null });
     T.flashPaths.clear();
     T.flashExt.clear();
     const { posCollapsed } = S.ui;

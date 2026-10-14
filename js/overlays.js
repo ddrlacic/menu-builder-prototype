@@ -81,6 +81,10 @@
       ['Go to the first match', ['↓'], ['Enter']],
       ['Previous or next item', ['↑'], ['↓']],
       ['Expand or collapse', ['→'], ['←']],
+      ['Add or remove an item', ['⌘', 'Click']],
+      ['Select a range', ['⇧', 'Click']],
+      ['Extend the selection', ['⇧', '↑'], ['⇧', '↓']],
+      ['Clear the selection', ['Esc']],
       ['Add to the menu', ['Enter']],
     ]],
     ['Menu tabs', [

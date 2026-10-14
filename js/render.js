@@ -315,18 +315,23 @@
 
     const hl = (name) => markMatch(name, q);
     const tabKey = rows.some((r) => r.key === T.posFocus) ? T.posFocus : rows.length && rows[0].key;
+    T.posSel = T.posSel.filter((k) => rows.some((r) => r.key === k));
+    const selRow = T.posSel.length && rows.find((r) => r.key === T.posSel[0]);
+    const selAdd = T.posSel.length > 1 ? `Add ${plural(posSelRoots().length, ...BULK_NOUN[selRow.it.type])} to menu` : '';
 
     $('#pos-tree').innerHTML = rows.length
       ? rows
           .map((r) => {
             const inMenu = ctx ? (r.isMenu ? pm.roots.every((c) => ctx.inMenuExt.has(c)) : ctx.inMenuExt.has(r.id)) : false;
             const label = r.isMenu ? r.it.name : posLabel(r.id);
-            return `<div class="pos-row${S.ui.showPosIds ? ' has-id' : ''}${r.hit ? ' is-hit' : ''}${T.flashExt.has(r.id) ? ' is-flash' : ''}" ${r.hasChildren ? `data-key="${esc(r.key)}"` : ''} data-row-key="${esc(r.key)}" tabindex="${r.key === tabKey ? 0 : -1}" role="treeitem" aria-level="${r.depth + 1}" ${r.hasChildren ? `aria-expanded="${r.expanded}"` : ''} draggable="true" data-pos-id="${r.id}" data-pos-path="${r.isMenu ? '' : esc(r.key)}" data-kind="${r.it.type}" data-name="${esc(label)}" data-chain-cat="${esc(r.chainCat)}" style="--depth:${r.depth}" title="${esc(r.it.name)} · ${r.id}">
+            const selected = T.posSel.includes(r.key);
+            const addLabel = selected && selAdd ? selAdd : `Add ${label} to menu`;
+            return `<div class="pos-row${S.ui.showPosIds ? ' has-id' : ''}${r.hit ? ' is-hit' : ''}${selected ? ' is-selected' : ''}${T.flashExt.has(r.id) ? ' is-flash' : ''}" ${r.hasChildren ? `data-key="${esc(r.key)}"` : ''} data-row-key="${esc(r.key)}" tabindex="${r.key === tabKey ? 0 : -1}" role="treeitem" aria-level="${r.depth + 1}" aria-selected="${selected}" ${r.hasChildren ? `aria-expanded="${r.expanded}"` : ''} draggable="true" data-pos-id="${r.id}" data-pos-path="${r.isMenu ? '' : esc(r.key)}" data-kind="${r.it.type}" data-name="${esc(label)}" data-chain-cat="${esc(r.chainCat)}" style="--depth:${r.depth}" title="${esc(r.it.name)} · ${r.id}">
               ${r.hasChildren ? `<button class="twisty" data-action="pos-toggle" data-key="${esc(r.key)}" tabindex="-1" aria-label="${r.expanded ? 'Collapse' : 'Expand'}">${icon('chevRight', 14)}</button>` : '<span class="twisty-spacer"></span>'}
               <span class="kind-glyph kind-${r.it.type}">${icon(KIND_ICON[r.it.type], 13)}</span>
               <span class="pos-name">${hl(r.it.name)}${S.ui.showPosIds ? `<span class="pos-id tnum">${hl(r.id)}</span>` : ''}</span>
               <span class="pos-added" ${inMenu ? `title="${r.isMenu ? 'All categories are in this menu' : 'In this menu'}"` : ''}>${inMenu ? icon('check', 13) : ''}</span>
-              <button type="button" class="icon-btn sm pos-add" data-action="pos-add" tabindex="-1" aria-label="Add ${esc(label)} to menu" title="Add to menu">${icon('plus', 14)}</button>
+              <button type="button" class="icon-btn sm pos-add" data-action="pos-add" tabindex="-1" aria-label="${esc(addLabel)}" title="${esc(selected && selAdd ? selAdd : 'Add to menu')}">${icon('plus', 14)}</button>
             </div>`;
           })
           .join('')

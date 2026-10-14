@@ -131,6 +131,76 @@
     };
   }
 
+  const posRowDesc = (row) =>
+    posDesc(row.dataset.posId, {
+      kind: row.dataset.kind,
+      name: row.dataset.name,
+      chainCat: row.dataset.chainCat || null,
+      posPath: row.dataset.posPath ? row.dataset.posPath.split('/') : [],
+    });
+
+  const posSelRoots = (keys = T.posSel) => keys.filter((k) => !keys.some((o) => k.startsWith(`${o}/`)));
+  const posRowOf = (key) => $(`#pos-tree .pos-row[data-row-key="${cssEsc(key)}"]`);
+
+  function posSelDescs() {
+    const roots = posSelRoots();
+    return $$('#pos-tree .pos-row').filter((r) => roots.includes(r.dataset.rowKey)).map(posRowDesc);
+  }
+
+  const posSelFor = (row) => (T.posSel.length > 1 && T.posSel.includes(row.dataset.rowKey) ? posSelDescs() : null);
+
+  function setPosSelection(keys, focusKey) {
+    T.posSel = keys;
+    renderPos();
+    focusPosKey(focusKey);
+  }
+
+  function togglePosSelection(row) {
+    const key = row.dataset.rowKey;
+    const kind = row.dataset.kind;
+    if (kind === 'menu') return;
+    const first = T.posSel.length && posRowOf(T.posSel[0]);
+    const base = first && first.dataset.kind === kind ? T.posSel : [];
+    T.posAnchor = key;
+    setPosSelection(base.includes(key) ? base.filter((k) => k !== key) : [...base, key], key);
+  }
+
+  function selectPosRange(row) {
+    const kind = row.dataset.kind;
+    if (kind === 'menu') return;
+    const rows = $$('#pos-tree .pos-row');
+    const keys = rows.map((r) => r.dataset.rowKey);
+    let b = keys.indexOf(row.dataset.rowKey);
+    let a = keys.indexOf(T.posAnchor);
+    if (a < 0) {
+      a = b;
+      T.posAnchor = row.dataset.rowKey;
+    }
+    if (a > b) [a, b] = [b, a];
+    const level = row.getAttribute('aria-level');
+    const picked = rows.slice(a, b + 1).filter((r) => r.dataset.kind === kind && r.getAttribute('aria-level') === level);
+    setPosSelection(picked.map((r) => r.dataset.rowKey), row.dataset.rowKey);
+  }
+
+  function extendPosSelection(cur, dir) {
+    if (cur.dataset.kind === 'menu') return;
+    if (!T.posSel.length || !posRowOf(T.posAnchor)) T.posAnchor = cur.dataset.rowKey;
+    const rows = $$('#pos-tree .pos-row');
+    const level = cur.getAttribute('aria-level');
+    for (let i = rows.indexOf(cur) + dir; i >= 0 && i < rows.length; i += dir) {
+      const r = rows[i];
+      if (r.dataset.kind === cur.dataset.kind && r.getAttribute('aria-level') === level) return selectPosRange(r);
+    }
+  }
+
+  function clearPosSelection(focusKey) {
+    if (!T.posSel.length) return false;
+    T.posSel = [];
+    renderPos();
+    if (focusKey) focusPosKey(focusKey);
+    return true;
+  }
+
   function openAddPicker({ title, intro, parentPath, ids, priceOf, noun }) {
     const pi = parsePath(parentPath);
     const parent = entity(pi.kind, pi.id);

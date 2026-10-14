@@ -204,15 +204,9 @@
       case 'pos-add': {
         e.stopPropagation();
         const posRow = el.closest('.pos-row');
-        performDrop(
-          posDesc(posRow.dataset.posId, {
-            kind: posRow.dataset.kind,
-            name: posRow.dataset.name,
-            chainCat: posRow.dataset.chainCat || null,
-            posPath: posRow.dataset.posPath ? posRow.dataset.posPath.split('/') : [],
-          }),
-          { auto: true },
-        );
+        const multi = posSelFor(posRow);
+        if (multi) autoPlaceMany(multi);
+        else performDrop(posRowDesc(posRow), { auto: true });
         break;
       }
       case 'canvas-more':
@@ -1040,7 +1034,16 @@
       select(row.dataset.path, { focusRow: true });
       return;
     }
-    const posRow = e.target.closest('.pos-row[data-key]');
-    if (posRow) return togglePosRow(posRow);
+    const posRow = e.target.closest('#pos-tree .pos-row');
+    if (posRow) {
+      if (e.shiftKey) return selectPosRange(posRow);
+      if (e.metaKey || e.ctrlKey) return togglePosSelection(posRow);
+      const key = posRow.dataset.rowKey;
+      T.posAnchor = key;
+      if (posRow.dataset.kind === 'menu') clearPosSelection(key);
+      else setPosSelection([key], key);
+      if (posRow.dataset.key) togglePosRow(posRowOf(key));
+      return;
+    }
     if (e.target.closest('#canvas') && !e.target.closest('button, a, input, label, select, textarea, [role="menu"], .menu-card') && !T.modal && !T.dismissing) clearSelection();
   });
