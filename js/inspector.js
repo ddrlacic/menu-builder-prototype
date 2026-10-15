@@ -330,6 +330,19 @@
     );
   };
 
+  const removeEverywhereSection = (path, kind, ent) => {
+    const places = everywherePlaces(kind, ent);
+    if (ent.pending || places.length < 2) return '';
+    const block = removeEverywhereBlock(kind, ent);
+    const where = allOf(places.length, kind === 'category' ? 'menus' : kind === 'group' ? 'products that use it' : 'places it appears in');
+    const help = block || `Removes it from ${where}. It keeps its settings, so you can ${isVirtual(ent) ? 'add it back under Add existing' : 'add it back from POS items'}.`;
+    return section(
+      '',
+      `<button type="button" class="btn secondary tone-danger" data-action="remove-everywhere" data-path="${esc(path)}" ${block ? 'disabled' : ''}>${icon('x', 15)}Remove from all menus</button>
+       <p class="field-help">${esc(help)}</p>`,
+    );
+  };
+
   function stagedBody(kind, ent, path, root) {
     const importBtn = `<button type="button" class="btn primary" data-action="import" ${T.importing ? 'disabled' : ''}>${T.importing ? '<span class="spinner"></span>Importing' : `${icon('download', 15)}Import`}</button>`;
     const imported = (ctx.usage.get(`${kind}:${ent.id}`) || []).filter((u) => !pendingRoot(u));

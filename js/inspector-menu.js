@@ -674,10 +674,11 @@
           (cat.isBundle && !isCateringMenu(menu) ? callout('info', `${esc(menu.name)} has no catering order types, so this has no effect there.`) : ''),
       ) +
       removeSection(path, 'category', cat) +
+      removeEverywhereSection(path, 'category', cat) +
       section(
         '',
         `<button type="button" class="btn secondary tone-danger" data-action="cat-delete" data-id="${cat.id}" ${publishing ? 'disabled' : ''}>${icon('trash', 15)}Delete category</button>
-        <p class="field-help">${publishing ? esc(publishing) : `Removes it from ${inMenus.length > 1 ? `all ${inMenus.length} menus` : esc(menu.name)}. Its products are not deleted${cat.source === 'pos' ? ', and nothing changes on POS' : ''}.`}</p>`,
+        <p class="field-help">${publishing ? esc(publishing) : `Deletes it and its settings permanently, from ${inMenus.length > 1 ? allOf(inMenus.length, 'menus') : esc(menu.name)}. Its products are not deleted${cat.source === 'pos' ? ', and nothing changes on POS' : ''}.`}</p>`,
       )
     );
   }

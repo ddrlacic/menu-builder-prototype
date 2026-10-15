@@ -38,6 +38,7 @@
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
   const uid = (prefix) => `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const allOf = (n, noun) => (n === 2 ? `both ${noun}` : `all ${n} ${noun}`);
   const esc = (s) =>
     String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const cssEsc = (s) => (window.CSS && CSS.escape ? CSS.escape(s) : s.replace(/"/g, '\\"'));

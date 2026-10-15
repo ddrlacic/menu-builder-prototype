@@ -80,6 +80,7 @@
       metadataSection(g, 'group') +
       groupAppearsInSection(g, path) +
       removeSection(path, 'group', g) +
+      removeEverywhereSection(path, 'group', g) +
       groupDeleteSection(g, path)
     );
   }
@@ -108,7 +109,7 @@
   function groupDeleteSection(g, path) {
     const block = groupDeleteBlock(g);
     const parents = groupParents(g.id);
-    const where = parents.length === 1 ? `Removes it from ${nameOf('product', parents[0])}.` : parents.length ? `Removes it from all ${parents.length} products that use it.` : 'Deletes it from this brand.';
+    const where = `Deletes it and its settings permanently${parents.length === 1 ? `, from ${nameOf('product', parents[0])}` : parents.length ? `, from ${allOf(parents.length, 'products that use it')}` : ''}.`;
     const halves = Object.keys(g.halves).length || Object.values(S.data.entities.product).some((p) => Object.keys(p.halfWhole || {}).some((k) => k.startsWith(`${g.id}:`)));
     const help = block || `${where} Its options are not deleted.${halves ? ' Its halves are deleted with it.' : ''}${g.source === 'pos' ? ' Nothing changes on POS.' : ''}`;
     return section(

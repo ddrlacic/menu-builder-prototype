@@ -656,6 +656,7 @@
       metadataSection(p) +
       (p.ptype === 'size' ? '' : prepSection(p)) +
       removeSection(path, 'product', p) +
+      removeEverywhereSection(path, 'product', p) +
       productDeleteSection(p)
     );
   }
@@ -665,7 +666,7 @@
     const places = productParents(p);
     const kids = p.ptype === 'size' ? ' Its choices are not deleted' : p.children.length ? ' Its groups are not deleted' : '';
     const pos = p.source === 'pos' ? ' Nothing changes on POS.' : '';
-    const where = places.length === 1 ? `Removes it from ${nameOf(places[0].kind, places[0].ent)}.` : places.length ? `Removes it from all ${places.length} places it appears in.` : 'Deletes it from this brand.';
+    const where = `Deletes it and its settings permanently${places.length === 1 ? `, from ${nameOf(places[0].kind, places[0].ent)}` : places.length ? `, from ${allOf(places.length, 'places it appears in')}` : ''}.`;
     const help = block || `${where}${kids ? `${kids}.` : ''}${pos}`;
     return section(
       '',
