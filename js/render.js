@@ -322,7 +322,7 @@
     $('#pos-tree').innerHTML = rows.length
       ? rows
           .map((r) => {
-            const inMenu = ctx ? (r.isMenu ? pm.roots.every((c) => ctx.inMenuExt.has(c)) : ctx.inMenuExt.has(r.id)) : false;
+            const imported = r.isMenu ? pm.roots.length > 0 && pm.roots.every((c) => isImported('category', c)) : isImported(r.it.type, r.id);
             const label = r.isMenu ? r.it.name : posLabel(r.id);
             const selected = T.posSel.includes(r.key);
             const addLabel = selected && selAdd ? selAdd : `Add ${label} to menu`;
@@ -330,7 +330,7 @@
               ${r.hasChildren ? `<button class="twisty" data-action="pos-toggle" data-key="${esc(r.key)}" tabindex="-1" aria-label="${r.expanded ? 'Collapse' : 'Expand'}">${icon('chevRight', 14)}</button>` : '<span class="twisty-spacer"></span>'}
               <span class="kind-glyph kind-${r.it.type}">${icon(KIND_ICON[r.it.type], 13)}</span>
               <span class="pos-name">${hl(r.it.name)}${S.ui.showPosIds ? `<span class="pos-id tnum">${hl(r.id)}</span>` : ''}</span>
-              <span class="pos-added" ${inMenu ? `title="${r.isMenu ? 'All categories are in this menu' : 'In this menu'}"` : ''}>${inMenu ? icon('check', 13) : ''}</span>
+              <span class="pos-added" ${imported ? `title="${r.isMenu ? 'All categories are imported' : 'Imported'}"` : ''}>${imported ? icon('check', 13) : ''}</span>
               <button type="button" class="icon-btn sm pos-add" data-action="pos-add" tabindex="-1" aria-label="${esc(addLabel)}" title="${esc(selected && selAdd ? selAdd : 'Add to menu')}">${icon('plus', 14)}</button>
             </div>`;
           })

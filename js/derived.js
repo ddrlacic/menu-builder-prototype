@@ -21,17 +21,13 @@
       });
     }
     const menu = activeMenu();
-    const inMenuExt = new Set();
     const counts = { category: new Set(), product: new Set(), group: new Set() };
-    walkMenu(menu, (k, id, ent) => {
+    walkMenu(menu, (k, id) => {
       counts[k].add(id);
-      const ext = posIdOf(k, ent);
-      if (ext) inMenuExt.add(ext);
     });
     return {
       usage,
       pending: pendingRows(),
-      inMenuExt,
       counts: { category: counts.category.size, product: counts.product.size, group: counts.group.size },
       issues: computeIssues(menu),
       compare: compareData(menu),
