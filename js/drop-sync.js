@@ -472,7 +472,6 @@
       for (const it of Object.values(items)) if (it.children) it.children = it.children.filter((c) => c !== id);
       touched.add(id);
     }
-    Object.assign(S.data.pos.priceGaps, demo.priceGaps || {});
     return touched;
   }
 
@@ -697,7 +696,6 @@
     m.status = 'published';
     m.publishedAt = Date.now();
     m.publishedStoreIds = menuStores(m).map((s) => s.id);
-    m.pricedKeys = menuPriceKeys(m);
     dataVersion++;
     render();
     toast('Menu successfully published');
@@ -780,7 +778,6 @@
           has_banner_image: !!e.bannerImage,
           is_bundle: e.isBundle,
           is_virtual_container: isVirtual(e),
-          venues: Object.fromEntries(hiddenCategoryStores(e).map((s) => [s.id, { state: 2 }])),
           products: kids('product'),
         });
       } else if (kind === 'product') {
@@ -846,17 +843,6 @@
             is_sections_overridden: true,
             sections: o.sections.map((s) => ({ id: s.id, name: s.name, product_ids: o.children.filter((pid) => sectionOfOption(o, pid) === s.id) })),
           })),
-          venues: Object.fromEntries(
-            Object.entries(e.stores).map(([sid, st]) => [
-              sid,
-              {
-                show_in_menu: productShownAt(e, sid),
-                in_stock: !st.stock,
-                out_of_stock_duration: STOCK_DURATION[st.stock] || null,
-                ...(hasPosStock(sid) && { pos_available: !st.posStock, pos_unavailable_duration: STOCK_DURATION[st.posStock] || null }),
-              },
-            ]),
-          ),
           product_groups: choices ? [] : kids('group'),
         });
       } else {

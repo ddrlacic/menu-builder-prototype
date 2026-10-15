@@ -11,7 +11,6 @@
   }
 
   function computeCtx() {
-    priceCache = new Map();
     halfCache = new Map();
     const usage = new Map();
     for (const m of S.data.menus) {
@@ -105,12 +104,6 @@
               `${name} is not in ${nameOf('category', home)}, so ${inMenuCategory(menu, id) ? 'delivery apps leave it out of' : 'customers cannot pick it in'} ${nameOf('product', entity('product', holder.id))}`,
               'availability',
             );
-        }
-        const ps = priceStats(path);
-        if (ps.total && ps.missingStores.length && !isMissingOnPos(ent)) {
-          const n = ps.missingStores.length;
-          if (n === ps.total) pAdd('error', `${name} has no POS price at any store in this menu`, 'general');
-          else pAdd('warning', `${name} has no POS price at ${plural(n, 'store', 'stores')}, so customers there cannot ${parsePath(parsePath(path).parentPath).kind === 'category' ? 'order' : 'choose'} it`, 'general');
         }
         if (qtyError(ent.minQty) || qtyError(ent.maxQty)) pAdd('error', `${name}: quantity limits need whole numbers from 1 to ${QTY_MAX}`, 'ordering');
         else if (isNum(ent.minQty) && isNum(ent.maxQty) && ent.maxQty < ent.minQty) pAdd('error', `${name}: maximum quantity is lower than the minimum`, 'ordering');

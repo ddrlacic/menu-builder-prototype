@@ -145,19 +145,9 @@
       renderListPicker();
       return;
     }
-    if (t.id === 'ot-search' && T.ot) {
-      T.ot.query = t.value;
-      renderOwnTimesStores();
-      return;
-    }
     if (t.id === 'ms-search' && T.ms) {
       T.ms.query = t.value;
       renderManageStores();
-      return;
-    }
-    if (t.matches('[data-store-search]')) {
-      T.storeQuery = t.value;
-      render();
       return;
     }
     if (t.matches('[data-cat-product-search]')) {

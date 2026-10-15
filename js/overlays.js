@@ -233,7 +233,6 @@
     if (T.bi) T.bi.files.forEach((f) => URL.revokeObjectURL(f.url));
     T.bi = null;
     T.ms = null;
-    T.ot = null;
     T.mc = null;
     if (immediate === true) {
       root.innerHTML = '';
@@ -632,13 +631,6 @@
     const block = deleteBlockOf(info.kind, ent);
     const run = () => (info.kind === 'product' ? confirmDeleteProduct(ent) : info.kind === 'group' ? confirmDeleteGroup(ent, path) : confirmDeleteCategory(ent));
     return [{ label: `Delete ${KIND_LABEL[info.kind].toLowerCase()}`, icon: 'trash', tone: 'danger', disabled: !!block, hint: block, onClick: run }];
-  }
-
-  function bulkStockMenu(anchor) {
-    openPopover(anchor, [
-      { heading: 'Set stock at stores' },
-      ...STOCK_OPTIONS.map(([value, label]) => ({ label, onClick: () => openBulkStores('stock', value) })),
-    ], { align: 'start' });
   }
 
   function openReplaceCodes() {

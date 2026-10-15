@@ -50,23 +50,10 @@
   const choiceProductsHolding = (category, pid) =>
     category.children.map((c) => entity('product', c)).filter((p) => p && p.ptype === 'size' && p.id !== pid && p.children.includes(pid));
 
-  const storeEntry = (p, sid) => (p.stores || {})[sid] || {};
-  const productStockAt = (p, sid) => storeEntry(p, sid).stock || '';
-  const productHiddenAt = (p, sid) => !!storeEntry(p, sid).hidden;
-  const productPosStockAt = (p, sid) => (hasPosStock(sid) && storeEntry(p, sid).posStock) || '';
-  const shownLockedAt = (p, sid) => hasPosStock(sid) && productStockAt(p, sid) === 'out_of_stock';
-  const productShownAt = (p, sid) => !productHiddenAt(p, sid) && !shownLockedAt(p, sid);
-  const productOutAt = (p, sid) => !!(productStockAt(p, sid) || productPosStockAt(p, sid));
-  const productChangedAt = (p, sid) => productOutAt(p, sid) || productHiddenAt(p, sid);
   const productMenus = (p) => {
     const ids = new Set((ctx.usage.get(`product:${p.id}`) || []).map((path) => parsePath(path).menuId));
     return S.data.menus.filter((m) => ids.has(m.id));
   };
-
-  function productStores(p) {
-    const ids = new Set(productMenus(p).flatMap((m) => menuStores(m).map((s) => s.id)));
-    return STORES.filter((s) => ids.has(s.id));
-  }
 
   function productParents(p) {
     const holds = (x) => x.children.includes(p.id);
@@ -709,99 +696,6 @@
     if (pi.kind !== 'product' || !halvesSupported(entity('group', gi.id))) return null;
     const { h } = halvesAt(entity('product', pi.id), gi.id, info.id);
     return h.left || h.right ? h : null;
-  }
-
-  function priceSource(path) {
-    const info = parsePath(path);
-    const ent = entity('product', info.id);
-    const parent = parsePath(info.parentPath);
-    const pEnt = entity(parent.kind, parent.id);
-    if (ent.ptype === 'container' || ent.ptype === 'size') return { kind: 'none' };
-    const own = posIdOf('product', ent);
-    const missingNote = isMissingOnPos(ent) ? 'Last known POS price' : null;
-    const src = { own, ent };
-    if (parent.kind === 'product' && pEnt.ptype === 'size') return { ...src, kind: 'size', note: missingNote || 'POS price of this choice' };
-    if (parent.kind === 'group') {
-      if (pEnt.gtype === 'standalone') return { ...src, kind: 'item', note: missingNote || 'Its own POS price. Added to the order as a separate item' };
-      const gid = posIdOf('group', pEnt);
-      return { ...src, kind: 'modifier', group: gid, note: missingNote || `POS price in ${posLabel(gid)}` };
-    }
-    let note = 'From POS';
-    if (ent.ptype === 'linked') note = `Rings up as ${posLabel(own)}`;
-    else if (isVirtual(pEnt) && ent.originCategoryExt) note = `From POS category: ${posLabel(ent.originCategoryExt)}`;
-    return { ...src, kind: 'base', note: missingNote || note };
-  }
-
-  function priceAt(src, store) {
-    if (src.kind === 'none') return null;
-    if (src.kind === 'modifier') return posOptionPrice(src.group, src.own, src.ent, store);
-    return posPrice(src.own, src.ent, store);
-  }
-
-  function priceInfo(path, store) {
-    const src = priceStats(path);
-    return { kind: src.kind, note: src.note, value: priceAt(src, store) };
-  }
-
-  function priceInputs(src) {
-    if (src.kind === 'none') return 'none';
-    const g = src.kind === 'modifier' ? posItemById(src.group) : null;
-    const it = posItemById(src.own);
-    return JSON.stringify([
-      g && g.childPrices ? g.childPrices[src.own] : null,
-      it ? it.price : null,
-      src.ent && src.ent.reviewed ? src.ent.reviewed.price : null,
-      (S.data.pos.priceGaps || {})[src.own] || null,
-    ]);
-  }
-
-  function storePriceStats(src, stores = menuStores(activeMenu())) {
-    if (!storePriceCache.has(stores)) storePriceCache.set(stores, new Map());
-    const byInputs = storePriceCache.get(stores);
-    const key = priceInputs(src);
-    if (!byInputs.has(key)) byInputs.set(key, statsOf((s) => priceAt(src, s), stores));
-    return byInputs.get(key);
-  }
-
-  function priceKey(path) {
-    const info = parsePath(path);
-    let parent = parsePath(info.parentPath);
-    if (parent.kind === 'group') return `g:${parent.id}>${info.id}`;
-    while (parent.kind !== 'category' && parent.parentPath) parent = parsePath(parent.parentPath);
-    return `c:${parent.id}>${info.id}`;
-  }
-
-  function menuPriceKeys(menu) {
-    const keys = new Set();
-    walkMenu(menu, (kind, id, ent, path) => {
-      if (kind === 'product') keys.add(priceKey(path));
-    });
-    return [...keys];
-  }
-
-  const pricedKeySets = new WeakMap();
-  function hasPriceRows(path) {
-    const m = menuById(parsePath(path).menuId);
-    if (!m || !m.pricedKeys) return true;
-    if (!pricedKeySets.has(m.pricedKeys)) pricedKeySets.set(m.pricedKeys, new Set(m.pricedKeys));
-    return pricedKeySets.get(m.pricedKeys).has(priceKey(path));
-  }
-
-  function priceStats(path) {
-    if (priceCache.has(path)) return priceCache.get(path);
-    const src = priceSource(path);
-    const empty = { priced: 0, total: 0, missingStores: [] };
-    let st;
-    if (src.kind === 'none') st = { ...src, ...empty };
-    else if (!hasPriceRows(path)) st = { ...src, ...empty, pending: true };
-    else st = { ...src, ...storePriceStats(src) };
-    priceCache.set(path, st);
-    return st;
-  }
-
-  function priceText(st) {
-    if (st.pending) return '—';
-    return rangeText(st, { plus: st.kind === 'modifier' || st.kind === 'item', freeWord: st.kind === 'modifier' });
   }
 
   function groupRuleShort(r) {

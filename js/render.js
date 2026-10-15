@@ -554,22 +554,8 @@
       const pre = preselectedAt(path);
       if (pre) badges.push(`<span class="badge tone-accent">Preselected${pre > 1 ? ` ×${pre}` : ''}</span>`);
       if (isAutoAdded(path)) badges.push(`<span class="badge" title="Added automatically by POS">Auto-added</span>`);
-      const ps = priceStats(path);
-      if (ps.total && ps.missingStores.length && !isMissingOnPos(ent)) {
-        const all = ps.missingStores.length === ps.total;
-        badges.push(`<span class="badge tone-${all ? 'error' : 'warning'}" title="No POS price, so customers there cannot order it">No price at ${all ? 'any store' : plural(ps.missingStores.length, 'store', 'stores')}</span>`);
-      }
-      const sids = Object.keys(ent.stores || {});
-      const oos = sids.filter((sid) => productOutAt(ent, sid)).length;
-      const hiddenAt = sids.filter((sid) => !productShownAt(ent, sid)).length;
-      if (oos) badges.push(`<span class="badge tone-warning">Out of stock at ${plural(oos, 'store', 'stores')}</span>`);
-      if (hiddenAt) badges.push(`<span class="badge" title="Hidden from the menu at these stores">Hidden at ${plural(hiddenAt, 'store', 'stores')}</span>`);
     }
-    if (kind === 'category') {
-      if (ent.isBundle) badges.push(`<span class="badge" title="Only for catering orders in Web App">${icon('package', 12)}Catering bundles</span>`);
-      const off = hiddenCategoryStores(ent).length;
-      if (off) badges.push(`<span class="badge" title="Customers at these stores do not see the category">Hidden at ${plural(off, 'store', 'stores')}</span>`);
-    }
+    if (kind === 'category' && ent.isBundle) badges.push(`<span class="badge" title="Only for catering orders in Web App">${icon('package', 12)}Catering bundles</span>`);
     if (isCustomVersion(ent)) badges.push(`<span class="badge tone-virtual" title="Rings up on POS as the original">${icon('link', 12)}Custom</span>`);
     else if (isVirtual(ent)) badges.push(`<span class="badge tone-virtual" title="Exists only in your menus. Not on POS">Menu only</span>`);
     if (uses > 1) badges.push(`<span class="badge" title="Used in ${uses} places">${icon('copy', 12)}${uses}</span>`);

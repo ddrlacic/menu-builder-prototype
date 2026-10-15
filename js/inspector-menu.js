@@ -58,6 +58,7 @@
         `<button type="button" class="btn secondary" data-action="duplicate-menu" data-id="${m.id}" ${dupBlock ? 'disabled' : ''}>${icon('copy', 15)}Duplicate menu</button>` +
           `<p class="field-help">${esc(dupBlock || 'Creates a draft with the same categories, settings, and stores. It goes live when you publish it.')}</p>`,
       ) +
+      unpublishSection(m) +
       section(
         '',
         `<button type="button" class="btn secondary tone-danger" data-action="delete-menu" data-id="${m.id}" ${menuDeleteBlock(m) ? 'disabled' : ''}>${icon('trash', 15)}Delete menu</button>` +
@@ -141,8 +142,7 @@
             (sameTimes ? slotError('Each time slot needs different start and end times') : '') +
             '<p class="field-help">Customers can order only when the store is open too.</p>'
           : '<p class="field-help">Customers can order from this menu whenever the store is open.</p>'
-      }
-      ${ownTimesNote(m)}`;
+      }`;
 
     return section('Serving times', schedule, { desc: 'Products can narrow these times further.' }) + segmentsSection(mb('segments'), m.segments, 'menu');
   }
@@ -187,90 +187,6 @@
     });
   }
 
-  function ownTimesStores(m) {
-    const on = new Set(menuStores(m).map((s) => s.id));
-    return m.ownTimesStoreIds.filter((id) => on.has(id)).map((id) => storeById.get(id));
-  }
-
-  function ownTimesNote(m) {
-    const own = ownTimesStores(m);
-    if (!own.length) return '';
-    const few = own.length <= 3;
-    const who = few ? `${listJoin(own.map((s) => s.name))} ${own.length === 1 ? 'has' : 'have'}` : `${own.length} of ${menuStores(m).length} stores have`;
-    return `${callout('info', `${esc(who)} their own serving times, so the menu’s times do not apply there.`)}
-      <div class="hint-actions">
-        <button type="button" class="btn secondary sm" data-action="own-times-view">View stores</button>
-        <button type="button" class="btn ghost sm" data-action="own-times-reset-all">Reset to menu times</button>
-      </div>`;
-  }
-
-  const ownTimesWho = (ids) => (ids.length === 1 ? storeById.get(ids[0]).name : plural(ids.length, 'store', 'stores'));
-
-  function confirmOwnTimesReset(m, ids, onCancel = closeModal) {
-    openModal({
-      title: `Reset ${ownTimesWho(ids)} to menu times?`,
-      body: `<p>Their own serving times are replaced with the menu’s. From then on, they follow the menu when its times change.</p>`,
-      actions: [
-        { label: 'Cancel', kind: 'secondary', onClick: onCancel },
-        { label: 'Reset to menu times', kind: 'primary', onClick: () => { closeModal(); resetOwnTimes(m, ids); } },
-      ],
-    });
-  }
-
-  function resetOwnTimes(m, ids) {
-    const gone = new Set(ids);
-    const ok = commit(() => {
-      m.ownTimesStoreIds = m.ownTimesStoreIds.filter((id) => !gone.has(id));
-    });
-    if (ok) toast(`${ownTimesWho(ids)} reset to menu times`, 'success', { action: { label: 'Undo', onClick: undo } });
-  }
-
-  function openOwnTimesStores(m, sel = new Set(), query = '') {
-    openModal({
-      title: 'Stores with own serving times',
-      body: `<p>The menu’s serving times do not apply at these stores. Edit a store’s times on its menu page, or reset stores to the menu’s times here.</p>
-        <label class="search-field">${icon('search', 15)}<span class="sr-only">Search by store or city</span>
-          <input id="ot-search" type="search" placeholder="Search by store or city" autocomplete="off" value="${esc(query)}"></label>
-        <div id="ot-list"></div>`,
-      foot: '<div class="modal-foot" id="ot-foot"></div>',
-    });
-    T.ot = { menuId: m.id, query, sel };
-    renderOwnTimesStores();
-    $('#ot-search').focus();
-  }
-
-  function ownTimesShown() {
-    const q = T.ot.query.trim().toLowerCase();
-    return ownTimesStores(S.data.menus.find((x) => x.id === T.ot.menuId)).filter((s) => !q || s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q));
-  }
-
-  function renderOwnTimesStores() {
-    if (!T.ot || !$('#ot-list')) return;
-    const { sel } = T.ot;
-    const list = ownTimesShown();
-    const box = (on) => `<span class="check${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span>`;
-    const n = list.filter((s) => sel.has(s.id)).length;
-    const allOn = n === list.length;
-    $('#ot-list').innerHTML = list.length
-      ? `<div class="ms-tree ot-tree">
-          <button type="button" class="ms-row ms-all" role="checkbox" aria-checked="${allOn ? 'true' : n ? 'mixed' : 'false'}" data-action="ot-all" data-on="${allOn ? 0 : 1}"><span class="check${n ? ' is-on' : ''}" aria-hidden="true">${allOn ? icon('check', 12) : n ? icon('minus', 12) : ''}</span>Select all</button>
-          <div class="ms-stores">${list
-            .map((s) => `<button type="button" class="ms-row" role="checkbox" aria-checked="${sel.has(s.id)}" data-action="ot-store" data-id="${s.id}">${box(sel.has(s.id))}<span class="ms-name">${esc(s.name)}${ownTimesOf(s.id).map((t) => `<span class="ms-sub">${esc(scheduleSummary([t]))}</span>`).join('')}</span><span class="ms-city">${esc(s.city)}</span></button>`)
-            .join('')}</div>
-        </div>`
-      : '<div class="empty-small"><strong>No stores match</strong><span>Check the spelling or search by city.</span></div>';
-    $('#ot-foot').innerHTML = `<button type="button" class="btn secondary" data-modal-close>Close</button>
-      <button type="button" class="btn primary" data-action="ot-reset"${sel.size ? '' : ' disabled'}>Reset to menu times</button>`;
-  }
-
-  function resetSelectedOwnTimes() {
-    const { menuId, sel, query } = T.ot;
-    const m = S.data.menus.find((x) => x.id === menuId);
-    const ids = ownTimesStores(m).map((s) => s.id).filter((id) => sel.has(id));
-    if (!ids.length) return;
-    confirmOwnTimesReset(m, ids, () => openOwnTimesStores(m, sel, query));
-  }
-
   function menuStoresTab(m) {
     const total = menuStores(m).length;
     const error = m.storeGroups.length ? '' : 'Add at least one store group';
@@ -280,30 +196,17 @@
       <div class="group-cards">${m.storeGroups.map((a, i) => storeGroupCard(m, a, i)).join('')}</div>
       ${field('', `<button type="button" class="btn secondary sm" data-action="menu-manage-stores">${icon('store', 14)}Manage stores</button>`, { error })}`,
       { desc: 'The menu goes live at these stores when you publish.' },
-    ) + menuLiveSection(m);
+    );
   }
 
-  const MENU_OFF_ROWS = 10;
-
-  function menuLiveSection(m) {
-    const total = menuStores(m).length;
-    if (!total || !m.publishedAt) return '';
-    const live = m.publishedStoreIds.length;
-    const off = notLiveStores(m);
+  function unpublishSection(m) {
+    if (!m.publishedStoreIds.length) return '';
     const busy = m.status === 'publishing';
-    const row = (s) => `<div class="store-row list-row"><span class="store-name list-name"><span>${esc(s.name)}</span><span class="muted">${esc(s.city)}</span></span></div>`;
-    const list =
-      live && off.length
-        ? `<div class="store-list">${off.slice(0, MENU_OFF_ROWS).map(row).join('')}</div>
-          ${off.length > MENU_OFF_ROWS ? `<p class="field-help">Showing ${MENU_OFF_ROWS} of ${off.length} stores where it’s not live.</p>` : ''}
-          <p class="field-help">It goes live at ${off.length === 1 ? 'this store' : 'these stores'} when you publish.</p>`
-        : '';
-    const unpublish = live
-      ? field('', `<button type="button" class="btn secondary sm tone-danger" data-action="menu-unpublish" ${busy ? 'disabled' : ''}>${icon('eyeOff', 14)}Unpublish menu</button>`, {
-          help: busy ? 'You can unpublish it once publishing finishes.' : 'Customers at every store stop seeing it right away.',
-        })
-      : '';
-    return section('Status at stores', `<p class="store-summary tnum">${live ? `Live at ${live} of ${plural(total, 'store', 'stores')}` : 'Not live at any store'}</p>${list}${unpublish}`);
+    return section(
+      '',
+      `<button type="button" class="btn secondary tone-danger" data-action="menu-unpublish" ${busy ? 'disabled' : ''}>${icon('eyeOff', 15)}Unpublish menu</button>
+      <p class="field-help">${busy ? 'You can unpublish it once publishing finishes.' : 'Customers at every store stop seeing it right away.'}</p>`,
+    );
   }
 
   function storeGroupCard(m, a, i) {
@@ -338,20 +241,13 @@
     $('#ms-search').focus();
   }
 
-  function msGroupStores(gid) {
-    const all = groupStores(gid);
-    if (!T.ms.vis) return all;
-    const on = new Set(visStores(T.ms.vis).map((s) => s.id));
-    return all.filter((s) => on.has(s.id));
-  }
-
   function manageStoresGroups() {
     const o = T.ms;
     const q = o.query.trim().toLowerCase();
     return C.menuStoreGroups
       .map((g) => {
-        let list = msGroupStores(g.id);
-        if (o.onlySelected) list = list.filter((s) => (o.vis ? !o.sel[g.id].has(s.id) : o.sel[g.id].has(s.id)));
+        let list = groupStores(g.id);
+        if (o.onlySelected) list = list.filter((s) => o.sel[g.id].has(s.id));
         if (q && !g.name.toLowerCase().includes(q)) list = list.filter((s) => s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q));
         return { g, list };
       })
@@ -391,7 +287,7 @@
               return `<div class="ms-group">
                 <div class="ms-group-head">
                   <button type="button" class="icon-btn sm ms-chev" data-action="ms-open" data-id="${g.id}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'} ${esc(g.name)}">${icon('chevRight', 14)}</button>
-                  <button type="button" class="ms-row" role="checkbox" aria-checked="${checked(st)}" data-action="ms-group" data-id="${g.id}" data-on="${st === 'on' ? 0 : 1}">${box(st)}<strong class="ms-name">${esc(g.name)}</strong><span class="ms-city tnum">${o.sel[g.id].size} of ${msGroupStores(g.id).length}</span></button>
+                  <button type="button" class="ms-row" role="checkbox" aria-checked="${checked(st)}" data-action="ms-group" data-id="${g.id}" data-on="${st === 'on' ? 0 : 1}">${box(st)}<strong class="ms-name">${esc(g.name)}</strong><span class="ms-city tnum">${o.sel[g.id].size} of ${groupStores(g.id).length}</span></button>
                 </div>
                 ${open ? `<div class="ms-stores">${list.map((s) => storeRow(g, s)).join('')}</div>` : ''}
               </div>`;
@@ -400,18 +296,12 @@
         </div>`
       : q
         ? '<div class="empty-small"><strong>No stores match</strong><span>Check the spelling or search by city.</span></div>'
-        : `<div class="empty-small"><strong>${o.vis ? 'No stores hidden' : 'No stores selected'}</strong></div>`;
-    if (o.vis) {
-      const published = visPublishedIds(o.vis);
-      const live = visibilityChange(o).hide.filter((id) => published.has(id));
-      $('#ms-warn').innerHTML = live.length ? callout('warning', `Customers at ${plural(live.length, 'store', 'stores')} you unticked stop seeing the ${o.vis.kind} right away.`) : '';
-    } else {
-      const removed = manageStoresRemoved(o);
-      $('#ms-warn').innerHTML = removed.length
-        ? callout('warning', `The menu is published at ${plural(removed.length, 'store', 'stores')} you unticked. Saving removes it from them right away.`)
-        : '';
-    }
-    $('#ms-foot').innerHTML = `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="ms-only">${box(o.onlySelected ? 'on' : 'off')}${o.vis ? 'Show only hidden' : 'Show only selected'}</button>
+        : '<div class="empty-small"><strong>No stores selected</strong></div>';
+    const removed = manageStoresRemoved(o);
+    $('#ms-warn').innerHTML = removed.length
+      ? callout('warning', `The menu is published at ${plural(removed.length, 'store', 'stores')} you unticked. Saving removes it from them right away.`)
+      : '';
+    $('#ms-foot').innerHTML = `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="ms-only">${box(o.onlySelected ? 'on' : 'off')}Show only selected</button>
       <button type="button" class="btn secondary" data-modal-close>Cancel</button>
       <button type="button" class="btn primary" data-action="ms-save">Save</button>`;
   }
@@ -424,7 +314,6 @@
 
   function saveManageStores() {
     const o = T.ms;
-    if (o.vis) return saveVisibilityStores(o);
     const m = S.data.menus.find((x) => x.id === o.menuId);
     const removed = manageStoresRemoved(o);
     const pick = (gid, newStores) => {
@@ -449,105 +338,6 @@
 
   const menusWithCategory = (catId) => S.data.menus.filter((m) => m.children.includes(catId));
   const isCateringMenu = (m) => m.orderTypes.some((o) => o.startsWith('catering'));
-
-  function categoryStores(cat) {
-    const ids = new Set(menusWithCategory(cat.id).flatMap((m) => menuStores(m).map((s) => s.id)));
-    return STORES.filter((s) => ids.has(s.id));
-  }
-  const isHiddenAt = (cat, sid) => (cat.stores || {})[sid] === 'disabled';
-  const hiddenCategoryStores = (cat) => (Object.keys(cat.stores || {}).length ? categoryStores(cat).filter((s) => isHiddenAt(cat, s.id)) : []);
-  const categoryPublishedIds = (catId) => new Set(menusWithCategory(catId).flatMap((m) => m.publishedStoreIds));
-  const CAT_HIDDEN_ROWS = 10;
-
-  function categoryStoresTab(cat) {
-    const all = categoryStores(cat);
-    if (!all.length) {
-      return section('', '<p class="store-summary">No stores yet</p><p class="field-help">Add stores to its menu on the menu’s Stores tab.</p>');
-    }
-    const hidden = hiddenCategoryStores(cat);
-    const summary = `Shown at ${all.length - hidden.length} of ${plural(all.length, 'store', 'stores')}${hidden.length ? ` · Hidden at ${plural(hidden.length, 'store', 'stores')}` : ''}`;
-    const row = (s) => `<div class="store-row list-row"><span class="store-name list-name"><span>${esc(s.name)}</span><span class="muted">${esc(s.city)}</span></span>
-      <button type="button" class="switch" role="switch" aria-checked="false" aria-label="Show at ${esc(s.name)}" data-action="cat-store-show" data-id="${s.id}"><span class="switch-thumb"></span></button></div>`;
-    return section(
-      '',
-      `<p class="store-summary tnum">${esc(summary)}</p>
-      ${
-        hidden.length
-          ? `<div class="store-list">${hidden.slice(0, CAT_HIDDEN_ROWS).map(row).join('')}</div>
-            ${hidden.length > CAT_HIDDEN_ROWS ? `<p class="field-help">Showing ${CAT_HIDDEN_ROWS} of ${hidden.length} hidden stores. See them all in Manage stores.</p>` : ''}
-            <p class="field-help">Customers at these stores do not see the category or its products. Applies in every menu.</p>`
-          : '<p class="field-help">Hide it at stores that do not offer it. Applies in every menu.</p>'
-      }
-      ${field('', `<button type="button" class="btn secondary sm" data-action="cat-manage-stores">${icon('store', 14)}Manage stores</button>`)}`,
-    );
-  }
-
-  const visStores = (vis) => categoryStores(entity('category', vis.id));
-  const visHiddenAt = (vis, sid) => isHiddenAt(entity('category', vis.id), sid);
-  const visPublishedIds = (vis) => categoryPublishedIds(vis.id);
-
-  function openVisibilityStores(kind, ent) {
-    const vis = { kind, id: ent.id };
-    const all = visStores(vis);
-    const sel = {};
-    C.menuStoreGroups.forEach((g) => (sel[g.id] = new Set()));
-    all.forEach((s) => {
-      if (visHiddenAt(vis, s.id)) return;
-      const g = C.menuStoreGroups.find((x) => groupStores(x.id).includes(s));
-      if (g) sel[g.id].add(s.id);
-    });
-    const shown = C.menuStoreGroups.filter((g) => groupStores(g.id).some((s) => all.includes(s)));
-    openModal({
-      title: 'Manage stores',
-      body: `<p>Customers see ${esc(nameOf(kind, ent))} at the stores you tick.</p>
-        <label class="search-field">${icon('search', 15)}<span class="sr-only">Search by store or city</span>
-          <input id="ms-search" type="search" placeholder="Search by store or city" autocomplete="off"></label>
-        <div id="ms-list"></div>`,
-      foot: '<div id="ms-warn"></div><div class="modal-foot" id="ms-foot"></div>',
-    });
-    T.ms = { vis, sel, open: new Set(shown.length === 1 ? [shown[0].id] : []), query: '', onlySelected: false };
-    renderManageStores();
-    $('#ms-search').focus();
-  }
-
-  function visibilityChange(o) {
-    const on = new Set(Object.values(o.sel).flatMap((set) => [...set]));
-    const all = visStores(o.vis);
-    return {
-      hide: all.filter((s) => !on.has(s.id) && !visHiddenAt(o.vis, s.id)).map((s) => s.id),
-      show: all.filter((s) => on.has(s.id) && visHiddenAt(o.vis, s.id)).map((s) => s.id),
-    };
-  }
-
-  const storesWho = (ids) => (ids.length === 1 ? storeById.get(ids[0]).name : plural(ids.length, 'store', 'stores'));
-
-  function setStoreVisibility(kind, ent, { hide = [], show = [] }) {
-    if (!hide.length && !show.length) return;
-    const ok = commit(() => {
-      if (!ent.stores) ent.stores = {};
-      if (kind === 'category') {
-        hide.forEach((id) => (ent.stores[id] = 'disabled'));
-        show.forEach((id) => delete ent.stores[id]);
-        return;
-      }
-      hide.forEach((id) => (ent.stores[id] = { ...(ent.stores[id] || {}), hidden: true }));
-      show.forEach((id) => {
-        const { hidden, ...rest } = ent.stores[id] || {};
-        if (rest.stock) ent.stores[id] = rest;
-        else delete ent.stores[id];
-      });
-    });
-    if (!ok) return;
-    const label = kind === 'category' ? 'Category' : 'Product';
-    const msg = hide.length && show.length ? 'Stores successfully updated' : hide.length ? `${label} hidden at ${storesWho(hide)}` : `${label} shown at ${storesWho(show)}`;
-    toast(msg, 'success', { action: { label: 'Undo', onClick: undo } });
-  }
-
-  function saveVisibilityStores(o) {
-    const change = visibilityChange(o);
-    closeModal();
-    setStoreVisibility(o.vis.kind, entity(o.vis.kind, o.vis.id), change);
-  }
 
   function categoryProductsSection(cat, path, menu) {
     const rows = cat.children.map((pid) => ({ p: entity('product', pid), pp: childPath(path, 'product', pid) })).filter((r) => r.p);
@@ -655,7 +445,6 @@
       );
     }
     if (tab === 'availability') return categoryProductsSection(cat, path, menu) + categoryMenusSection(cat, menu);
-    if (tab === 'stores') return categoryStoresTab(cat);
     const inMenus = menusWithCategory(cat.id);
     const publishing = categoryDeleteBlock(cat);
     return (

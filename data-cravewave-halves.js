@@ -74,7 +74,6 @@ window.POS_DATASETS['cravewave-halves'] = (() => {
     pos: {
       syncedAt: null,
       syncCount: 0,
-      priceGaps: {},
       menus: [{ id: 'default', name: 'Default Menu', roots: [pizzasCat, toppingsCat] }],
       items,
     },

@@ -140,10 +140,6 @@ window.POS_SEED = (() => {
   return {
     syncedAt: Date.now() - 1000 * 60 * 42,
     syncCount: 0,
-    priceGaps: {
-      'pos-ipa': { every: 16, offset: 3, reason: 'No liquor license' },
-      'pos-lemonade-l': { every: 54, offset: 7, reason: 'Not on the POS price list' },
-    },
     menus: [
       { id: 'pos-menu-main', name: 'Main', image: 'img/pos/menu-burger.svg', roots: ['pos-cat-burgers', 'pos-cat-pizza', 'pos-cat-combos', 'pos-cat-sides', 'pos-cat-drinks', 'pos-cat-desserts'] },
       { id: 'pos-menu-catering', name: 'Catering', image: 'img/pos/menu-catering.svg', roots: ['pos-cat-platters'] },
@@ -190,7 +186,6 @@ window.EXAMPLE_SYNC_DEMO = {
   },
   addTo: [['pos-cat-burgers', 'pos-smash']],
   removeFrom: [['pos-g-addons', 'pos-m-avocado']],
-  priceGaps: { 'pos-smash': { from: 312, reason: 'Not rolled out yet' } },
 };
 
 window.MENU_SUGGESTIONS = {

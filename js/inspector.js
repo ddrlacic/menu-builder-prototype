@@ -223,27 +223,6 @@
     <p class="field-help">${esc(scheduleSummary(slots))}</p>`;
   }
 
-  const STORE_RESULTS = 6;
-
-  function matchStores(stores = STORES) {
-    const q = T.storeQuery.trim().toLowerCase();
-    if (!q) return [];
-    return stores.filter((s) => s.name.toLowerCase().includes(q) || (s.city || '').toLowerCase().includes(q) || s.id.includes(q));
-  }
-
-  function storeSearch(id, placeholder) {
-    return `<label class="search-field sm">${icon('search', 14)}<span class="sr-only">${esc(placeholder)}</span>
-      <input id="${id}" type="search" data-store-search data-focus-key="${id}" placeholder="${esc(placeholder)}" value="${esc(T.storeQuery)}" autocomplete="off"></label>`;
-  }
-
-  function storeResults(results, rowFn, listClass = 'store-list') {
-    if (!T.storeQuery.trim()) return '';
-    if (!results.length) return '<p class="field-help">No stores match. Check the spelling.</p>';
-    return `<div class="${listClass}">${results.slice(0, STORE_RESULTS).map(rowFn).join('')}</div>${
-      results.length > STORE_RESULTS ? `<p class="field-help">Showing ${STORE_RESULTS} of ${results.length} stores. Keep typing to narrow it down.</p>` : ''
-    }`;
-  }
-
   function nameBlock(kind, ent, { error = '', help = '' } = {}) {
     const bind = `e|${kind}|${ent.id}|name`;
     if (ent.source !== 'pos') return field('Name', inputText(bind, ent.name, { id: 'insp-name' }), { id: 'insp-name', error, help });
@@ -367,7 +346,7 @@
 
   function tabsFor(kind, ent) {
     if (kind === 'menu') return [['general', 'General'], ['ordering', 'Ordering'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
-    if (kind === 'category') return [['general', 'General'], ['availability', 'Availability'], ['stores', 'Stores'], ['advanced', 'Advanced']];
+    if (kind === 'category') return [['general', 'General'], ['availability', 'Availability'], ['advanced', 'Advanced']];
     if (kind === 'group') {
       const tabs = [['general', 'General'], ['options', 'Options']];
       if (!ent.isSubstitutionContainer) tabs.push(['substitutes', 'Substitutes']);
@@ -449,15 +428,6 @@
         `<p class="store-summary tnum">${withImage ? `${withImage} of ${liveEnts.length} have an image` : 'No images yet'}</p>
         <div class="hint-actions"><button type="button" class="btn secondary sm" data-action="bulk-image">${icon('upload', 14)}Upload image</button></div>
         <p class="field-help">JPG, PNG, or GIF up to 1 MB. Each ${one} gets the same image.</p>`,
-      );
-      html += section(
-        'Stores',
-        `<div class="hint-actions">
-          <button type="button" class="btn secondary sm" data-action="bulk-stores" data-mode="hide">${icon('eyeOff', 14)}Hide at stores</button>
-          <button type="button" class="btn secondary sm" data-action="bulk-stores" data-mode="show">${icon('eye', 14)}Show at stores</button>
-          ${kind === 'product' ? `<button type="button" class="btn secondary sm" data-action="bulk-stock" aria-haspopup="menu">${icon('package', 14)}Set stock</button>` : ''}
-        </div>`,
-        { desc: 'Applies in every menu.' },
       );
     }
 
@@ -574,7 +544,6 @@
     const key = `${path}|${tab}`;
     if (T.storeKey !== key) {
       T.storeKey = key;
-      T.storeQuery = '';
       T.catProductQuery = '';
       T.catOnlyHidden = false;
       T.menuQuery = '';

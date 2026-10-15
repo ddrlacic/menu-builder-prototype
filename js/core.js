@@ -14,16 +14,6 @@
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const SIZE_WORDS = ['kids', 'small', 'regular', 'medium', 'large', 'extra large'];
   const SIZE_ABBR = { sml: 'small', sm: 'small', reg: 'regular', med: 'medium', md: 'medium', lrg: 'large', lg: 'large', xl: 'extra large' };
-  const STOCK_OPTIONS = [
-    ['', 'In stock'],
-    ['oos_1h', 'Out of stock for 1 hour'],
-    ['oos_4h', 'Out of stock for 4 hours'],
-    ['oos_eod', 'Out of stock until end of day'],
-    ['out_of_stock', 'Out of stock indefinitely'],
-  ];
-  const POS_STOCK_OPTIONS = STOCK_OPTIONS.slice(0, 4);
-  const STOCK_DURATION = { oos_1h: '1h', oos_4h: '4h', oos_eod: 'end_of_day' };
-  const isOutOfStock = (s) => s === 'out_of_stock' || /^oos_/.test(s);
   const DESC_LIMIT = 3000;
   const QTY_MAX = 999;
 
@@ -31,8 +21,6 @@
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-  const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-  const money = (n) => currency.format(Number(n) || 0);
   const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
   const limitOf = (v) => (isNum(v) && v > 0 ? v : null);
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));

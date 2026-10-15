@@ -48,7 +48,7 @@
             g.gtype === 'pos' ? 'Removed from this group' : `Other options in ${posLabel(gpos)}`,
             `<div class="missing-list">${notShown
               .map(
-                (cid) => `<div class="missing-row"><span class="missing-name">${esc(posLabel(cid))}</span><span class="tnum muted">${esc(rangeText(statsOf((s) => posOptionPrice(gpos, cid, null, s)), { plus: true, freeWord: g.gtype !== 'standalone' }))}</span>
+                (cid) => `<div class="missing-row"><span class="missing-name">${esc(posLabel(cid))}</span>
                   <button type="button" class="btn ghost sm" data-action="add-option" data-path="${esc(path)}" data-pos-id="${esc(cid)}">${icon('plus', 14)}Add</button></div>`,
               )
               .join('')}</div>`,
@@ -253,10 +253,8 @@
         else if (folder) subs.push('Option folder');
         if (name !== nameOf('product', p)) subs.push(`Product: ${nameOf('product', p)}`);
         const changed = host && (preselectDiffers(op) || codesOverridden(op) || hiddenInProduct(op));
-        const ps = priceStats(op);
-        const noPrice = !folder && ps.missingStores.length && !isMissingOnPos(p) ? `No POS price at ${ps.missingStores.length === ps.total ? 'any store' : plural(ps.missingStores.length, 'store', 'stores')}` : '';
         const halves = halvesNote(g, pid);
-        const sub = [esc(subs.join(' · ')), changed && !onlyHere && `<span class="half-meta">Changed in ${pName}</span>`, halves && `<span class="half-meta">${icon('halves', 11)}${esc(halves)}</span>`, noPrice && `<span class="tone-warning">${noPrice}</span>`].filter(Boolean).join(' · ');
+        const sub = [esc(subs.join(' · ')), changed && !onlyHere && `<span class="half-meta">Changed in ${pName}</span>`, halves && `<span class="half-meta">${icon('halves', 11)}${esc(halves)}</span>`].filter(Boolean).join(' · ');
         const shownCell = onlyHere
           ? `<button type="button" class="switch" role="switch" aria-checked="${!hiddenInProduct(op)}" aria-label="Show ${esc(name)} in ${pName}" data-toggle="pl|${esc(productScopePath(op))}|hidden" data-focus-key="pl|${esc(productScopePath(op))}|hidden"><span class="switch-thumb"></span></button>`
           : '';

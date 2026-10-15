@@ -1,42 +1,5 @@
 'use strict';
 
-  function priceSection(path) {
-    const st = priceStats(path);
-    if (st.kind === 'none') return '';
-    if (st.pending) return section('Price', callout('info', 'Prices show up after you publish. They come from POS and can differ by store.'));
-    const menu = activeMenu();
-    const inGroup = parsePath(parsePath(path).parentPath).kind === 'group';
-    const label = { base: 'Customers pay', size: 'Customers pay', modifier: 'Customers pay extra', item: 'Added as its own item' }[st.kind];
-    const plus = st.kind === 'modifier' || st.kind === 'item';
-    const fmt = (v) => (v == null ? 'No price' : v === 0 && st.kind === 'modifier' ? 'Free' : `${plus ? '+' : ''}${money(v)}`);
-    const missing = st.missingStores;
-    const names = missing.slice(0, 12).map((s) => s.name);
-    const missingHtml = missing.length
-      ? callout(
-          missing.length === st.total ? 'error' : 'warning',
-          `<strong>No POS price at ${missing.length === st.total ? 'any store' : plural(missing.length, 'store', 'stores')}.</strong> Customers there cannot ${inGroup ? 'choose' : 'order'} it. Add the price on POS, then sync.
-          <details class="store-more"><summary>Show stores</summary><p>${esc(names.join(', '))}${missing.length > 12 ? `, and ${missing.length - 12} more` : ''}.</p></details>`,
-        )
-      : '';
-    const check = (s) => {
-      const v = priceInfo(path, s).value;
-      return `<div class="store-row"><span class="store-name">${icon('store', 15)}${esc(s.name)}</span><span class="store-price tnum${v == null ? ' muted' : ''}">${fmt(v)}</span></div>`;
-    };
-    return section(
-      'Price',
-      `<div class="price-hero">
-        <span class="price-hero-label">${label}</span>
-        <span class="price-hero-value tnum">${esc(priceText(st))}</span>
-        <span class="price-hero-src">${icon('lock', 12)}${esc(st.note)}${st.min !== st.max ? '. Varies by store' : ''}</span>
-      </div>
-      ${missingHtml}
-      ${field('Check a store', storeSearch('price-store-q', `Search ${st.total} stores`))}
-      ${storeResults(matchStores(menuStores(menu)), check)}
-      <p class="field-help">Prices come only from POS and can differ by store. To change a price, update it on POS.</p>`,
-      { desc: `Across ${storeCountLabel(menu)} in ${esc(menu.name)}.` },
-    );
-  }
-
   const productBind = (p) => (f) => `e|product|${p.id}|${f}`;
   const PRODUCT_SHOWN = 'Shown in Web App and Kiosk, and sent to delivery partners.';
 
@@ -81,12 +44,9 @@
         const op = childPath(path, 'product', pid);
         const hidden = !!placement(op).hidden;
         const name = nameOf('product', x);
-        const st = priceStats(op);
         const sub = !home.children.includes(pid)
           ? `Not in ${nameOf('category', home)}, so ${inMenuCategory(menu, pid) ? 'delivery apps leave it out' : 'customers cannot pick it'}`
-          : st.missingStores.length && !isMissingOnPos(x)
-            ? `No POS price at ${st.missingStores.length === st.total ? 'any store' : plural(st.missingStores.length, 'store', 'stores')}`
-            : '';
+          : '';
         const open = T.openCard === `choice:${pid}`;
         const detail = open
           ? `<div class="opt-detail"><div class="opt-detail-foot">
@@ -556,7 +516,7 @@
           descriptionField(pb('description'), p.description, 'p-desc', PRODUCT_SHOWN) +
           imageField(pb('image'), p.image, { help: PRODUCT_SHOWN, posSrc: posItemImage(p) }),
       );
-      return html + priceSection(path);
+      return html;
     }
 
     if (tab === 'choices') return choicesSection(p, path);
@@ -641,7 +601,7 @@
       );
     }
 
-    if (tab === 'availability') return productAvailabilitySection(p) + segmentsSection(pb('segments'), p.segments, 'product') + productStoresSection(p) + appearsInSection(p, path);
+    if (tab === 'availability') return productAvailabilitySection(p) + segmentsSection(pb('segments'), p.segments, 'product') + appearsInSection(p, path);
 
     return (
       sourceSection('product', p, path) +
@@ -729,71 +689,6 @@
       }
     }
     return section('Schedule', body);
-  }
-
-  const PRODUCT_STORE_ROWS = 10;
-
-  function productStoreRow(p, s) {
-    const bind = (f) => `e|product|${p.id}|stores.${s.id}.${f}`;
-    const brink = hasPosStock(s.id);
-    const posOut = !!productPosStockAt(p, s.id);
-    const locked = shownLockedAt(p, s.id);
-    const shown = productShownAt(p, s.id);
-    const pick = (f, label, value, options, disabled = false) =>
-      `<div class="stock-field"><label for="st-${s.id}-${f}">${label}</label>${selectInput(bind(f), value, options, { id: `st-${s.id}-${f}`, disabled })}</div>`;
-    const note = posOut
-      ? 'Out of stock on POS, so customers cannot order it online either.'
-      : locked
-        ? 'Out of stock indefinitely at a PAR Brink store, so it stays hidden until it is back in stock.'
-        : '';
-    return `<div class="stock-row${shown ? '' : ' is-muted'}">
-        <div class="stock-row-head">
-          <span class="store-name list-name"><span class="stock-row-name">${esc(s.name)}</span><span class="muted">${esc(s.city)}${brink ? ' · PAR Brink' : ''}</span></span>
-          <button type="button" class="switch" role="switch" aria-checked="${shown}" aria-label="Show at ${esc(s.name)}" data-action="prod-store-toggle" data-id="${s.id}" data-on="${productHiddenAt(p, s.id) ? 1 : 0}" ${locked ? 'disabled' : ''}><span class="switch-thumb"></span></button>
-        </div>
-        ${pick('stock', 'Stock for online ordering', productStockAt(p, s.id), STOCK_OPTIONS, posOut)}
-        ${brink ? pick('posStock', 'Stock on POS', productPosStockAt(p, s.id), POS_STOCK_OPTIONS) : ''}
-        ${note ? `<p class="field-help">${note}</p>` : ''}
-      </div>`;
-  }
-
-  function productStoresSection(p) {
-    const all = productStores(p);
-    if (!all.length) return section('Stores', '<p class="store-summary">No stores yet</p><p class="field-help">Add stores to its menus on each menu’s Stores tab.</p>');
-    const changed = all.filter((s) => productChangedAt(p, s.id));
-    const out = changed.filter((s) => productOutAt(p, s.id)).length;
-    const hidden = changed.filter((s) => !productShownAt(p, s.id)).length;
-    const summary = [
-      `Available at ${all.length - changed.length} of ${plural(all.length, 'store', 'stores')}`,
-      out ? `Out of stock at ${plural(out, 'store', 'stores')}` : '',
-      hidden ? `Hidden at ${plural(hidden, 'store', 'stores')}` : '',
-    ]
-      .filter(Boolean)
-      .join(' · ');
-    const row = (s) => productStoreRow(p, s);
-    const table = (rows) => `<div class="store-list"><div class="stock-head"><span>Store</span><span>Shown</span></div>${rows}</div>`;
-    const q = T.storeQuery.trim();
-    const results = matchStores(all);
-    return section(
-      'Stores',
-      `<p class="store-summary tnum">${esc(summary)}</p>
-      ${
-        changed.length
-          ? `${table(changed.slice(0, PRODUCT_STORE_ROWS).map(row).join(''))}
-            ${changed.length > PRODUCT_STORE_ROWS ? `<p class="field-help">Showing ${PRODUCT_STORE_ROWS} of ${changed.length} stores. Search for a store to see the rest.</p>` : ''}`
-          : ''
-      }
-      ${field('Find a store', storeSearch('prod-store-q', 'Search by store or city'))}
-      ${
-        !q
-          ? ''
-          : results.length
-            ? `${table(results.slice(0, STORE_RESULTS).map(row).join(''))}${results.length > STORE_RESULTS ? `<p class="field-help">Showing ${STORE_RESULTS} of ${results.length} stores. Keep typing to narrow it down.</p>` : ''}`
-            : '<p class="field-help">No stores match. Check the spelling.</p>'
-      }
-      <p class="field-help">Out of stock for a set time: Web App shows it as out of stock. Out of stock indefinitely or on POS: Web App hides it. Hidden: customers do not see it in categories, but it still works as an upsell and option.</p>`,
-      { desc: 'Applies in every menu. Lists only stores of menus that have the product.' },
-    );
   }
 
   function menuCategoryPlaces() {

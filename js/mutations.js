@@ -1565,8 +1565,6 @@
       publishedAt: null,
       publishRun: null,
       publishedStoreIds: [],
-      pricedKeys: [],
-      ownTimesStoreIds: [],
     };
     const rekey = (k) => copy.id + k.slice(m.id.length);
     const own = (k) => k === m.id || k.startsWith(`${m.id}>`);
@@ -1600,7 +1598,6 @@
     const on = new Set(menuStores(m).map((s) => s.id));
     const gone = m.publishedStoreIds.filter((id) => !on.has(id));
     m.publishedStoreIds = m.publishedStoreIds.filter((id) => on.has(id));
-    m.ownTimesStoreIds = m.ownTimesStoreIds.filter((id) => on.has(id));
     return gone;
   }
 
@@ -1810,76 +1807,6 @@
         { label: 'Delete forever', kind: 'danger', disabled: true, onClick: remove },
       ],
     });
-  }
-
-  const storesOf = (kind, e) => (kind === 'category' ? categoryStores(e) : productStores(e));
-
-  function openBulkStores(mode, stock = '') {
-    const { kind, ents, noun, many } = selectionInfo();
-    const live = ents.filter((e) => !e.pending);
-    const n = live.length;
-    const on = new Set(live.flatMap((e) => storesOf(kind, e).map((s) => s.id)));
-    if (!on.size) return toast('No stores yet. Add stores on the menu’s Stores tab', 'info');
-    const hiddenAt = (e, sid) => (kind === 'category' ? isHiddenAt(e, sid) : productHiddenAt(e, sid));
-    const status = (sid) => {
-      const k = live.filter((e) => (mode === 'stock' ? productOutAt(e, sid) : hiddenAt(e, sid))).length;
-      const word = mode === 'stock' ? 'Out of stock' : 'Hidden';
-      return !k ? '' : k === n ? word : `${word} for ${k} of ${n}`;
-    };
-    const label = (STOCK_OPTIONS.find((o) => o[0] === stock) || ['', ''])[1];
-    const [title, intro, cta] = {
-      hide: ['Hide at stores', `Customers at the stores you select do not see these ${many}${kind === 'category' ? ' or their products' : ''}. Applies in every menu.`, 'Hide at'],
-      show: ['Show at stores', `Customers at the stores you select see these ${many} again. Applies in every menu.`, 'Show at'],
-      stock: ['Set stock at stores', `${noun(n)} ${stock ? `are ${lcFirst(label)}` : 'are back in stock'} at the stores you select. Applies in every menu.`, 'Set stock at'],
-    }[mode];
-    openListPicker({
-      title,
-      intro,
-      groups: C.menuStoreGroups
-        .map((g) => ({
-          id: g.id,
-          name: g.name,
-          items: groupStores(g.id)
-            .filter((s) => on.has(s.id))
-            .map((s) => ({ id: s.id, name: s.name, alt: status(s.id), meta: s.city })),
-        }))
-        .filter((g) => g.items.length),
-      empty: 'No stores yet',
-      noun: ['store', 'stores'],
-      placeholder: 'Search by store or city',
-      cta: (c) => `${cta} ${c ? plural(c, 'store', 'stores') : 'stores'}`,
-      onSave: (ids) => applyBulkStores(kind, live, mode, stock, ids, noun(n)),
-    });
-  }
-
-  function applyBulkStores(kind, ents, mode, stock, ids, who) {
-    const ok = commit(() => {
-      T.focusRow = S.ui.selected;
-      ents.forEach((e) => {
-        const mine = new Set(storesOf(kind, e).map((s) => s.id));
-        if (!e.stores) e.stores = {};
-        ids.forEach((sid) => {
-          if (!mine.has(sid)) return;
-          if (kind === 'category') {
-            if (mode === 'hide') e.stores[sid] = 'disabled';
-            else delete e.stores[sid];
-            return;
-          }
-          if (mode === 'stock' && productPosStockAt(e, sid)) return;
-          const cur = { ...(e.stores[sid] || {}) };
-          if (mode === 'hide') cur.hidden = true;
-          else if (mode === 'show') delete cur.hidden;
-          else if (stock) cur.stock = stock;
-          else delete cur.stock;
-          if (Object.keys(cur).length) e.stores[sid] = cur;
-          else delete e.stores[sid];
-        });
-      });
-    });
-    if (!ok) return;
-    const where = storesWho(ids);
-    const what = mode === 'hide' ? 'hidden' : mode === 'show' ? 'shown' : stock ? 'out of stock' : 'back in stock';
-    toast(`${who} ${what} at ${where}`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
   const takesCodes = (p) => p.ptype !== 'container' && p.ptype !== 'size';

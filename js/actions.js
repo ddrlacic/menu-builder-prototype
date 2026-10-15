@@ -161,13 +161,6 @@
         e.stopPropagation();
         uploadRowImage(T.sel.length > 1 && T.sel.includes(path) ? T.sel.slice() : [path]);
         break;
-      case 'bulk-stores':
-        openBulkStores(el.dataset.mode);
-        break;
-      case 'bulk-stock':
-        if (T.popover && T.popover.anchor === el) closePopover();
-        else bulkStockMenu(el);
-        break;
       case 'bulk-remove':
         bulkRemove();
         break;
@@ -353,38 +346,8 @@
           setBind(el.dataset.bind, list);
         });
         break;
-      case 'own-times-view':
-        openOwnTimesStores(activeMenu());
-        break;
-      case 'own-times-reset-all': {
-        const m = activeMenu();
-        confirmOwnTimesReset(m, ownTimesStores(m).map((s) => s.id));
-        break;
-      }
-      case 'ot-store':
-        T.ot.sel.has(el.dataset.id) ? T.ot.sel.delete(el.dataset.id) : T.ot.sel.add(el.dataset.id);
-        renderOwnTimesStores();
-        break;
-      case 'ot-all': {
-        const on = el.dataset.on === '1';
-        ownTimesShown().forEach((s) => (on ? T.ot.sel.add(s.id) : T.ot.sel.delete(s.id)));
-        renderOwnTimesStores();
-        break;
-      }
-      case 'ot-reset':
-        resetSelectedOwnTimes();
-        break;
       case 'menu-manage-stores':
         openManageStores(activeMenu());
-        break;
-      case 'cat-manage-stores':
-        openVisibilityStores('category', entity('category', parsePath(S.ui.selected).id));
-        break;
-      case 'cat-store-show':
-        setStoreVisibility('category', entity('category', parsePath(S.ui.selected).id), { show: [el.dataset.id] });
-        break;
-      case 'prod-store-toggle':
-        setStoreVisibility('product', entity('product', parsePath(S.ui.selected).id), { [el.dataset.on === '1' ? 'show' : 'hide']: [el.dataset.id] });
         break;
       case 'menu-group-remove':
         removeMenuStoreGroup(activeMenu(), el.dataset.id);

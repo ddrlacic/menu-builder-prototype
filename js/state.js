@@ -37,7 +37,6 @@
     inspScrollTo: null,
     focusName: false,
     focusRow: null,
-    storeQuery: '',
     storeKey: null,
     segmentDraft: null,
     tagDraft: null,
@@ -82,8 +81,6 @@
       segments: [],
       storeGroups: [],
       publishedStoreIds: [],
-      pricedKeys: [],
-      ownTimesStoreIds: [],
       status: 'draft',
       publishedAt: null,
       publishRun: null,
@@ -99,7 +96,6 @@
     internalName: '',
     description: '',
     image: null,
-    stores: {},
     children: [],
   });
 
@@ -117,7 +113,7 @@
     if (c.reportingId == null) c.reportingId = '';
     if (c.bannerImage === undefined) c.bannerImage = null;
     if (c.isBundle == null) c.isBundle = false;
-    if (!c.stores) c.stores = {};
+    delete c.stores;
     migrateSyncName(c);
   }
 
@@ -226,14 +222,7 @@
     if (p.ptype === 'container') Object.assign(p, dietaryOf(d));
     if (p.ptype === 'container' || p.ptype === 'size') Object.assign(p, { minQty: null, maxQty: null, qtyScope: null });
     if (p.ptype === 'size') p.prep = d.prep;
-    if (!p.stores) p.stores = {};
-    for (const [sid, v] of Object.entries(p.stores)) {
-      if (v && typeof v === 'object') {
-        if (!v.stock && !v.hidden) delete p.stores[sid];
-      } else if (v === 'hidden' || v === 'disabled') p.stores[sid] = { hidden: true };
-      else if (isOutOfStock(v)) p.stores[sid] = { stock: v };
-      else delete p.stores[sid];
-    }
+    delete p.stores;
   }
 
   function migrateProductSchedules() {
@@ -287,13 +276,6 @@
       o.children = [...o.children.filter((id) => kids.has(id)), ...g.children.filter((id) => !o.children.includes(id))];
       const sids = new Set(o.sections.map((s) => s.id));
       for (const [pid, sid] of Object.entries(o.optionSection)) if (!kids.has(pid) || !sids.has(sid)) delete o.optionSection[pid];
-    }
-    for (const [sid, v] of Object.entries(p.stores || {})) {
-      if (!v || typeof v !== 'object') continue;
-      if (!v.stock) delete v.stock;
-      if (!v.hidden) delete v.hidden;
-      if (!v.posStock || !hasPosStock(sid)) delete v.posStock;
-      if (!Object.keys(v).length) delete p.stores[sid];
     }
     if (!p.modifierCodes || !p.prep) return;
     if (p.foodType === '') p.foodType = null;
@@ -473,9 +455,7 @@
   const storeGroup = () => C.storeGroups.find((g) => g.id === S.ui.storeGroupId) || C.storeGroups[0];
   const storeGroups = () => C.storeGroups.filter((g) => DATASETS[g.dataset]);
   const datasetOf = (storeGroupId) => (storeGroups().find((g) => g.id === storeGroupId) || storeGroups()[0]).dataset;
-  let priceCache = new Map();
   let halfCache = new Map();
-  const storePriceCache = new WeakMap();
   let dataVersion = 0;
   const posMenu = () => S.data.pos.menus.find((m) => m.id === S.ui.posMenuId) || S.data.pos.menus[0];
   const linkedPosMenu = (m) => (m && m.posExt && S.data.pos.menus.find((pm) => pm.id === m.posExt)) || null;
@@ -490,7 +470,6 @@
     return pm;
   }
   const posItemImage = (ent) => (ent && ent.source === 'pos' && (posItem(ent) || {}).image) || null;
-  const roundPrice = (v, f) => Math.round(v * f * 20) / 20;
 
   function posCategoriesOf(posId) {
     return Object.entries(S.data.pos.items)
@@ -519,28 +498,6 @@
     return it ? it.name : posId;
   }
 
-  function hasPriceGap(posId, store) {
-    const gap = (S.data.pos.priceGaps || {})[posId];
-    if (!gap) return false;
-    if (gap.every) return store.index % gap.every === gap.offset;
-    return store.index >= gap.from;
-  }
-
-  function posPrice(posId, fallbackEnt, store) {
-    if (hasPriceGap(posId, store)) return null;
-    const it = posItemById(posId);
-    if (it && isNum(it.price)) return roundPrice(it.price, store.factor);
-    if (fallbackEnt && fallbackEnt.reviewed && isNum(fallbackEnt.reviewed.price)) return roundPrice(fallbackEnt.reviewed.price, store.factor);
-    return null;
-  }
-
-  function posOptionPrice(groupPosId, optionPosId, fallbackEnt, store) {
-    if (hasPriceGap(optionPosId, store)) return null;
-    const g = posItemById(groupPosId);
-    if (g && g.childPrices && isNum(g.childPrices[optionPosId])) return roundPrice(g.childPrices[optionPosId], store.factor);
-    return posPrice(optionPosId, fallbackEnt, store);
-  }
-
   const STORES = C.stores;
   const storeById = new Map(STORES.map((s) => [s.id, s]));
   const groupDef = (id) => C.menuStoreGroups.find((g) => g.id === id);
@@ -552,8 +509,6 @@
     }
     return groupStoreCache.get(id);
   }
-  const BRINK_STORE_IDS = new Set(C.menuStoreGroups.filter((g) => g.pos === 'PAR Brink').flatMap((g) => groupStores(g.id).map((s) => s.id)));
-  const hasPosStock = (sid) => BRINK_STORE_IDS.has(sid);
   function assignedStores(a) {
     const all = groupStores(a.id);
     if (!a.storeIds) return all;
@@ -572,49 +527,6 @@
   }
   const storeCountLabel = (m) => plural(menuStores(m).length, 'store', 'stores');
   const emptyStoreGroupError = (a) => (assignedStores(a).length ? '' : `Choose stores in ${(groupDef(a.id) || { name: a.id }).name} or remove the group`);
-
-  const SEED_OWN_TIMES = STORES.filter((s, i) => i % 13 === 5).map((s) => s.id);
-  const WEEKDAYS = [1, 2, 3, 4, 5];
-  const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
-  const OWN_TIMES_PATTERNS = [
-    [{ days: WEEKDAYS, from: '11:00', to: '21:00' }, { days: [0, 6], from: '12:00', to: '20:00' }],
-    [{ days: EVERY_DAY, from: '10:00', to: '22:00' }],
-    [{ days: WEEKDAYS, from: '07:00', to: '14:00' }],
-    [{ days: EVERY_DAY, from: '16:00', to: '23:00' }],
-    [{ days: [0, 1, 2, 3, 4], from: '11:00', to: '21:00' }, { days: [5, 6], from: '11:00', to: '23:30' }],
-  ];
-  const storeIndex = new Map(STORES.map((s, i) => [s.id, i]));
-  const ownTimesOf = (storeId) => OWN_TIMES_PATTERNS[storeIndex.get(storeId) % OWN_TIMES_PATTERNS.length];
-
-  function seedOwnTimes(m) {
-    const on = new Set(menuStores(m).map((s) => s.id));
-    m.ownTimesStoreIds = [...new Set([...m.ownTimesStoreIds, ...SEED_OWN_TIMES.filter((id) => on.has(id))])];
-  }
-
-  function migrateOwnTimesDemo() {
-    if (S.data.ownTimesDemo) return;
-    S.data.ownTimesDemo = true;
-    if (S.data.menus[0]) seedOwnTimes(S.data.menus[0]);
-  }
-
-  function seedStoreStatusDemo(m) {
-    S.data.storeStatusDemo = true;
-    const E = S.data.entities.product;
-    if (!m || Object.values(E).some((p) => Object.keys(p.stores || {}).length)) return;
-    const stores = menuStores(m);
-    const pos = m.children.flatMap((cid) => (S.data.entities.category[cid] || { children: [] }).children).map((id) => E[id]).filter((p) => p && p.source === 'pos');
-    if (pos[1] && stores.length > 3) pos[1].stores = { [stores[0].id]: { stock: 'out_of_stock' }, [stores[1].id]: { stock: 'oos_eod', hidden: true }, [stores[2].id]: { stock: 'oos_4h' } };
-    if (pos[2] && stores.length > 10) pos[2].stores = Object.fromEntries(stores.slice(4, 11).map((s) => [s.id, { hidden: true }]));
-  }
-
-  function seedPosStockDemo(m) {
-    S.data.posStockDemo = true;
-    const p = m && Object.values(S.data.entities.product).find((x) => x.source === 'pos' && Object.keys(x.stores || {}).length);
-    if (!p || Object.values(p.stores).some((v) => v.posStock)) return;
-    const brink = menuStores(m).filter((s) => hasPosStock(s.id) && !p.stores[s.id]);
-    if (brink[0]) p.stores[brink[0].id] = { posStock: 'oos_eod' };
-    if (brink[1]) p.stores[brink[1].id] = { stock: 'out_of_stock' };
-  }
 
   function defaultStoreGroups() {
     return C.menuStoreGroups.map((g) => ({ id: g.id, storeIds: null, newStores: true }));
@@ -661,7 +573,8 @@
     if (!m.channels) m.channels = ['web', 'mobile', 'kiosk'];
     if (!m.segments) m.segments = [];
     if (!m.publishedStoreIds) m.publishedStoreIds = m.status === 'draft' ? [] : menuStores(m).map((s) => s.id);
-    if (!m.ownTimesStoreIds) m.ownTimesStoreIds = [];
+    delete m.ownTimesStoreIds;
+    delete m.pricedKeys;
     if (m.externalId == null) m.externalId = '';
     if (m.image === undefined) m.image = null;
     if (m.posExt === undefined) m.posExt = null;
@@ -671,30 +584,6 @@
     }
     if (m.publishRun === undefined) m.publishRun = null;
     if (m.status === 'publishing') m.status = m.publishRun ? 'failed' : m.publishedAt ? 'changed' : 'draft';
-  }
-
-  function statsOf(fn, stores = menuStores(activeMenu())) {
-    const missingStores = [];
-    let min = Infinity;
-    let max = -Infinity;
-    for (const s of stores) {
-      const v = fn(s);
-      if (!isNum(v)) {
-        missingStores.push(s);
-        continue;
-      }
-      min = Math.min(min, v);
-      max = Math.max(max, v);
-    }
-    const priced = stores.length - missingStores.length;
-    return { min: priced ? min : null, max: priced ? max : null, priced, missingStores, total: stores.length };
-  }
-
-  function rangeText(st, { plus = false, freeWord = false } = {}) {
-    if (!st.priced) return 'No price';
-    const sign = plus ? '+' : '';
-    if (st.min === st.max) return freeWord && st.min === 0 ? 'Free' : `${sign}${money(st.min)}`;
-    return `${sign}${money(st.min)}–${money(st.max).replace('$', '')}`;
   }
 
   function importPos(posId, stats = { created: 0, reused: 0 }) {
@@ -774,7 +663,6 @@
       pendingLinks: {},
       ignored: {},
       oneGroupPerStore: true,
-      ownTimesDemo: true,
     };
     if (!S.data.pos.syncedAt) S.data.pos.syncedAt = Date.now() - 1000 * 60 * 18;
     if (src.menu) seedImported(src);
@@ -783,9 +671,6 @@
     S.data.menus.forEach((m) => {
       if (!m.image) m.image = posImageOf(m);
     });
-    if (S.data.menus[0]) seedOwnTimes(S.data.menus[0]);
-    seedStoreStatusDemo(S.data.menus[0]);
-    seedPosStockDemo(S.data.menus[0]);
     clearPending();
   }
 
@@ -989,8 +874,6 @@
 
     lunch.children.push(popular.id, burgers.id, drinks.id, desserts.id);
     popular.reportingId = 'RPT-POPULAR';
-    drinks.stores = Object.fromEntries(STORES.filter((s) => s.airport).slice(0, 2).map((s) => [s.id, 'disabled']));
-
     const platters = E.category[importPos('pos-cat-platters').id];
     platters.isBundle = true;
     catering.children.push(platters.id);
@@ -1002,9 +885,6 @@
     brunch.availability = { ...newAvailability(), active: true, slots: [{ days: [0, 6], from: '11:00', to: '14:00' }] };
     truffle.metadata = [{ key: 'foodlabelingtags', values: ['popular', 'star'] }];
     prod('pos-m-bacon').modifierCodes = ['no', 'light', 'extra', 'side'];
-    const airports = STORES.filter((s) => s.airport);
-    prod('pos-ipa').stores = { [airports[0].id]: { stock: 'out_of_stock' }, [airports[1].id]: { stock: 'oos_eod', hidden: true }, [airports[2].id]: { stock: 'oos_eod' } };
-    prod('pos-m-avocado').stores = { [STORES[41].id]: { hidden: true } };
     for (const [ext, fields] of Object.entries(DATASETS.example.products || {})) if (prod(ext)) Object.assign(prod(ext), fields);
   }
 
@@ -1042,11 +922,12 @@
           migratePosImages();
           migrateAirportStores();
           S.data.menus.forEach(migrateMenu);
-          migrateOwnTimesDemo();
           Object.values(S.data.entities.category).forEach(migrateCategory);
           Object.values(S.data.entities.product).forEach(migrateProduct);
-          if (!S.data.storeStatusDemo) seedStoreStatusDemo(S.data.menus[0]);
-          if (!S.data.posStockDemo) seedPosStockDemo(S.data.menus[0]);
+          delete S.data.ownTimesDemo;
+          delete S.data.storeStatusDemo;
+          delete S.data.posStockDemo;
+          delete S.data.pos.priceGaps;
           if (!S.data.builtDemo && DATASETS[dataset].built) seedBuiltDemo(DATASETS[dataset]);
           const fixPath = migrateChoiceProducts();
           for (const [k, pl] of Object.entries(S.data.placements)) {
@@ -1063,7 +944,6 @@
           migrateCodesHere();
           migrateChoicesInMenus();
           migrateIgnored();
-          S.data.menus.forEach((m) => (m.pricedKeys = !m.publishedAt ? [] : m.pricedKeys || menuPriceKeys(m)));
           normalizeAll();
           S.ui = { ...defaultUi(), ...parsed.ui, posQuery: '', canvasQuery: '' };
           S.ui.selected = fixPath(S.ui.selected);
@@ -1327,7 +1207,7 @@
     hist.deleting = token;
   }
 
-  const PUBLISH_FIELDS = ['status', 'publishedAt', 'publishedStoreIds', 'pricedKeys', 'publishRun'];
+  const PUBLISH_FIELDS = ['status', 'publishedAt', 'publishedStoreIds', 'publishRun'];
   const UNDO_NOUN = { menu: ['menu', 'menus'], category: ['category', 'categories'], product: ['product', 'products'], group: ['group', 'groups'] };
 
   function undoSubjects(before, after) {
