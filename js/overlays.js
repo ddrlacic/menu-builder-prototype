@@ -792,7 +792,6 @@
   function appMenu(anchor) {
     openPopover(anchor, [
       { label: 'Discard items not imported', icon: 'x', disabled: !ctx.pending.length || T.importing, onClick: discardStaged },
-      { label: 'Export menu as JSON', icon: 'download', onClick: exportMenu },
       '-',
       {
         label: 'Reset demo data',

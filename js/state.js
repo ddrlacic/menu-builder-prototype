@@ -246,11 +246,6 @@
     });
   }
 
-  const productRef = (pid) => {
-    const x = entity('product', pid);
-    return x ? { id: x.id, pos_id: posIdOf('product', x), name: nameOf('product', x) } : null;
-  };
-
   const optionKeyValid = (p, key) => {
     const [gid, pid] = key.split(':');
     const g = p.children.includes(gid) && entity('group', gid);

@@ -30,7 +30,7 @@ This prototype re-creates Management Center (MC) menu building with better UX. I
   - `model.js`: paths and entity lookups, group rules, half-and-half matching, prices, size sets.
   - `derived.js`: `derivedCtx`, `computeIssues`, compare data, input binding.
   - `mutations.js`: selection, add pickers, link, unlink and remove.
-  - `drop-sync.js`: drop resolution, auto-place, POS load and sync, publish, export.
+  - `drop-sync.js`: drop resolution, auto-place, POS load and sync, publish.
   - `compare-optimize.js`: Compare to POS, Optimize and half-and-half dialogs.
   - `render.js`: `render`, topbar, POS panel, canvas tree rows.
   - `inspector.js`: form control helpers, `renderInspector`.
