@@ -496,7 +496,7 @@
       {
         label,
         icon: 'rows',
-        hint: first ? `A heading over its ${sc.noun[1]}. Starts with all of them` : `A heading over its ${sc.noun[1]}. Drag ${sc.noun[1]} into it`,
+        hint: `${sc.kind === 'group' ? 'A tab for its groups in Web App' : `A heading over its ${sc.noun[1]}`}. ${first ? 'Starts with all of them' : `Drag ${sc.noun[1]} into it`}`,
         onClick: () => createSection(path, first ? sc.ids : []),
       },
     ];

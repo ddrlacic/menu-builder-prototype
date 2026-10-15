@@ -205,8 +205,8 @@
     const items = p.children.filter((gid) => entity('group', gid)).map((gid) => ({ id: gid, name: nameOf('group', entity('group', gid)), section: sectionOf(p, gid) }));
     return section('Group sections', nestedSections(`product|${p.id}|groupSection`, p.sections, pb, items, 'group', 'groups') + addButton('section-add', 'Add section'), {
       desc: p.sections.length
-        ? 'Customers see the groups under these headings, in this order. Drag groups and headings to arrange them. Only Web App shows headings.'
-        : 'Split the groups under headings, like Base and Toppings. Only Web App shows headings.',
+        ? 'In Web App, customers see each section as a tab, with its groups under it. Drag groups and sections to arrange them. Kiosk shows all groups, without tabs.'
+        : 'Split the groups into tabs, like Base and Toppings. Only Web App shows tabs.',
     });
   }
 
@@ -523,7 +523,7 @@
 
     if (tab === 'ordering') {
       if (p.ptype === 'container')
-        return sectionsSection(p) || section('Group sections', '<p class="field-help">Add a group to this option folder first. Its groups can then go under headings.</p>');
+        return sectionsSection(p) || section('Group sections', '<p class="field-help">Add a group to this option folder first. Its groups can then go in sections.</p>');
       return (
         quantitySection(p) +
         modifierCodesSection(p) +

@@ -503,7 +503,11 @@
             .join('<span class="crumb-sep">›</span>')}</nav>
         </div>
       </div>
-      <p class="insp-type-help">A heading customers see over ${esc(many)} in ${esc(hostName)}. Only Web App shows headings.</p>
+      <p class="insp-type-help">${esc(
+        sc.kind === 'group'
+          ? `A tab customers see in ${hostName} in Web App, with its groups under it. Kiosk shows all groups, without tabs.`
+          : `A heading customers see over ${many} in ${hostName}, in Web App and Kiosk. If the brand’s Product sections setting is Call to action, Web App shows a card that opens them.`,
+      )}</p>
       ${issues.length ? `<div class="insp-issues">${issues.map((i) => callout(i.level, esc(i.text))).join('')}</div>` : ''}`;
     $('#inspector-tabs').innerHTML = '';
     const btn = (delta, ic, label) =>
@@ -520,9 +524,9 @@
             return `<li><button type="button" class="crumb-link" data-action="goto" data-path="${esc(p)}">${esc(name)}</button></li>`;
           })
           .join('')}</ul>`
-      : `<p class="field-help">No ${esc(many)} yet. Drag ${esc(many)} onto it in the builder.</p>`;
+      : `<p class="field-help">No ${esc(many)} yet, so customers do not see it. Drag ${esc(many)} onto it in the builder.</p>`;
     $('#inspector-body').innerHTML =
-      section('', field('Name', inputText(sectionNameBind(sc, index), s.name, { id: 'insp-name' }), { id: 'insp-name', error: nameError, help: 'Customers see it as a heading.' })) +
+      section('', field('Name', inputText(sectionNameBind(sc, index), s.name, { id: 'insp-name' }), { id: 'insp-name', error: nameError, help: sc.kind === 'group' ? 'Customers see it as a tab in Web App.' : 'Customers see it as a heading.' })) +
       section(
         `In ${hostName}`,
         field(
