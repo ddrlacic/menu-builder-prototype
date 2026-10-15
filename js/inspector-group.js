@@ -80,7 +80,6 @@
       metadataSection(g, 'group') +
       groupAppearsInSection(g, path) +
       removeSection(path, 'group', g) +
-      removeEverywhereSection(path, 'group', g) +
       groupDeleteSection(g, path)
     );
   }

@@ -656,7 +656,6 @@
       metadataSection(p) +
       (p.ptype === 'size' ? '' : prepSection(p)) +
       removeSection(path, 'product', p) +
-      removeEverywhereSection(path, 'product', p) +
       productDeleteSection(p)
     );
   }

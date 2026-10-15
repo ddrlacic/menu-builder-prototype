@@ -674,7 +674,6 @@
           (cat.isBundle && !isCateringMenu(menu) ? callout('info', `${esc(menu.name)} has no catering order types, so this has no effect there.`) : ''),
       ) +
       removeSection(path, 'category', cat) +
-      removeEverywhereSection(path, 'category', cat) +
       section(
         '',
         `<button type="button" class="btn secondary tone-danger" data-action="cat-delete" data-id="${cat.id}" ${publishing ? 'disabled' : ''}>${icon('trash', 15)}Delete category</button>

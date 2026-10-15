@@ -317,9 +317,6 @@
       case 'remove':
         confirmRemove(path);
         break;
-      case 'remove-everywhere':
-        confirmRemoveEverywhere(path);
-        break;
       case 'change-parent':
         changePosParent(path);
         break;

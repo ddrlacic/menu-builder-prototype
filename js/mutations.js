@@ -1165,11 +1165,11 @@
     toast(`${nameOf('group', entity('group', gid))} removed from every option`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
-  function publishDeleteBlock(menus, what, verb = 'delete') {
-    if (menus.some((m) => m.status === 'publishing')) return `You can ${verb} the ${what} once publishing finishes.`;
+  function publishDeleteBlock(menus, what) {
+    if (menus.some((m) => m.status === 'publishing')) return `You can delete the ${what} once publishing finishes.`;
     const failed = menus.find((m) => m.status === 'failed');
     if (!failed) return '';
-    return canRetryPublish(failed) ? `Retry publishing ${failed.name} first, then ${verb} the ${what}.` : `Contact support to finish publishing ${failed.name}, then ${verb} the ${what}.`;
+    return canRetryPublish(failed) ? `Retry publishing ${failed.name} first, then delete the ${what}.` : `Contact support to finish publishing ${failed.name}, then delete the ${what}.`;
   }
 
   function groupDeleteBlock(g) {
@@ -1602,71 +1602,6 @@
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },
         { label: `Remove ${KIND_LABEL[info.kind].toLowerCase()}`, kind: 'danger', onClick: () => { closeModal(); removeLink(path); } },
-      ],
-    });
-  }
-
-  const everywhereMenus = (kind, ent) => (kind === 'category' ? menusWithCategory(ent.id) : kind === 'product' ? productMenus(ent) : groupMenus(ent));
-
-  function everywherePlaces(kind, ent) {
-    if (kind === 'category') return menusWithCategory(ent.id).map((m) => ({ kind: 'menu', ent: m }));
-    if (kind === 'product') return productParents(ent);
-    return groupParents(ent.id).map((p) => ({ kind: 'product', ent: p }));
-  }
-
-  function removeEverywhereBlock(kind, ent) {
-    const publishing = publishDeleteBlock(everywhereMenus(kind, ent), KIND_LABEL[kind].toLowerCase(), 'remove');
-    if (publishing) return publishing;
-    const halfIn = kind === 'product' ? halfWholeUse(ent).halfIn : kind === 'group' ? groupHalfUse(ent) : [];
-    if (!halfIn.length) return '';
-    return kind === 'product'
-      ? `It is a half in ${listJoin(halfIn)}. Remove it from half and whole there first.`
-      : `Its options are halves in ${listJoin(halfIn)}. Remove them from half and whole there first.`;
-  }
-
-  function removeEverywhereNow(kind, ent) {
-    if (kind === 'category') S.data.menus.forEach((m) => (m.children = m.children.filter((c) => c !== ent.id)));
-    else everywherePlaces(kind, ent).forEach(({ ent: x }) => (x.children = x.children.filter((c) => c !== ent.id)));
-    if (kind === 'group') {
-      Object.values(S.data.entities.group).forEach((x) => (x.propagated = (x.propagated || []).filter((id) => id !== ent.id)));
-      for (const p of Object.values(S.data.entities.product)) for (const k of Object.keys(p.halfWhole || {})) if (k.startsWith(`${ent.id}:`)) delete p.halfWhole[k];
-    }
-    const seg = `${kind[0]}:${ent.id}`;
-    for (const k of Object.keys(S.data.placements)) {
-      const segs = k.split('>');
-      const at = segs.indexOf(seg);
-      if (at > 0 && !(segs[0] === '@' && at === 1)) delete S.data.placements[k];
-    }
-    for (const k of Object.keys(S.data.pendingLinks)) if (k.endsWith(`>${kind}:${ent.id}`)) delete S.data.pendingLinks[k];
-  }
-
-  function confirmRemoveEverywhere(path) {
-    const info = parsePath(path);
-    const ent = entity(info.kind, info.id);
-    if (removeEverywhereBlock(info.kind, ent)) return;
-    const name = nameOf(info.kind, ent);
-    const places = everywherePlaces(info.kind, ent);
-    const published = everywhereMenus(info.kind, ent).some((m) => m.publishedStoreIds.length);
-    const where = listJoin(places.map((x) => nameOf(x.kind, x.ent)));
-    const back = isVirtual(ent) ? 'add it back under Add existing' : 'add it back from POS items';
-    openModal({
-      title: `Remove ${name} from all menus?`,
-      body: `<p>It is removed from ${esc(where)}.${published ? ' Customers stop seeing it right away.' : ''}</p>
-        <p>It keeps its settings, so you can ${back}.${ent.source === 'pos' ? ' Nothing changes on POS.' : ''}</p>`,
-      actions: [
-        { label: 'Cancel', kind: 'secondary', onClick: closeModal },
-        {
-          label: 'Remove from all menus',
-          kind: 'danger',
-          onClick: () => {
-            closeModal();
-            const done = commit(() => {
-              removeEverywhereNow(info.kind, ent);
-              S.ui.selected = info.kind === 'category' ? activeMenu().id : info.parentPath;
-            });
-            if (done) toast(`${KIND_LABEL[info.kind]} removed from all menus`, 'success', { action: { label: 'Undo', onClick: undo } });
-          },
-        },
       ],
     });
   }
