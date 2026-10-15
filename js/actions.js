@@ -536,6 +536,9 @@
       case 'add-included':
         openIncludedPicker(entity('product', parsePath(S.ui.selected).id));
         break;
+      case 'included-sync':
+        syncIncludedFromPos(entity('product', parsePath(S.ui.selected).id));
+        break;
       case 'add-substitute':
         openSubstitutePicker(entity('product', parsePath(S.ui.selected).id), el.dataset.key);
         break;

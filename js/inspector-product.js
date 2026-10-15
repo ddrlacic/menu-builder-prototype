@@ -213,33 +213,29 @@
   function includedSection(p) {
     if (!p.children.length) return section('Included ingredients', '<p class="field-help">Add a group to this product first. Ingredients come from its groups.</p>');
     const pb = productBind(p);
-    const fromPos = posIncluded(p);
-    const label = (it) => {
-      const g = entity('group', it.gid);
-      const x = entity('product', it.pid);
-      return g && x ? `<span class="store-name list-name"><span>${esc(nameOf('product', x))}</span><span class="muted">${esc(nameOf('group', g))}</span></span>` : '';
-    };
-    const posRows = fromPos
-      .map(
-        (it) => `<div class="store-row list-row">${label(it)}<span class="row-tools"><span class="scope scope-pos" title="POS adds it automatically, so customers cannot remove it">${icon('lock', 11)}Locked by POS</span></span></div>`,
-      )
-      .join('');
+    const fromPos = canSyncIncluded(p);
+    const sortable = p.included.length > 1;
     const rows = p.included
       .map((it, i) => {
+        const g = entity('group', it.gid);
         const x = entity('product', it.pid);
-        const head = label(it);
-        if (!head) return '';
+        if (!g || !x) return '';
         const name = nameOf('product', x);
-        const sortable = p.included.length > 1;
-        return `<div class="store-row list-row" data-sort-index="${i}"${sortable ? ` tabindex="0" aria-label="${esc(name)}. Drag or use the arrow keys to move it"` : ''}>${head}
-          <span class="row-tools">
-            <button type="button" class="icon-btn sm${it.locked ? ' is-on' : ''}" data-toggle="${esc(pb(`included.${i}.locked`))}" aria-pressed="${!!it.locked}" aria-label="Lock ${esc(name)}" title="${it.locked ? 'Locked. Customers cannot remove it.' : 'Customers can remove it. Select to lock.'}">${icon(it.locked ? 'lock' : 'unlock', 14)}</button>
-            ${removeButton(pb('included'), i, name)}
-          </span>${sortable ? `<span class="sort-grip" aria-hidden="true">${icon('grip', 14)}</span>` : ''}
+        const lock = `<button type="button" class="icon-btn sm${it.locked ? ' is-on' : ''}" data-toggle="${esc(pb(`included.${i}.locked`))}" aria-pressed="${!!it.locked}" aria-label="Lock ${esc(name)}" title="${it.locked ? 'Locked. Customers cannot remove it.' : 'Customers can remove it. Select to lock.'}">${icon(it.locked ? 'lock' : 'unlock', 14)}</button>`;
+        const tools =
+          it.source === 'pos_auto_added'
+            ? `<span class="scope scope-pos" title="POS adds it automatically, so customers cannot remove it">${icon('lock', 11)}Locked by POS</span>`
+            : it.source === 'pos_included'
+              ? `<span class="scope scope-pos" title="Marked as included on POS. You can lock it, but not remove it.">From POS</span>${lock}`
+              : lock + removeButton(pb('included'), i, name);
+        return `<div class="store-row list-row" data-sort-index="${i}"${sortable ? ` tabindex="0" aria-label="${esc(name)}. Drag or use the arrow keys to move it"` : ''}>
+          <span class="store-name list-name"><span>${esc(name)}</span><span class="muted">${esc(nameOf('group', g))}</span></span>
+          <span class="row-tools">${tools}</span>${sortable ? `<span class="sort-grip" aria-hidden="true">${icon('grip', 14)}</span>` : ''}
         </div>`;
       })
       .join('');
-    const any = fromPos.length || p.included.length;
+    const any = p.included.length > 0;
+    const sync = fromPos && !p.pending ? `<button type="button" class="btn ghost sm" data-action="included-sync">${icon('refresh', 14)}Sync from POS</button>` : '';
     return section(
       'Included ingredients',
       (any
@@ -247,12 +243,12 @@
             id: 'p-inc-name',
             error: lengthError(p.includedName),
             help: 'Customers see this name above the ingredients.',
-          }) + `<div class="store-list"${p.included.length > 1 ? ` data-sortable="${esc(pb('included'))}"` : ''}>${posRows}${rows}</div>`
-        : '') + addButton('add-included', 'Add ingredient'),
+          }) + `<div class="store-list"${sortable ? ` data-sortable="${esc(pb('included'))}"` : ''}>${rows}</div>`
+        : '') + `<div class="hint-actions">${addButton('add-included', 'Add ingredient')}${sync}</div>`,
       {
         desc: any
-          ? `When Group included ingredients is on in your brand’s configurations, Web App shows these together at the top of the product. Otherwise they stay in their groups. Locked ones cannot be removed.${p.included.length > 1 ? ' Drag ingredients to change their order.' : ''}`
-          : 'Ingredients that come with the product, like the patty and bun. Options that POS adds automatically show here too.',
+          ? `When Group included ingredients is on in your brand’s configurations, Web App shows these together at the top of the product. Otherwise they stay in their groups. Locked ones cannot be removed.${fromPos ? ' Sync from POS updates the ones from POS and preselects them in this product. Ones you added stay as they are.' : ''}${sortable ? ' Drag ingredients to change their order.' : ''}`
+          : `Ingredients that come with the product, like the patty and bun.${fromPos ? ' Ones marked as included on POS come in when you import or sync.' : ''}`,
       },
     );
   }

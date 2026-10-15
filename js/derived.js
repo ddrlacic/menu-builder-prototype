@@ -221,20 +221,10 @@
     const info = parsePath(path);
     if (info.kind !== 'product' || !info.parentPath) return false;
     const pi = parsePath(info.parentPath);
-    if (pi.kind !== 'group') return false;
-    const g = entity('group', pi.id);
-    const posG = posItemById(posIdOf('group', g));
-    const ent = entity('product', info.id);
-    return !!(posG && posG.autoAdded && posG.autoAdded.includes(ent.externalId));
-  }
-
-  function posIncluded(p) {
-    return p.children.flatMap((gid) => {
-      const g = entity('group', gid);
-      const posG = g && posItemById(posIdOf('group', g));
-      if (!posG || !posG.autoAdded) return [];
-      return g.children.filter((pid) => posG.autoAdded.includes((entity('product', pid) || {}).externalId)).map((pid) => ({ gid, pid }));
-    });
+    if (pi.kind !== 'group' || !pi.parentPath) return false;
+    const host = parsePath(pi.parentPath);
+    const p = host.kind === 'product' && entity('product', host.id);
+    return !!p && p.included.some((r) => r.gid === pi.id && r.pid === info.id && r.source === 'pos_auto_added');
   }
 
   function groupOfOption(path) {

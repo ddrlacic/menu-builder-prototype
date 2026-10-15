@@ -236,9 +236,11 @@
   }
 
   function validIncluded(p) {
-    const fromPos = new Set(posIncluded(p).map((i) => `${i.gid}:${i.pid}`));
+    const seen = new Set();
     return p.included.filter((i) => {
-      if (fromPos.has(`${i.gid}:${i.pid}`)) return false;
+      const key = `${i.gid}:${i.pid}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
       const g = p.children.includes(i.gid) && entity('group', i.gid);
       return !!g && g.children.includes(i.pid) && !!entity('product', i.pid);
     });
@@ -683,6 +685,8 @@
     if (src.menu) seedImported(src);
     else if (!src.empty) seedExample();
     if (src.built) seedBuiltDemo(src);
+    migrateIncludedSources();
+    Object.values(S.data.entities.product).forEach((p) => matchPosPreselections(p));
     S.data.menus.forEach((m) => {
       if (!m.image) m.image = posImageOf(m);
     });
@@ -707,6 +711,37 @@
       if (next) it.image = next;
       else delete it.image;
       Object.values(S.data.entities[it.type]).forEach((c) => c.source === 'pos' && c.externalId === id && (c.image || null) === old && (c.image = next));
+    }
+  }
+
+  function migrateIncludedSources() {
+    if (S.data.includedSources) return;
+    S.data.includedSources = true;
+    const srcItems = DATASETS[dataset].pos.items;
+    const autoByGroup = {};
+    for (const [id, it] of Object.entries(S.data.pos.items)) {
+      if (it.autoAdded) autoByGroup[id] = it.autoAdded;
+      delete it.autoAdded;
+      const s = srcItems[id];
+      if (s && s.includedModifiers && !it.includedModifiers) it.includedModifiers = JSON.parse(JSON.stringify(s.includedModifiers));
+    }
+    for (const p of Object.values(S.data.entities.product)) {
+      if (!p.included) continue;
+      const fromPos = new Map((posIncludedRows(p) || []).map((r) => [`${r.gid}:${r.pid}`, r.source]));
+      p.included.forEach((r) => {
+        r.source = r.source || fromPos.get(`${r.gid}:${r.pid}`) || 'manual';
+        if (r.source === 'pos_auto_added') r.locked = true;
+      });
+      const have = new Set(p.included.map((r) => `${r.gid}:${r.pid}`));
+      const auto = p.children.flatMap((gid) => {
+        const g = entity('group', gid);
+        const list = g && autoByGroup[posIdOf('group', g)];
+        if (!list) return [];
+        return g.children
+          .filter((pid) => list.includes((entity('product', pid) || {}).externalId) && !have.has(`${gid}:${pid}`))
+          .map((pid) => ({ gid, pid, source: 'pos_auto_added', locked: true }));
+      });
+      p.included = [...auto, ...p.included];
     }
   }
 
@@ -935,6 +970,7 @@
           S.data = parsed.data;
           if (!S.data.pendingLinks) S.data.pendingLinks = {};
           migratePosImages();
+          migrateIncludedSources();
           migrateAirportStores();
           S.data.menus.forEach(migrateMenu);
           Object.values(S.data.entities.category).forEach(migrateCategory);

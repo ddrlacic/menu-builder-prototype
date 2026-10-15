@@ -17,6 +17,7 @@ window.POS_SEED = (() => {
   prd('pos-truffle', 'Signature Truffle Burger', 18.5, {
     description: 'Wagyu patty, truffle aioli, aged gruyère, and caramelized onions on a brioche bun.',
     children: ['pos-g-temp', 'pos-g-side', 'pos-g-addons', 'pos-g-sauce'],
+    includedModifiers: [['pos-g-side', 'pos-m-fries']],
   });
   prd('pos-cheeseburger', 'Classic Cheeseburger', 14, {
     description: 'Two smashed patties, American cheese, pickles, and house sauce.',
@@ -65,6 +66,7 @@ window.POS_SEED = (() => {
   prd('pos-byo-pizza', 'Build Your Own Pizza', 12, {
     description: 'Start with our 48-hour dough and make it yours.',
     children: ['pos-g-size-pizza', 'pos-g-crust', 'pos-g-toppings'],
+    includedModifiers: [['pos-g-crust', 'pos-m-handtossed', 'auto']],
   });
   prd('pos-margherita', 'Margherita', 14, {
     description: 'San Marzano tomato, fior di latte, basil, and olive oil.',
@@ -80,7 +82,7 @@ window.POS_SEED = (() => {
   prd('pos-m-12', 'Medium 12"', 3);
   prd('pos-m-14', 'Large 14"', 6);
 
-  grp('pos-g-crust', 'Crust', 1, 1, 1, ['pos-m-thin', 'pos-m-handtossed', 'pos-m-stuffed'], { autoAdded: ['pos-m-handtossed'] });
+  grp('pos-g-crust', 'Crust', 1, 1, 1, ['pos-m-thin', 'pos-m-handtossed', 'pos-m-stuffed']);
   prd('pos-m-thin', 'Thin Crust', 0);
   prd('pos-m-handtossed', 'Hand-Tossed', 0);
   prd('pos-m-stuffed', 'Stuffed Crust', 4, { children: ['pos-g-stuffing'] });

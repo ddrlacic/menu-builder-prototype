@@ -1029,7 +1029,7 @@
   }
 
   function openIncludedPicker(p) {
-    const taken = new Set([...posIncluded(p), ...p.included].map((it) => `${it.gid}:${it.pid}`));
+    const taken = new Set(p.included.map((it) => `${it.gid}:${it.pid}`));
     openListPicker({
       title: 'Add included ingredients',
       intro: `Options from the groups of ${nameOf('product', p)}.`,
@@ -1042,7 +1042,7 @@
       onAdd: (keys) =>
         keys.forEach((key) => {
           const [gid, pid] = key.split(':');
-          p.included.push({ gid, pid, locked: false });
+          p.included.push({ gid, pid, locked: false, source: 'manual' });
         }),
     });
   }

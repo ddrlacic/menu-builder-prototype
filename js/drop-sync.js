@@ -495,6 +495,7 @@
     for (const [id, item] of Object.entries(demo.add || {})) (items[id] = JSON.parse(JSON.stringify(item))), touched.add(id);
     for (const [parent, child] of demo.addTo || []) if (items[parent] && !items[parent].children.includes(child)) items[parent].children.push(child), touched.add(child);
     for (const [parent, child] of demo.removeFrom || []) if (items[parent]) (items[parent].children = items[parent].children.filter((c) => c !== child)), touched.add(child);
+    for (const [id, list] of Object.entries(demo.includedModifiers || {})) if (items[id]) items[id].includedModifiers = JSON.parse(JSON.stringify(list));
     for (const id of demo.delete || []) {
       if (!items[id]) continue;
       delete items[id];
@@ -523,6 +524,82 @@
     else toast('POS synced. No changes', 'info');
   }
 
+  const canSyncIncluded = (p) => p.source === 'pos' && p.ptype === 'pos' && !!posItemById(p.externalId);
+
+  function posIncludedRows(p) {
+    if (!canSyncIncluded(p)) return null;
+    const groups = p.children.map((gid) => entity('group', gid)).filter((g) => g && g.source === 'pos');
+    const seen = new Set();
+    return (posItemById(p.externalId).includedModifiers || []).flatMap(([groupPos, optionPos, flag]) => {
+      const g = groups.find((x) => x.externalId === groupPos);
+      const pid = g && g.children.find((c) => (entity('product', c) || {}).externalId === optionPos);
+      if (!pid || seen.has(`${g.id}:${pid}`)) return [];
+      seen.add(`${g.id}:${pid}`);
+      return [{ gid: g.id, pid, source: flag === 'auto' ? 'pos_auto_added' : 'pos_included' }];
+    });
+  }
+
+  function applyPosIncluded(p) {
+    const desired = posIncludedRows(p);
+    if (!desired) return null;
+    const key = (r) => `${r.gid}:${r.pid}`;
+    const manual = new Set(p.included.filter((r) => r.source === 'manual').map(key));
+    const want = new Map(desired.filter((r) => !manual.has(key(r))).map((r) => [key(r), r]));
+    const fresh = (r) => ({ ...r, locked: r.source === 'pos_auto_added' });
+    const res = { added: 0, updated: 0, removed: 0, preselected: 0 };
+    const gone = [];
+    const next = [];
+    for (const r of p.included) {
+      const w = r.source !== 'manual' && want.get(key(r));
+      want.delete(key(r));
+      if (r.source === 'manual' || (w && w.source === r.source)) next.push(r);
+      else if (w) {
+        res.updated++;
+        next.push(fresh(w));
+      } else {
+        res.removed++;
+        gone.push(r);
+      }
+    }
+    res.added = want.size;
+    next.push(...[...want.values()].map(fresh));
+    p.included = next;
+    res.preselected = matchPosPreselections(p, gone);
+    return res;
+  }
+
+  function matchPosPreselections(p, gone = []) {
+    const preKey = (r) => `@>p:${p.id}>g:${r.gid}>p:${r.pid}`;
+    const groupPre = (r) => entity('group', r.gid).preselected[r.pid] || 0;
+    let changed = 0;
+    for (const r of gone) {
+      const pl = S.data.placements[preKey(r)];
+      if (!pl || !isNum(pl.preselected)) continue;
+      if (pl.preselected !== groupPre(r)) changed++;
+      delete pl.preselected;
+      if (!Object.keys(pl).length) delete S.data.placements[preKey(r)];
+    }
+    for (const r of p.included) {
+      const g = r.source !== 'manual' && entity('group', r.gid);
+      if (!g || rulesOf(g).type !== 1) continue;
+      const pl = (S.data.placements[preKey(r)] = S.data.placements[preKey(r)] || {});
+      if ((isNum(pl.preselected) ? pl.preselected : groupPre(r)) !== 1) changed++;
+      pl.preselected = 1;
+    }
+    return changed;
+  }
+
+  function syncIncludedFromPos(p) {
+    let res;
+    const ok = commit(() => {
+      res = applyPosIncluded(p);
+      if (!res || !(res.added + res.updated + res.removed + res.preselected)) throw new Abort('');
+    });
+    if (!ok) return res && toast('Included ingredients already match POS.', 'info');
+    const parts = [res.added && `${res.added} added`, res.updated && `${res.updated} updated`, res.removed && `${res.removed} removed`].filter(Boolean);
+    toast(parts.length ? `Included ingredients now match POS: ${listJoin(parts)}.` : 'Preselections now match POS.', 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
   const IMPORT_MS = 2400;
 
   function importStaged(done) {
@@ -537,6 +614,7 @@
       for (const [kind, map] of Object.entries(S.data.entities))
         for (const [id, e] of Object.entries(map)) if (e.pending && !reached.has(`${kind}:${id}`)) delete map[id];
       finishStagedSizes();
+      Object.values(S.data.entities.product).forEach((p) => p.pending && applyPosIncluded(p));
       clearPending();
       clearHistory();
       dataVersion++;
@@ -856,7 +934,7 @@
               ? { name: e.upsell.title, products: e.upsell.products.map(productRef).filter(Boolean) }
               : null,
           cross_sell: e.crossSell.map(productRef).filter(Boolean),
-          included_ingredients: validIncluded(e).map((i) => ({ product_group_id: i.gid, product_id: i.pid, is_locked: !!i.locked })),
+          included_ingredients: validIncluded(e).map((i) => ({ product_group_id: i.gid, product_id: i.pid, is_locked: !!i.locked, source: i.source })),
           included_ingredients_group_name: e.included.length ? e.includedName : null,
           substitutes: productOptions(e)
             .map((o) => ({ ...optionRef(o.key), follows_product_group: !substitutesAt(e, o.gid, o.pid).own, ids: substitutesAt(e, o.gid, o.pid).ids }))
