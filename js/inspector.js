@@ -320,9 +320,9 @@
     const from = inheritedAt(path).map((g) => nameOf('group', g));
     const help = from.length
       ? `${listJoin(from)} adds it to every option. Remove it on the Options tab of ${listJoin(from)}.`
-      : isVirtual(ent)
-        ? 'Nothing changes on POS.'
-        : `The ${KIND_LABEL[kind].toLowerCase()} stays on POS. You can add it back from POS items.`;
+      : ent.pending
+        ? `The ${KIND_LABEL[kind].toLowerCase()} stays on POS. You can add it back from POS items.`
+        : 'Add it back with its settings under Add existing. Nothing changes on POS.';
     return section(
       '',
       `<button type="button" class="btn secondary tone-danger" data-action="remove" data-path="${esc(path)}" ${from.length ? 'disabled' : ''}>${icon('x', 15)}Remove from ${esc(parentName)}</button>

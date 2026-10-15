@@ -201,20 +201,28 @@
     return true;
   }
 
-  function openAddPicker({ title, intro, parentPath, ids, priceOf, noun }) {
+  function addPickerIds({ parentPath, ids, withImported = false }) {
     const pi = parsePath(parentPath);
     const parent = entity(pi.kind, pi.id);
     const ck = childKind(pi.kind, parent);
     const present = new Set(parent.children.map((c) => posIdOf(ck, entity(ck, c))).filter(Boolean));
-    const items = ids
-      .filter((id) => posItemById(id) && !present.has(id))
-      .map((id) => ({ id, name: posLabel(id), alt: posItemById(id).name, meta: id, price: priceOf ? priceOf(id) : '' }));
+    return ids.filter((id) => posItemById(id) && !present.has(id) && (withImported || !isImported(ck, id)));
+  }
+
+  const importable = (item, spec) => (addPickerIds(spec).length ? item : { ...item, hint: `All ${spec.noun} are imported`, disabled: true, submenu: false });
+
+  function openAddPicker(spec) {
+    const { title, intro, parentPath, priceOf, noun, withImported = false } = spec;
+    const pi = parsePath(parentPath);
+    const parent = entity(pi.kind, pi.id);
+    const ck = childKind(pi.kind, parent);
+    const items = addPickerIds(spec).map((id) => ({ id, name: posLabel(id), alt: posItemById(id).name, meta: id, price: priceOf ? priceOf(id) : '' }));
     openPicker({
       title,
       intro,
       placeholder: 'Search by name or POS ID',
       items,
-      empty: `All ${noun} are already in ${nameOf(pi.kind, parent)}`,
+      empty: withImported ? `All ${noun} are already in ${nameOf(pi.kind, parent)}` : `All ${noun} are imported. Add them under Add existing`,
       keepOpen: true,
       onPick: (id) => {
         const chainCat = ck === 'product' ? (pi.kind === 'category' && !isVirtual(parent) ? parent.externalId : posCategoriesOf(id)[0] || null) : null;
@@ -228,37 +236,44 @@
     });
   }
 
-  function openPosCategoryPicker() {
+  function posCategorySpec() {
     const menu = activeMenu();
     const pm = linkedPosMenu(menu);
-    const ids = pm ? pm.roots : [...new Set(S.data.pos.menus.flatMap((m) => m.roots))];
-    openAddPicker({
-      title: 'Add POS category',
-      intro: 'Each category comes with its POS products, options, and prices.',
+    return {
+      title: 'Import POS category',
+      intro: 'Categories not imported yet. Each comes with its POS products, options, and prices.',
       parentPath: menu.id,
-      ids,
+      ids: pm ? pm.roots : [...new Set(S.data.pos.menus.flatMap((m) => m.roots))],
       priceOf: (id) => plural(posChildren(id).length, 'product', 'products'),
       noun: 'POS categories',
-    });
+    };
+  }
+
+  function openPosCategoryPicker() {
+    openAddPicker(posCategorySpec());
   }
 
   function openPosProductPicker(parentPath) {
+    openAddPicker(posProductSpec(parentPath));
+  }
+
+  function posProductSpec(parentPath) {
     const pi = parsePath(parentPath);
     const parent = entity(pi.kind, pi.id);
     if (pi.kind === 'category') {
       const own = !isVirtual(parent);
-      return openAddPicker({
-        title: 'Add POS product',
-        intro: own ? `Products in ${posLabel(parent.externalId)} on POS.` : 'Any product from POS. It keeps its POS price and options.',
+      return {
+        title: 'Import POS product',
+        intro: own ? `Products in ${posLabel(parent.externalId)} on POS, not imported yet.` : 'Products not imported yet. Each keeps its POS price and options.',
         parentPath,
         ids: own ? posChildren(parent.externalId) : posProductChoices().map((c) => c.id),
         noun: own ? `products from ${posLabel(parent.externalId)}` : 'POS products',
-      });
+      };
     }
     if (parent.ptype === 'size') {
       const home = entity('category', parsePath(pi.parentPath).id);
       const own = !isVirtual(home);
-      return openAddPicker({
+      return {
         title: 'Add POS product',
         intro: own
           ? `Products in ${posLabel(home.externalId)} on POS, where ${nameOf('product', parent)} is. Customers pick one. Only that product is sent to POS.`
@@ -268,35 +283,37 @@
           .map((c) => c.id)
           .filter((id) => !dropError(parentPath, posDesc(id))),
         noun: own ? `products from ${posLabel(home.externalId)}` : 'POS products',
-      });
+        withImported: true,
+      };
     }
     if (parent.gtype === 'standalone') {
-      return openAddPicker({
-        title: 'Add POS product',
-        intro: 'Each product customers pick is added to the order as its own item.',
+      return {
+        title: 'Import POS product',
+        intro: 'Products not imported yet. Each one customers pick is added to the order as its own item.',
         parentPath,
         ids: posProductChoices().map((c) => c.id),
         noun: 'POS products',
-      });
+      };
     }
     const gpos = posIdOf('group', parent);
-    openAddPicker({
-      title: 'Add POS option',
-      intro: `Options of ${posLabel(gpos)} on POS.`,
+    return {
+      title: 'Import POS option',
+      intro: `Options of ${posLabel(gpos)} on POS, not imported yet.`,
       parentPath,
       ids: posChildren(gpos),
       noun: `options from ${posLabel(gpos)}`,
-    });
+    };
   }
+
+  const posGroupSpec = (productPath) => ({ parentPath: productPath, ids: allowedPosGroupsFor(productPath), noun: 'POS groups of this product' });
 
   function posGroupMenu(anchor, productPath) {
     const p = entity('product', parsePath(productPath).id);
-    const present = new Set(p.children.map((c) => posIdOf('group', entity('group', c))).filter(Boolean));
-    const ids = allowedPosGroupsFor(productPath).filter((gid) => posItemById(gid) && !present.has(gid));
+    const ids = addPickerIds(posGroupSpec(productPath));
     openPopover(
       anchor,
       ids.length
-        ? [{ heading: 'Add POS group' }].concat(
+        ? [{ heading: 'Import POS group' }].concat(
             ids.map((gid) => ({
               label: posLabel(gid),
               hint: `${C.groupTypes[posItemById(gid).groupType || 1].label} · ${plural(posChildren(gid).length, 'option', 'options')}`,
@@ -304,17 +321,17 @@
               onClick: () => performDrop(posDesc(gid), { path: productPath, pos: 'inside' }),
             })),
           )
-        : [{ empty: `<strong>No POS groups left</strong><span>All POS groups of ${esc(nameOf('product', p))} are already added.</span>` }],
+        : [{ empty: `<strong>No POS groups to import</strong><span>All POS groups of ${esc(nameOf('product', p))} are imported. Add them under Add existing.</span>` }],
     );
   }
 
   function addCategoryMenu(anchor) {
     openPopover(anchor, [
-      { heading: 'Add from POS' },
-      { label: 'POS category', hint: 'Comes with its POS products and prices', icon: 'folder', onClick: openPosCategoryPicker },
+      ...existingMenuItems(activeMenu().id),
+      { heading: 'Import from POS' },
+      importable({ label: 'POS category', hint: 'Not imported yet. Comes with its POS products and prices', icon: 'folder', onClick: openPosCategoryPicker }, posCategorySpec()),
       { heading: 'Create' },
       { label: 'Menu-only category', hint: 'Arrange products your own way. Not on POS', icon: 'dashed', onClick: createVirtualCategory },
-      ...existingMenuItems(activeMenu().id),
     ]);
   }
 
@@ -350,11 +367,16 @@
   }
 
   const EXISTING = {
-    category: { noun: 'category', label: 'Existing category', hint: 'Menu-only category you made', intro: 'Menu-only categories you made in MC.' },
-    product: { noun: 'product', label: 'Existing product', hint: 'Custom or choice product you made', intro: 'Custom and choice products you made in MC.' },
-    upsell: { noun: 'product', label: 'Existing product', hint: 'Custom product you made', intro: 'Custom products you made in MC.' },
-    group: { noun: 'group', label: 'Existing group', hint: 'Custom group or suggested products you made', intro: 'Custom groups and suggested products you made in MC.' },
-    folder: { noun: 'option folder', label: 'Existing option folder', hint: 'Option folder you made', intro: 'Option folders you made in MC.' },
+    category: { noun: 'category', nouns: 'categories' },
+    product: { noun: 'product', nouns: 'products' },
+    upsell: { noun: 'product', nouns: 'products' },
+    group: { noun: 'group', nouns: 'groups' },
+    folder: { noun: 'option', nouns: 'options' },
+  };
+
+  const isImported = (kind, posId) => {
+    const ent = findByExt(kind, posId);
+    return !!ent && !ent.pending;
   };
 
   function existingFor(parentPath) {
@@ -363,34 +385,46 @@
     if (pi.kind === 'product' && parent.ptype === 'size') return null;
     const ck = childKind(pi.kind, parent);
     const which = pi.kind === 'menu' ? 'category' : pi.kind === 'category' ? 'product' : pi.kind === 'product' ? 'group' : parent.gtype === 'standalone' ? 'upsell' : 'folder';
-    const fits = {
-      category: (x) => isVirtual(x),
-      product: (x) => x.ptype === 'linked' || x.ptype === 'size',
-      upsell: (x) => x.ptype === 'linked',
-      group: (x) => x.gtype === 'linked' || x.gtype === 'standalone',
-      folder: (x) => x.ptype === 'container',
-    }[which];
+    const pm = pi.kind === 'menu' ? linkedPosMenu(parent) : null;
     const ents = Object.values(S.data.entities[ck])
-      .filter((x) => fits(x) && !x.pending && !parent.children.includes(x.id))
+      .filter((x) => !x.pending && !parent.children.includes(x.id))
+      .filter((x) => !pm || x.source !== 'pos' || pm.roots.includes(x.externalId))
       .filter((x) => pi.kind === 'menu' || !reaches(ck, x.id, pi.kind, pi.id))
-      .filter((x) => !dropError(parentPath, { origin: 'canvas', id: x.id, kind: ck, name: nameOf(ck, x), source: x.source, ptype: x.ptype || null, gtype: x.gtype || null }))
+      .filter(
+        (x) =>
+          !dropError(parentPath, {
+            origin: 'canvas',
+            id: x.id,
+            kind: ck,
+            name: nameOf(ck, x),
+            source: x.source,
+            posId: x.source === 'pos' ? x.externalId : null,
+            ptype: x.ptype || null,
+            gtype: x.gtype || null,
+          }),
+      )
       .sort((a, b) => nameOf(ck, a).localeCompare(nameOf(ck, b)));
     return { ...EXISTING[which], kind: ck, ents };
   }
 
   function existingMenuItems(parentPath, wrap = (it) => it) {
     const ex = existingFor(parentPath);
-    if (!ex || !ex.ents.length) return [];
-    return [{ heading: 'Add existing' }, wrap({ label: ex.label, hint: ex.hint, icon: 'copy', onClick: () => openExistingPicker(parentPath) })];
+    if (!ex) return [];
+    const pi = parsePath(parentPath);
+    const label = `Existing ${ex.noun}`;
+    const item = ex.ents.length
+      ? wrap({ label, hint: 'Imported or made by you, with your changes', icon: 'copy', onClick: () => openExistingPicker(parentPath) })
+      : { label, hint: `Every ${ex.noun} that can go here is already in ${nameOf(pi.kind, entity(pi.kind, pi.id))}`, icon: 'copy', disabled: true };
+    return [{ heading: 'Add existing' }, item];
   }
 
   function openExistingPicker(parentPath) {
     const ex = existingFor(parentPath);
     const pi = parsePath(parentPath);
-    const nouns = ex.noun === 'category' ? 'categories' : `${ex.noun}s`;
+    const nouns = ex.nouns;
     openPicker({
       title: `Add existing ${ex.noun}`,
-      intro: `${ex.intro} It stays one ${ex.noun}, so edits apply everywhere it’s used.`,
+      intro: `${nouns[0].toUpperCase()}${nouns.slice(1)} you imported or made. They come with your changes. Each stays one ${ex.noun}, so edits apply everywhere it’s used.`,
       placeholder: 'Search by name or internal name',
       items: ex.ents.map((x) => {
         const uses = (ctx.usage.get(`${ex.kind}:${x.id}`) || []).length;

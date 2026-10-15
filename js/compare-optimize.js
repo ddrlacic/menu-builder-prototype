@@ -79,7 +79,7 @@
           <div class="cmp-list">${data.changed
             .map(
               (c) => `<div class="cmp-row"><span class="kind-glyph kind-${c.kind}">${icon(KIND_ICON[c.kind], 13)}</span>
-                <span class="cmp-main"><span class="cmp-name">${esc(nameOf(c.kind, c.ent))}</span><span class="cmp-meta tnum">${c.diffs.map(esc).join(' · ')}</span>${c.type ? '<span class="cmp-meta">A group’s type can’t change in MC. To use the POS type, delete the group, then import it again from POS.</span>' : ''}</span>
+                <span class="cmp-main"><span class="cmp-name">${esc(nameOf(c.kind, c.ent))}</span><span class="cmp-meta tnum">${c.diffs.map(esc).join(' · ')}</span>${c.type ? '<span class="cmp-meta">A group’s type can’t change here. To use the POS type, delete the group, then import it again from POS.</span>' : ''}</span>
                 ${c.name && c.ent.name !== posItem(c.ent).name ? `<button type="button" class="btn secondary sm" data-action="cmp-use-name" data-path="${esc(c.path)}">Use POS name</button>` : ''}
                 ${c.rules && rulesDifferFromPos(c.ent) ? `<button type="button" class="btn secondary sm" data-action="cmp-use-rules" data-path="${esc(c.path)}">Use POS rules</button>` : ''}
                 <button type="button" class="btn ghost sm" data-action="cmp-goto" data-path="${esc(c.path)}">Show</button></div>`,

@@ -469,17 +469,20 @@
       });
       if (info.kind === 'category') {
         const items = [
-          { heading: 'Add from POS' },
-          {
-            label: 'POS product',
-            hint: isVirtual(ent) ? 'Any product from POS' : `From ${posLabel(ent.externalId)} on POS`,
-            icon: 'utensils',
-            onClick: () => openPosProductPicker(path),
-          },
+          ...existingMenuItems(path, built),
+          { heading: 'Import from POS' },
+          importable(
+            {
+              label: 'POS product',
+              hint: isVirtual(ent) ? 'Not imported yet. Comes with its POS price and options' : `From ${posLabel(ent.externalId)} on POS, not imported yet`,
+              icon: 'utensils',
+              onClick: () => openPosProductPicker(path),
+            },
+            posProductSpec(path),
+          ),
           { heading: 'Create' },
           customProduct,
           built({ label: 'Choice product', hint: 'Customers pick one product, like a size. Only that product goes to POS', icon: 'package', onClick: () => createChoiceProduct(path) }),
-          ...existingMenuItems(path, built),
         ];
         if (detectSizeSets(ent).length) items.push('-', { label: 'Group sizes', hint: 'Turn size variants into one choice product', icon: 'sparkles', onClick: () => groupSizes(path) });
         return openPopover(anchor, items);
@@ -487,8 +490,9 @@
       if (info.kind === 'product' && ent.ptype === 'size') return openPosProductPicker(path);
       if (info.kind === 'product') {
         const items = [
-          { heading: 'Add from POS' },
-          { label: 'POS group', hint: 'All its options, as on POS', icon: 'layers', submenu: true, onClick: () => posGroupMenu(anchor, path) },
+          ...existingMenuItems(path, built),
+          { heading: 'Import from POS' },
+          importable({ label: 'POS group', hint: 'Not imported yet. All its options, as on POS', icon: 'layers', submenu: true, onClick: () => posGroupMenu(anchor, path) }, posGroupSpec(path)),
         ];
         if (ent.ptype === 'linked') items.push({ label: 'All POS groups', hint: `Every group of ${posLabel(ent.posParentExt)}`, icon: 'plus', onClick: () => addParentGroups(path) });
         items.push(
@@ -501,22 +505,22 @@
             onClick: () => linkedGroupMenu(anchor, path),
           }),
           built({ label: 'Suggested products', hint: 'Products customers can add to this item. Each one goes on the order as its own item', icon: 'dashed', onClick: () => createVirtualGroup(path, 'upsell') }),
-          ...existingMenuItems(path, built),
         );
         return openPopover(anchor, items);
       }
       if (ent.gtype === 'standalone') {
         return openPopover(anchor, [
-          { heading: 'Add from POS' },
-          { label: 'POS product', hint: 'Keeps its own POS price', icon: 'utensils', onClick: () => openPosProductPicker(path) },
+          ...existingMenuItems(path, built),
+          { heading: 'Import from POS' },
+          importable({ label: 'POS product', hint: 'Not imported yet. Keeps its own POS price', icon: 'utensils', onClick: () => openPosProductPicker(path) }, posProductSpec(path)),
           { heading: 'Create' },
           customProduct,
-          ...existingMenuItems(path, built),
         ]);
       }
       return openPopover(anchor, [
-        { heading: 'Add from POS' },
-        { label: 'POS option', hint: `From ${posLabel(posIdOf('group', ent))} on POS`, icon: 'utensils', onClick: () => openPosProductPicker(path) },
+        ...existingMenuItems(path, built),
+        { heading: 'Import from POS' },
+        importable({ label: 'POS option', hint: `From ${posLabel(posIdOf('group', ent))} on POS, not imported yet`, icon: 'utensils', onClick: () => openPosProductPicker(path) }, posProductSpec(path)),
         { heading: 'Create' },
         built({
           label: 'Option folder',
@@ -524,7 +528,6 @@
           icon: 'dashed',
           onClick: () => createVirtualContainer(path),
         }),
-        ...existingMenuItems(path, built),
       ]);
     }
     const targets = T.sel.length > 1 && T.sel.includes(path) ? T.sel.slice() : [path];
