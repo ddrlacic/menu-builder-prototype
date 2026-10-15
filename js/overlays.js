@@ -282,7 +282,7 @@
         : `<div class="empty-small"><strong>${esc(T.picker.noMatch[0])}</strong><span>${esc(T.picker.noMatch[1])}</span></div>`;
   }
 
-  function openListPicker({ title, intro, groups, empty, noun, placeholder = `Search ${noun[1]}`, onAdd, cta = null, onSave = null, single = false }) {
+  function openListPicker({ title, intro, groups, empty, noun, placeholder = `Search ${noun[1]}`, onAdd, cta = null, onSave = null, single = false, selected = [], openAll = false }) {
     groups = groups.filter((g) => g.items.length);
     const total = new Set(groups.flatMap((g) => g.items.map((it) => it.id))).size;
     openModal({
@@ -295,9 +295,11 @@
       foot: '<div class="modal-foot" id="lp-foot"></div>',
     });
     const off = new Set(groups.flatMap((g) => g.items.filter((it) => it.disabled).map((it) => it.id)));
-    T.lp = { groups, empty, noun, onAdd, cta, onSave, single, off, sel: new Set(), open: new Set(groups.length === 1 || total <= 40 ? groups.map((g) => g.id) : []), query: '', onlySelected: false };
+    T.lp = { groups, empty, noun, onAdd, cta, onSave, single, off, sel: new Set(selected.filter((id) => !off.has(id))), open: new Set(openAll || groups.length === 1 || total <= 40 ? groups.map((g) => g.id) : []), query: '', onlySelected: false };
     renderListPicker();
     $('#lp-search').focus();
+    const picked = $('#lp-list [aria-checked="true"]');
+    if (picked) picked.scrollIntoView({ block: 'nearest' });
   }
 
   const listSub = (it) => [it.alt && it.alt !== it.name ? it.alt : '', it.code].filter(Boolean).join(' · ');
@@ -333,7 +335,7 @@
     const allSt = stateOf(groups.flatMap((x) => x.list));
     const row = (it) => {
       const locked = o.off.has(it.id);
-      const on = locked || o.sel.has(it.id);
+      const on = (locked && !o.single) || o.sel.has(it.id);
       const mark = o.single ? `<span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span>` : box(on ? 'on' : 'off');
       return `<button type="button" class="ms-row ms-store" role="${o.single ? 'radio' : 'checkbox'}" aria-checked="${on}" data-action="lp-item" data-id="${esc(it.id)}"${locked ? ' disabled' : ''}>${mark}${it.thumb || ''}<span class="ms-name">${esc(it.name)}${listSub(it) ? `<span class="ms-sub">${esc(listSub(it))}</span>` : ''}</span>${it.tag ? `<span class="badge tone-staged">${esc(it.tag)}</span>` : ''}${it.meta ? `<span class="ms-city">${esc(it.meta)}</span>` : ''}</button>`;
     };
@@ -352,7 +354,11 @@
                     return `<div class="ms-group">
                 <div class="ms-group-head">
                   <button type="button" class="icon-btn sm ms-chev" data-action="lp-open" data-id="${esc(g.id)}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'} ${esc(g.name)}">${icon('chevRight', 14)}</button>
-                  <button type="button" class="ms-row" role="checkbox" aria-checked="${checked(st)}" data-action="lp-group" data-id="${esc(g.id)}" data-on="${st === 'on' ? 0 : 1}"${lockedAll(g.items) ? ' disabled' : ''}>${box(st)}<strong class="ms-name">${esc(g.name)}${g.sub ? `<span class="ms-sub">${esc(g.sub)}</span>` : ''}</strong><span class="ms-city tnum">${g.items.filter((it) => o.sel.has(it.id) || o.off.has(it.id)).length} of ${g.items.length}</span></button>
+                  ${
+                    o.single
+                      ? `<button type="button" class="ms-row" data-action="lp-open" data-id="${esc(g.id)}" aria-expanded="${open}"><strong class="ms-name">${esc(g.name)}${g.sub ? `<span class="ms-sub">${esc(g.sub)}</span>` : ''}</strong><span class="ms-city tnum">${plural(g.items.length, o.noun[0], o.noun[1])}</span></button>`
+                      : `<button type="button" class="ms-row" role="checkbox" aria-checked="${checked(st)}" data-action="lp-group" data-id="${esc(g.id)}" data-on="${st === 'on' ? 0 : 1}"${lockedAll(g.items) ? ' disabled' : ''}>${box(st)}<strong class="ms-name">${esc(g.name)}${g.sub ? `<span class="ms-sub">${esc(g.sub)}</span>` : ''}</strong><span class="ms-city tnum">${g.items.filter((it) => o.sel.has(it.id) || o.off.has(it.id)).length} of ${g.items.length}</span></button>`
+                  }
                 </div>
                 ${open ? `<div class="ms-stores">${list.map(row).join('')}</div>` : ''}
               </div>`;

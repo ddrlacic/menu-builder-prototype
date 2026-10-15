@@ -545,43 +545,30 @@
   }
 
   function openHalfPicker(g, pid, side, { groups = siblingPosGroups(g), halves = g.halves, onPick } = {}) {
-    const whole = normName(nameOf('product', entity('product', pid)));
     const current = (halves[pid] || {})[side];
     const otherSide = side === 'left' ? 'right' : 'left';
     const other = (halves[pid] || {})[otherSide];
     const roles = new Map();
     Object.entries(halves).forEach(([w, h]) => ['left', 'right'].forEach((s) => h[s] && roles.set(h[s], { w, s })));
-    const seen = new Set();
-    const items = [];
-    for (const x of groups) {
-      for (const id of x.children) {
-        if (id === pid || seen.has(id) || !isHalfOption(id)) continue;
-        seen.add(id);
-        const ent = entity('product', id);
-        const name = nameOf('product', ent);
-        const parsed = parseHalfName(name);
-        const score = parsed ? nameScore(parsed.base, whole) + (parsed.side === side ? 1 : 0) : 0;
-        const r = roles.get(id);
-        const isOther = id === other;
-        const meta = [
-          id === current ? 'Selected' : isOther ? `Already the ${SIDE_LABEL[otherSide].toLowerCase()}` : score >= 1.6 ? 'Suggested' : '',
-          !isOther && r && r.w !== pid ? `${SIDE_LABEL[r.s]} of ${optionName(g, r.w)}` : '',
-          x.id === g.id ? '' : `In ${nameOf('group', x)}`,
-        ]
-          .filter(Boolean)
-          .join(' · ');
-        items.push({ id, name, alt: posIdOf('product', ent) || '', meta, price: '', disabled: isOther, score: isOther ? -1 : id === current ? 9 : score });
-      }
-    }
-    items.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-    openPicker({
+    const item = (id) => {
+      const ent = entity('product', id);
+      const r = roles.get(id);
+      const meta = id === other ? `Already the ${SIDE_LABEL[otherSide].toLowerCase()}` : r && r.w !== pid ? `${SIDE_LABEL[r.s]} of ${optionName(g, r.w)}` : '';
+      return { id, name: nameOf('product', ent), code: posIdOf('product', ent) || '', meta, disabled: id === other };
+    };
+    openListPicker({
       title: `${SIDE_LABEL[side]} of ${optionName(g, pid)}`,
       intro: 'Pick the POS option that rings up when a customer puts this topping on this half.',
       placeholder: 'Search by name or POS ID',
-      items,
-      noMatch: ['No matching options', 'Try a different name or POS ID.'],
-      onPick: (id) => {
-        closeModal();
+      groups: groups.map((x) => ({ id: x.id, name: nameOf('group', x), items: x.children.filter((id) => id !== pid && isHalfOption(id)).map(item) })),
+      noun: ['option', 'options'],
+      empty: 'No options to pick from',
+      single: true,
+      selected: current ? [current] : [],
+      openAll: true,
+      cta: () => (current ? 'Save' : `Add ${SIDE_LABEL[side].toLowerCase()}`),
+      onSave: ([id]) => {
+        if (id === current) return;
         commit(() => (onPick ? onPick(id) : (g.halves[pid] = { ...(g.halves[pid] || {}), [side]: id })));
       },
     });
