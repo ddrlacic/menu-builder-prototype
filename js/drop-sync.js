@@ -58,7 +58,7 @@
     }
     out.index = Math.min(index, parent.children.length);
     parent.children.splice(out.index, 0, id);
-    if (d.origin === 'pos') stageLink(pInfo.kind, pInfo.id, d.kind, id);
+    if (d.origin === 'pos') stagePosLink(parentPath, d.kind, id);
     else if (S.data.pendingLinks[linkKeyOf(d.path)]) {
       delete S.data.pendingLinks[linkKeyOf(d.path)];
       stageLink(pInfo.kind, pInfo.id, d.kind, id);
@@ -372,7 +372,7 @@
           throw new Abort(`${nameOf(topKind, entity(topKind, childId))} already contains ${nameOf(kind, ent)}, so it cannot go inside it`);
         }
         ent.children.push(childId);
-        stageLink(kind, ent.id, topKind, childId);
+        if (ent.pending || entity(topKind, childId).pending || pendingRoot(path)) stageLink(kind, ent.id, topKind, childId);
       }
       topKind = kind;
       childId = ent.id;
@@ -383,7 +383,7 @@
       throw new Abort(`${nameOf(topKind, entity(topKind, childId))} already contains ${nameOf(info.kind, anchor)}, so it cannot go inside it`);
     }
     anchor.children.push(childId);
-    stageLink(info.kind, info.id, topKind, childId);
+    stagePosLink(path, topKind, childId);
     let newPath = path;
     for (let i = depth; i < chain.length; i++) {
       const ni = parsePath(newPath);
@@ -401,7 +401,7 @@
       const res = importPos(r);
       if (!res) continue;
       menu.children.push(res.id);
-      stageLink('menu', menu.id, 'category', res.id);
+      stagePosLink(menu.id, 'category', res.id);
       const p = childPath(menu.id, 'category', res.id);
       if (!firstPath) firstPath = p;
       flash(p);

@@ -465,7 +465,7 @@
     let choices = 0;
     const done = commit(() => {
       parent.children.splice(Math.min(index, parent.children.length), 0, id);
-      if (ent.source === 'pos') stageLink(pi.kind, pi.id, kind, id);
+      if (ent.source === 'pos') stagePosLink(parentPath, kind, id);
       if (pi.kind === 'category' && ent.ptype === 'size') choices = keepChoicesInCategory(ent, parent);
       if (pi.kind === 'product' && parent.ptype === 'size') keepChoiceInMenu(parentPath, id);
       newPath = childPath(parentPath, kind, id);
@@ -572,7 +572,7 @@
     return ds.map((d) => {
       const ent = entity(d.kind, d.id);
       parent.children.push(d.id);
-      if (ent.source === 'pos') stageLink(pi.kind, pi.id, d.kind, d.id);
+      if (ent.source === 'pos') stagePosLink(parentPath, d.kind, d.id);
       if (pi.kind === 'category' && ent.ptype === 'size') keepChoicesInCategory(ent, parent);
       if (pi.kind === 'product' && parent.ptype === 'size') keepChoiceInMenu(parentPath, d.id);
       return childPath(parentPath, d.kind, d.id);
@@ -1434,7 +1434,7 @@
         const res = importPos(gid);
         if (res) {
           p.children.push(res.id);
-          stageLink('product', p.id, 'group', res.id);
+          stagePosLink(productPath, 'group', res.id);
           added++;
         }
       }
@@ -1453,7 +1453,7 @@
       const res = importPos(posId);
       if (!g.children.includes(res.id)) {
         g.children.push(res.id);
-        stageLink('group', g.id, 'product', res.id);
+        stagePosLink(groupPath, 'product', res.id);
       }
       openRow(groupPath);
       flash(childPath(groupPath, 'product', res.id));

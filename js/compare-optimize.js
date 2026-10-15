@@ -144,7 +144,7 @@
           const res = importPos(m.posId);
           if (parent.children.includes(res.id)) continue;
           parent.children.push(res.id);
-          stageLink(pi.kind, pi.id, m.kind, res.id);
+          stagePosLink(path, m.kind, res.id);
           placed = true;
           places++;
           openRow(path);

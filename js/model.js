@@ -145,6 +145,11 @@
 
   const pendingRoot = (path) => [...ancestorsOf(path), path].find(isPendingLink) || null;
 
+  function stagePosLink(parentPath, childKind, childId) {
+    const p = parsePath(parentPath);
+    if (entity(childKind, childId).pending || pendingRoot(parentPath)) stageLink(p.kind, p.id, childKind, childId);
+  }
+
   function pendingRows() {
     const out = [];
     S.data.menus.forEach((m) =>
