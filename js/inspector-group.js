@@ -288,7 +288,7 @@
       ? `Changes here apply only to ${pName}, in every menu. To hide an option in one menu only, open the option there.`
       : onlyHere
         ? `${C.groupTypes[rules.type].label} groups preselect the same option in every product. Shown applies only to ${pName}, in every menu.`
-        : `${g.gtype === 'standalone' ? 'Each one customers pick goes on the order as its own item.' : 'Prices come from POS. Select an option’s name to see its price.'}${preHelp}${host ? ` To hide options in ${pName}, choose ${pName} above.` : ''}`;
+        : `${g.gtype === 'standalone' ? 'Each one customers pick goes on the order as its own item.' : 'Prices come from POS.'}${preHelp}${host ? ` To hide options in ${pName}, choose ${pName} above.` : ''}`;
     return section(
       'Options',
       `${scopeHtml}<div class="opt-table has-expand no-price${onlyHere ? '' : ' no-shown'}">

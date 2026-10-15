@@ -68,7 +68,7 @@
           <div class="opt-head"><span>Choice</span><span>Shown</span><span class="sr-only">Settings</span></div>
           ${rows}
         </div>
-        <p class="field-help">Customers pick one. Only the product they pick goes to POS, at its own POS price. Select a choice’s name to see its price. Shown applies only in ${esc(menuName)}.${liveNote(parsePath(path).menuId)}</p>
+        <p class="field-help">Customers pick one. Only the product they pick goes to POS, at its own POS price. Shown applies only in ${esc(menuName)}.${liveNote(parsePath(path).menuId)}</p>
         ${add}`,
       ) +
       section('Copy details', `<button type="button" class="btn secondary sm" data-action="copy-to-choices">${icon('copy', 14)}Copy description and image to choices</button>`, {
