@@ -720,12 +720,12 @@
     const info = parsePath(path);
     const p = entity('product', info.id);
     const pi = parsePath(info.parentPath);
+    const custom = newProduct({ ptype: 'linked', posParentExt: p.externalId, name: nameOf('product', p), description: p.description || '', ...dietaryOf(p) });
     const ok = commit(() => {
-      const custom = newProduct({ ptype: 'linked', posParentExt: p.externalId, name: nameOf('product', p), description: p.description || '', ...dietaryOf(p) });
-      insertNew(info.parentPath, 'product', custom);
+      attachParentGroups(insertNew(info.parentPath, 'product', custom));
       placeAfter(entity(pi.kind, pi.id), custom.id, p.id);
     });
-    if (ok) toast('Custom product successfully created. Add its groups next', 'success');
+    if (ok) customCreatedToast(custom.id);
   }
 
   const canCustomizeGroup = (path) => {
@@ -762,7 +762,7 @@
   function openLinkedProductPicker(categoryPath) {
     openListPicker({
       title: 'Create custom product',
-      intro: 'Choose the POS product it rings up as. The custom product gets its own name, image, and preselected options, and always uses that product’s POS price. It starts with that product’s description and dietary info.',
+      intro: 'Choose the POS product it rings up as. The custom product gets its own name, image, and preselected options, and always uses that product’s POS price. It starts with that product’s description, dietary info, and groups.',
       placeholder: 'Search by product name or POS ID',
       groups: [{ id: 'pos', name: '', items: posProductChoices() }],
       noun: ['product', 'products'],
@@ -770,22 +770,15 @@
       single: true,
       cta: () => 'Create custom product',
       onSave: ([posId]) => {
-        commit(() => {
-          const parentItem = posItemById(posId);
-          const source = findByExt('product', posId);
-          insertNew(
-            categoryPath,
-            'product',
-            newProduct({
-              ptype: 'linked',
-              posParentExt: posId,
-              name: posLabel(posId),
-              description: source ? source.description : parentItem.description || '',
-              ...(source ? dietaryOf(source) : {}),
-            }),
-          );
+        const source = findByExt('product', posId);
+        const custom = newProduct({
+          ptype: 'linked',
+          posParentExt: posId,
+          name: posLabel(posId),
+          description: source ? source.description : posItemById(posId).description || '',
+          ...(source ? dietaryOf(source) : {}),
         });
-        toast('Custom product successfully created. Add its groups next', 'success');
+        if (commit(() => attachParentGroups(insertNew(categoryPath, 'product', custom)))) customCreatedToast(custom.id);
       },
     });
   }
@@ -1371,19 +1364,31 @@
     });
   }
 
-  function addParentGroups(productPath) {
+  function attachParentGroups(productPath) {
     const p = entity('product', parsePath(productPath).id);
     let added = 0;
-    commit(() => {
-      for (const gid of allowedPosGroupsFor(productPath)) {
-        if (p.children.some((c) => posIdOf('group', entity('group', c)) === gid)) continue;
-        const res = importPos(gid);
-        if (res) {
-          p.children.push(res.id);
-          stagePosLink(productPath, 'group', res.id);
-          added++;
-        }
+    for (const gid of allowedPosGroupsFor(productPath)) {
+      if (p.children.some((c) => posIdOf('group', entity('group', c)) === gid)) continue;
+      const res = importPos(gid);
+      if (res) {
+        p.children.push(res.id);
+        stagePosLink(productPath, 'group', res.id);
+        added++;
       }
+    }
+    return added;
+  }
+
+  function customCreatedToast(id) {
+    const p = entity('product', id);
+    const n = p.children.length;
+    toast(n ? `Custom product created with ${plural(n, 'group', 'groups')} from ${posLabel(p.posParentExt)}` : `Custom product created. ${posLabel(p.posParentExt)} has no groups`, 'success');
+  }
+
+  function addParentGroups(productPath) {
+    let added = 0;
+    commit(() => {
+      added = attachParentGroups(productPath);
       openRow(productPath);
     });
     toast(added ? `${plural(added, 'group', 'groups')} added from POS` : 'All POS groups are already added', added ? 'success' : 'info');
