@@ -486,18 +486,24 @@
     openPopover(anchor, items, opts);
   }
 
+  function hostSectionItem(path) {
+    const sc = sectionCtx(path);
+    if (!sc) return [];
+    const first = !sc.src.sections.length;
+    const label = sc.kind === 'group' ? 'Group section' : 'Option section';
+    if (!sc.ids.length) return [{ label, icon: 'rows', disabled: true, hint: `Add ${sc.kind === 'group' ? 'a group' : `an ${sc.noun[0]}`} first` }];
+    return [
+      {
+        label,
+        icon: 'rows',
+        hint: first ? `A heading over its ${sc.noun[1]}. Starts with all of them` : `A heading over its ${sc.noun[1]}. Drag ${sc.noun[1]} into it`,
+        onClick: () => createSection(path, first ? sc.ids : []),
+      },
+    ];
+  }
+
   function sectionItems(path, targets) {
     const items = [];
-    const sc = targets.length === 1 && ['product', 'group'].includes(parsePath(path).kind) ? sectionCtx(path) : null;
-    if (sc && !pendingRoot(path) && sc.ids.length) {
-      const first = !sc.src.sections.length;
-      items.push({
-        label: sc.kind === 'group' ? 'Create group section' : 'Create option section',
-        icon: 'rows',
-        hint: first ? `Puts all its ${sc.noun[1]} in it` : '',
-        onClick: () => createSection(path, first ? sc.ids : []),
-      });
-    }
     const t = sectionTargets(targets);
     if (!t) return items;
     items.push({ label: 'Create section', icon: 'rows', hint: `Puts ${targets.length > 1 ? `these ${plural(t.ids.length, ...t.sc.noun)}` : `${t.sc.noun[0] === 'group' ? 'this group' : `this ${t.sc.noun[0]}`}`} in a new section`, onClick: () => createSection(t.sc.hostPath, t.ids) });
@@ -547,6 +553,7 @@
             onClick: () => linkedGroupMenu(anchor, path),
           }),
           built({ label: 'Suggested products', hint: 'Products customers can add to this item. Each one goes on the order as its own item', icon: 'dashed', onClick: () => createVirtualGroup(path, 'upsell') }),
+          ...hostSectionItem(path).map(built),
         ]);
       }
       if (ent.gtype === 'standalone') {
@@ -554,6 +561,7 @@
           addMenuItem(path),
           { heading: 'Create' },
           customProduct,
+          ...hostSectionItem(path).map(built),
         ]);
       }
       return openPopover(anchor, [
@@ -565,6 +573,7 @@
           icon: 'dashed',
           onClick: () => createVirtualContainer(path),
         }),
+        ...hostSectionItem(path).map(built),
       ]);
     }
     const targets = T.sel.length > 1 && T.sel.includes(path) ? T.sel.slice() : [path];
