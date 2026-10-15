@@ -273,7 +273,7 @@
           .map(
             (it) => `<button type="button" class="picker-row" role="option" data-action="pick" data-id="${esc(it.id)}"${it.disabled ? ' disabled aria-disabled="true"' : ''}>
               ${it.thumb || `<span class="thumb thumb-product thumb-sm">${icon('utensils', 13)}</span>`}
-              <span class="picker-main"><span class="picker-name">${esc(it.name)}</span><span class="picker-meta">${esc(it.meta)}</span></span>
+              <span class="picker-main"><span class="picker-name">${esc(it.name)}</span><span class="picker-meta">${esc([it.meta, it.code].filter(Boolean).join(' · '))}</span></span>
               <span class="picker-price tnum">${esc(it.price)}</span></button>`,
           )
           .join('')
@@ -300,6 +300,8 @@
     $('#lp-search').focus();
   }
 
+  const listSub = (it) => [it.alt && it.alt !== it.name ? it.alt : '', it.code].filter(Boolean).join(' · ');
+
   function listPickerGroups() {
     const o = T.lp;
     const q = o.query.trim().toLowerCase();
@@ -307,7 +309,7 @@
       .map((g) => {
         let list = g.items;
         if (o.onlySelected) list = list.filter((it) => o.sel.has(it.id));
-        if (q && !g.name.toLowerCase().includes(q)) list = list.filter((it) => [it.name, it.alt, it.meta].some((s) => (s || '').toLowerCase().includes(q)));
+        if (q && !g.name.toLowerCase().includes(q)) list = list.filter((it) => [it.name, it.alt, it.code, it.meta].some((s) => (s || '').toLowerCase().includes(q)));
         return { g, list };
       })
       .filter((x) => x.list.length);
@@ -333,7 +335,7 @@
       const locked = o.off.has(it.id);
       const on = locked || o.sel.has(it.id);
       const mark = o.single ? `<span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span>` : box(on ? 'on' : 'off');
-      return `<button type="button" class="ms-row ms-store" role="${o.single ? 'radio' : 'checkbox'}" aria-checked="${on}" data-action="lp-item" data-id="${esc(it.id)}"${locked ? ' disabled' : ''}>${mark}${it.thumb || ''}<span class="ms-name">${esc(it.name)}${it.alt && it.alt !== it.name ? `<span class="ms-sub">${esc(it.alt)}</span>` : ''}</span>${it.tag ? `<span class="badge tone-staged">${esc(it.tag)}</span>` : ''}${it.meta ? `<span class="ms-city">${esc(it.meta)}</span>` : ''}</button>`;
+      return `<button type="button" class="ms-row ms-store" role="${o.single ? 'radio' : 'checkbox'}" aria-checked="${on}" data-action="lp-item" data-id="${esc(it.id)}"${locked ? ' disabled' : ''}>${mark}${it.thumb || ''}<span class="ms-name">${esc(it.name)}${listSub(it) ? `<span class="ms-sub">${esc(listSub(it))}</span>` : ''}</span>${it.tag ? `<span class="badge tone-staged">${esc(it.tag)}</span>` : ''}${it.meta ? `<span class="ms-city">${esc(it.meta)}</span>` : ''}</button>`;
     };
     $('#lp-list').innerHTML = !o.groups.length
       ? `<div class="empty-small">${icon('checkCircle', 18)}<strong>${esc(o.empty)}</strong></div>`

@@ -258,7 +258,8 @@
         name: imported ? nameOf(ck, ent) : posLabel(id),
         alt: item.name,
         tag: imported ? '' : 'Not imported yet',
-        meta: [present ? already : imported ? usesText(ent) : '', id].filter(Boolean).join(' · '),
+        code: id,
+        meta: present ? already : imported ? usesText(ent) : '',
         disabled: present,
       });
     }
@@ -751,7 +752,7 @@
         for (const pid of posChildren(cid)) {
           if (seen.has(pid) || !posItemById(pid)) continue;
           seen.add(pid);
-          out.push({ id: pid, name: posLabel(pid), alt: posItemById(pid).name, meta: `${posLabel(cid)} · ${pid}` });
+          out.push({ id: pid, name: posLabel(pid), alt: posItemById(pid).name, code: pid, meta: posLabel(cid) });
         }
       }
     }
@@ -852,7 +853,7 @@
     return gone;
   }
 
-  const pickItem = (x, extra = {}) => ({ id: x.id, name: nameOf('product', x), alt: x.internalName || '', meta: posIdOf('product', x) || '', thumb: thumb('product', x, 'thumb-sm'), ...extra });
+  const pickItem = (x, extra = {}) => ({ id: x.id, name: nameOf('product', x), alt: x.internalName || '', code: posIdOf('product', x) || '', thumb: thumb('product', x, 'thumb-sm'), ...extra });
 
   function optionGroups(opts, itemOf) {
     const byGroup = new Map();
