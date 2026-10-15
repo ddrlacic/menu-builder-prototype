@@ -203,7 +203,7 @@
     if (!p.children.length) return '';
     const pb = productBind(p);
     const items = p.children.filter((gid) => entity('group', gid)).map((gid) => ({ id: gid, name: nameOf('group', entity('group', gid)), section: sectionOf(p, gid) }));
-    return section('Group sections', nestedSections(`product|${p.id}|groupSection`, p.sections, pb, items, 'group', 'groups') + addButton('section-add', 'Add section'), {
+    return section('Group sections', nestedSections(`product|${p.id}|groupSection`, p.sections, pb, items, 'group', 'groups') + addButton('section-add', 'Create section'), {
       desc: p.sections.length
         ? 'In Web App, customers see each section as a tab, with its groups under it. Drag groups and sections to arrange them. Kiosk shows all groups, without tabs.'
         : 'Split the groups into tabs, like Base and Toppings. Only Web App shows tabs.',

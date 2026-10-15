@@ -448,6 +448,13 @@
 
   const sectionLabel = (s) => s.name.trim() || 'Untitled section';
 
+  function deleteSectionHelp(sc, index, count, hostName) {
+    if (!count) return 'Nothing else changes.';
+    const items = plural(count, ...sc.noun);
+    if (sc.src.sections.length > 1) return `Its ${items} stay in ${hostName}, outside a section.`;
+    return `Its ${items} stay in ${hostName}, ${sc.kind === 'group' ? 'without tabs' : 'without headings'}.`;
+  }
+
   function sectionScopeText(sc) {
     if (sc.kind === 'group') return `Changes apply to ${nameOf('product', sc.p)} everywhere it’s used.`;
     if (sc.p) return `Changes here apply only to ${nameOf('product', sc.p)}, in every menu.`;

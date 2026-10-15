@@ -861,12 +861,7 @@
   function removeNestSection(key, index) {
     const { ent, mapKey } = nestTarget(key);
     const [gone] = ent.sections.splice(index, 1);
-    const next = ent.sections[0];
-    ent.children.forEach((id) => {
-      if (ent[mapKey][id] !== gone.id) return;
-      if (next) ent[mapKey][id] = next.id;
-      else delete ent[mapKey][id];
-    });
+    Object.keys(ent[mapKey]).forEach((id) => ent[mapKey][id] === gone.id && delete ent[mapKey][id]);
     arrangeSections(key, [
       ...ent.sections.map((s) => ({ sid: s.id, ids: ent.children.filter((id) => ent[mapKey][id] === s.id) })),
       { sid: '', ids: ent.children.filter((id) => !ent.sections.some((s) => s.id === ent[mapKey][id])) },
@@ -935,11 +930,7 @@
     if (!at) return;
     const { hostPath } = at.sc;
     const ok = commit(() => {
-      const { ent, mapKey } = nestTarget(at.sc.nestKey);
-      ent.sections = ent.sections.filter((s) => s.id !== at.sid);
-      Object.keys(ent[mapKey]).forEach((id) => ent[mapKey][id] === at.sid && delete ent[mapKey][id]);
-      const sc = sectionCtx(hostPath);
-      arrangeSections(sc.nestKey, sectionBlocks(sc));
+      removeNestSection(at.sc.nestKey, at.index);
       if (S.ui.selected === path) {
         S.ui.selected = hostPath;
         T.focusRow = hostPath;

@@ -366,7 +366,7 @@
       const ob = (f) => `e|product|${host.p.id}|optionSections.${g.id}.${f}`;
       return sectionsBox(
         nestedSections(`place|${host.p.id}:${g.id}|optionSection`, src.sections, ob, items, 'option', 'options') +
-          addButton('own-section-add', 'Add section') +
+          addButton('own-section-add', 'Create section') +
           (host.own ? `<div class="link-btns field-actions"><button type="button" class="link-btn" data-action="own-sections-reset">Use the same as other products</button></div>` : ''),
         !src.sections.length ? `Split the options in ${pName} under headings, like Cheese and Veggies.` : host.own ? `Customers see these headings in ${pName} only. Drag options and headings to arrange them.` : 'Drag options and headings to arrange them.',
       );
@@ -375,7 +375,7 @@
     const others = groupParents(g.id).filter((p) => p.optionSections && p.optionSections[g.id]).length;
     const note = others ? `${plural(others, 'product uses', 'products use')} its own sections.` : '';
     return sectionsBox(
-      nestedSections(`group|${g.id}|optionSection`, g.sections, gb, items, 'option', 'options') + addButton('opt-section-add', 'Add section') + (note ? `<p class="field-help">${note}</p>` : ''),
+      nestedSections(`group|${g.id}|optionSection`, g.sections, gb, items, 'option', 'options') + addButton('opt-section-add', 'Create section') + (note ? `<p class="field-help">${note}</p>` : ''),
       g.sections.length
         ? `Customers see the options under these headings, in this order, in every product that uses ${gName}. Drag options and headings to arrange them.`
         : 'Split the options under headings, like Cheese and Veggies.',

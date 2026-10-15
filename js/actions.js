@@ -706,7 +706,7 @@
       case 'nest-section-remove': {
         let gone;
         commit(() => (gone = removeNestSection(el.dataset.nest, Number(el.dataset.index))));
-        if (gone) toast(`${gone.name.trim() || 'Section'} removed`, 'success', { action: { label: 'Undo', onClick: undo } });
+        if (gone) toast(`${sectionLabel(gone)} deleted`, 'success', { action: { label: 'Undo', onClick: undo } });
         break;
       }
       case 'section-move': {

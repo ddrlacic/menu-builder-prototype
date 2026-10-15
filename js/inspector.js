@@ -50,7 +50,7 @@
           <div class="nest-head" data-nest-row="section" tabindex="0" aria-label="${esc(label)}. Drag or use the arrow keys to move it">
             ${sections.length > 1 ? grip : ''}${inputText(bindOf(`sections.${i}.name`), s.name, { label: 'Section name' })}
             <span class="muted tnum">${plural(own.length, one, many)}</span>
-            <button type="button" class="icon-btn sm" data-action="nest-section-remove" data-nest="${esc(key)}" data-index="${i}" aria-label="Remove ${esc(label)}" title="${i === 0 && sections.length > 1 ? `Remove section. Its ${many} move to the next one` : sections.length > 1 ? `Remove section. Its ${many} move to the first one` : 'Remove section'}">${icon('x', 14)}</button>
+            <button type="button" class="icon-btn sm" data-action="nest-section-remove" data-nest="${esc(key)}" data-index="${i}" aria-label="Delete ${esc(label)}" title="${sections.length > 1 ? `Delete section. Its ${many} stay outside a section` : 'Delete section'}">${icon('x', 14)}</button>
           </div>
           ${err ? slotError(err) : ''}
           ${rows}
@@ -539,7 +539,7 @@
       section(
         '',
         `<div class="hint-actions"><button type="button" class="btn secondary tone-danger" data-action="remove-row" data-path="${esc(path)}">${icon('trash', 15)}Delete section</button></div>
-        <p class="field-help">${ids.length ? esc(`Its ${plural(ids.length, one, many)} stay in ${hostName}, outside a section.`) : 'Nothing else changes.'}</p>`,
+        <p class="field-help">${esc(deleteSectionHelp(sc, index, ids.length, hostName))}</p>`,
       );
   }
 
