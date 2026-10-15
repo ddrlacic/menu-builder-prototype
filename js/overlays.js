@@ -294,7 +294,8 @@
         <div id="lp-list"></div>`,
       foot: '<div class="modal-foot" id="lp-foot"></div>',
     });
-    T.lp = { groups, empty, noun, onAdd, cta, onSave, single, sel: new Set(), open: new Set(groups.length === 1 || total <= 40 ? groups.map((g) => g.id) : []), query: '', onlySelected: false };
+    const off = new Set(groups.flatMap((g) => g.items.filter((it) => it.disabled).map((it) => it.id)));
+    T.lp = { groups, empty, noun, onAdd, cta, onSave, single, off, sel: new Set(), open: new Set(groups.length === 1 || total <= 40 ? groups.map((g) => g.id) : []), query: '', onlySelected: false };
     renderListPicker();
     $('#lp-search').focus();
   }
@@ -319,22 +320,26 @@
     const groups = listPickerGroups();
     const flat = o.groups.length === 1;
     const stateOf = (list) => {
-      const n = list.filter((it) => o.sel.has(it.id)).length;
-      return n === 0 ? 'off' : n === list.length ? 'on' : 'mixed';
+      const open = list.filter((it) => !o.off.has(it.id));
+      if (list.length && !open.length) return 'on';
+      const n = open.filter((it) => o.sel.has(it.id)).length;
+      return n === 0 ? 'off' : n === open.length ? 'on' : 'mixed';
     };
+    const lockedAll = (list) => list.every((it) => o.off.has(it.id));
     const box = (st) => `<span class="check${st === 'off' ? '' : ' is-on'}" aria-hidden="true">${st === 'on' ? icon('check', 12) : st === 'mixed' ? icon('minus', 12) : ''}</span>`;
     const checked = (st) => (st === 'mixed' ? 'mixed' : String(st === 'on'));
     const allSt = stateOf(groups.flatMap((x) => x.list));
     const row = (it) => {
-      const on = o.sel.has(it.id);
+      const locked = o.off.has(it.id);
+      const on = locked || o.sel.has(it.id);
       const mark = o.single ? `<span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span>` : box(on ? 'on' : 'off');
-      return `<button type="button" class="ms-row ms-store" role="${o.single ? 'radio' : 'checkbox'}" aria-checked="${on}" data-action="lp-item" data-id="${esc(it.id)}">${mark}${it.thumb || ''}<span class="ms-name">${esc(it.name)}${it.alt && it.alt !== it.name ? `<span class="ms-sub">${esc(it.alt)}</span>` : ''}</span>${it.meta ? `<span class="ms-city">${esc(it.meta)}</span>` : ''}</button>`;
+      return `<button type="button" class="ms-row ms-store" role="${o.single ? 'radio' : 'checkbox'}" aria-checked="${on}" data-action="lp-item" data-id="${esc(it.id)}"${locked ? ' disabled' : ''}>${mark}${it.thumb || ''}<span class="ms-name">${esc(it.name)}${it.alt && it.alt !== it.name ? `<span class="ms-sub">${esc(it.alt)}</span>` : ''}</span>${it.tag ? `<span class="badge tone-staged">${esc(it.tag)}</span>` : ''}${it.meta ? `<span class="ms-city">${esc(it.meta)}</span>` : ''}</button>`;
     };
     $('#lp-list').innerHTML = !o.groups.length
       ? `<div class="empty-small">${icon('checkCircle', 18)}<strong>${esc(o.empty)}</strong></div>`
       : groups.length
         ? `<div class="ms-tree"${o.single ? ' role="radiogroup"' : ''}>
-          ${o.single ? '' : `<button type="button" class="ms-row ms-all" role="checkbox" aria-checked="${checked(allSt)}" data-action="lp-all" data-on="${allSt === 'on' ? 0 : 1}">${box(allSt)}Select all</button>`}
+          ${o.single ? '' : `<button type="button" class="ms-row ms-all" role="checkbox" aria-checked="${checked(allSt)}" data-action="lp-all" data-on="${allSt === 'on' ? 0 : 1}"${lockedAll(groups.flatMap((x) => x.list)) ? ' disabled' : ''}>${box(allSt)}Select all</button>`}
           ${
             flat
               ? `<div class="ms-stores ms-flat">${groups[0].list.map(row).join('')}</div>`
@@ -345,7 +350,7 @@
                     return `<div class="ms-group">
                 <div class="ms-group-head">
                   <button type="button" class="icon-btn sm ms-chev" data-action="lp-open" data-id="${esc(g.id)}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'} ${esc(g.name)}">${icon('chevRight', 14)}</button>
-                  <button type="button" class="ms-row" role="checkbox" aria-checked="${checked(st)}" data-action="lp-group" data-id="${esc(g.id)}" data-on="${st === 'on' ? 0 : 1}">${box(st)}<strong class="ms-name">${esc(g.name)}${g.sub ? `<span class="ms-sub">${esc(g.sub)}</span>` : ''}</strong><span class="ms-city tnum">${g.items.filter((it) => o.sel.has(it.id)).length} of ${g.items.length}</span></button>
+                  <button type="button" class="ms-row" role="checkbox" aria-checked="${checked(st)}" data-action="lp-group" data-id="${esc(g.id)}" data-on="${st === 'on' ? 0 : 1}"${lockedAll(g.items) ? ' disabled' : ''}>${box(st)}<strong class="ms-name">${esc(g.name)}${g.sub ? `<span class="ms-sub">${esc(g.sub)}</span>` : ''}</strong><span class="ms-city tnum">${g.items.filter((it) => o.sel.has(it.id) || o.off.has(it.id)).length} of ${g.items.length}</span></button>
                 </div>
                 ${open ? `<div class="ms-stores">${list.map(row).join('')}</div>` : ''}
               </div>`;
@@ -367,7 +372,7 @@
       T.lp.sel.clear();
       on = true;
     }
-    ids.forEach((id) => (on ? T.lp.sel.add(id) : T.lp.sel.delete(id)));
+    ids.filter((id) => !T.lp.off.has(id)).forEach((id) => (on ? T.lp.sel.add(id) : T.lp.sel.delete(id)));
     renderListPicker();
   }
 
@@ -473,17 +478,7 @@
       });
       if (info.kind === 'category') {
         const items = [
-          ...existingMenuItems(path, built),
-          { heading: 'Import from POS' },
-          importable(
-            {
-              label: 'POS product',
-              hint: isVirtual(ent) ? 'Not imported yet. Comes with its POS price and options' : `From ${posLabel(ent.externalId)} on POS, not imported yet`,
-              icon: 'utensils',
-              onClick: () => openPosProductPicker(path),
-            },
-            posProductSpec(path),
-          ),
+          addMenuItem(path),
           { heading: 'Create' },
           customProduct,
           built({ label: 'Choice product', hint: 'Customers pick one product, like a size. Only that product goes to POS', icon: 'package', onClick: () => createChoiceProduct(path) }),
@@ -491,13 +486,9 @@
         if (detectSizeSets(ent).length) items.push('-', { label: 'Group sizes', hint: 'Turn size variants into one choice product', icon: 'sparkles', onClick: () => groupSizes(path) });
         return openPopover(anchor, items);
       }
-      if (info.kind === 'product' && ent.ptype === 'size') return openPosProductPicker(path);
+      if (info.kind === 'product' && ent.ptype === 'size') return openAddDialog(path);
       if (info.kind === 'product') {
-        const items = [
-          ...existingMenuItems(path, built),
-          { heading: 'Import from POS' },
-          importable({ label: 'POS group', hint: 'Not imported yet. All its options, as on POS', icon: 'layers', submenu: true, onClick: () => posGroupMenu(anchor, path) }, posGroupSpec(path)),
-        ];
+        const items = [addMenuItem(path)];
         if (ent.ptype === 'linked') items.push({ label: 'All POS groups', hint: `Every group of ${posLabel(ent.posParentExt)}`, icon: 'plus', onClick: () => addParentGroups(path) });
         items.push(
           { heading: 'Create' },
@@ -514,17 +505,13 @@
       }
       if (ent.gtype === 'standalone') {
         return openPopover(anchor, [
-          ...existingMenuItems(path, built),
-          { heading: 'Import from POS' },
-          importable({ label: 'POS product', hint: 'Not imported yet. Keeps its own POS price', icon: 'utensils', onClick: () => openPosProductPicker(path) }, posProductSpec(path)),
+          addMenuItem(path),
           { heading: 'Create' },
           customProduct,
         ]);
       }
       return openPopover(anchor, [
-        ...existingMenuItems(path, built),
-        { heading: 'Import from POS' },
-        importable({ label: 'POS option', hint: `From ${posLabel(posIdOf('group', ent))} on POS, not imported yet`, icon: 'utensils', onClick: () => openPosProductPicker(path) }, posProductSpec(path)),
+        addMenuItem(path),
         { heading: 'Create' },
         built({
           label: 'Option folder',

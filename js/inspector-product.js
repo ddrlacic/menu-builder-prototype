@@ -31,7 +31,7 @@
   function choicesSection(p, path) {
     const pb = productBind(p);
     const pName = nameOf('product', p);
-    const add = addButton('add-choice', 'Add POS product');
+    const add = addButton('add-choice', 'Add product');
     if (!p.children.length)
       return section('Choices', `<div class="empty-small"><strong>No choices yet</strong><span>Add the POS products customers choose between, like Small and Large.</span></div>${add}`);
     const menu = menuById(parsePath(path).menuId);

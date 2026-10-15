@@ -3157,8 +3157,17 @@ input[type='number']::-webkit-inner-spin-button {
   font-size: var(--text-xs);
 }
 
+.ms-row:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.ms-row:disabled .check {
+  opacity: 0.5;
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .ms-row:hover {
+  .ms-row:not(:disabled):hover {
     background: var(--hover);
   }
 }

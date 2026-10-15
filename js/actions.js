@@ -191,11 +191,8 @@
         if (T.popover && T.popover.anchor === el) closePopover();
         else addCategoryMenu(el);
         break;
-      case 'add-pos-category':
-        openPosCategoryPicker();
-        break;
-      case 'add-existing-category':
-        openExistingPicker(activeMenu().id);
+      case 'add-category-dialog':
+        openAddDialog(activeMenu().id);
         break;
       case 'pos-add': {
         e.stopPropagation();
@@ -516,7 +513,7 @@
         break;
       }
       case 'add-choice':
-        openPosProductPicker(S.ui.selected);
+        openAddDialog(S.ui.selected);
         break;
       case 'add-choice-allergens': {
         const p = entity('product', parsePath(S.ui.selected).id);

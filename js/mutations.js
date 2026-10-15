@@ -201,144 +201,160 @@
     return true;
   }
 
-  function addPickerIds({ parentPath, ids, withImported = false }) {
-    const pi = parsePath(parentPath);
-    const parent = entity(pi.kind, pi.id);
-    const ck = childKind(pi.kind, parent);
-    const present = new Set(parent.children.map((c) => posIdOf(ck, entity(ck, c))).filter(Boolean));
-    return ids.filter((id) => posItemById(id) && !present.has(id) && (withImported || !isImported(ck, id)));
-  }
-
-  const importable = (item, spec) => (addPickerIds(spec).length ? item : { ...item, hint: `All ${spec.noun} are imported`, disabled: true, submenu: false });
-
   const childNoun = (parentPath) => {
     const pi = parsePath(parentPath);
     const parent = entity(pi.kind, pi.id);
     return pi.kind === 'group' && parent.gtype !== 'standalone' ? ['option', 'options'] : BULK_NOUN[childKind(pi.kind, parent)];
   };
 
-  function openAddPicker(spec) {
-    const { title, intro, parentPath, priceOf, noun, withImported = false } = spec;
+  function posProductHomes() {
+    const out = [];
+    for (const m of S.data.pos.menus) for (const cid of m.roots) for (const pid of posChildren(cid)) out.push({ id: pid, home: cid });
+    return out;
+  }
+
+  function addPosSource(parentPath) {
+    const pi = parsePath(parentPath);
+    const parent = entity(pi.kind, pi.id);
+    if (pi.kind === 'menu') {
+      const pm = linkedPosMenu(parent);
+      return (pm ? [pm] : S.data.pos.menus).flatMap((m) => m.roots.map((id) => ({ id, home: m.id, homeName: m.name })));
+    }
+    if (pi.kind === 'category') return isVirtual(parent) ? posProductHomes() : posChildren(parent.externalId).map((id) => ({ id, home: parent.externalId }));
+    if (pi.kind === 'product') {
+      if (parent.ptype === 'size') return posProductHomes();
+      const home = parent.ptype === 'linked' ? parent.posParentExt : parent.externalId;
+      return allowedPosGroupsFor(parentPath).map((id) => ({ id, home }));
+    }
+    if (parent.gtype === 'standalone') return posProductHomes();
+    const gpos = posIdOf('group', parent);
+    return posChildren(gpos).map((id) => ({ id, home: gpos }));
+  }
+
+  function addRows(parentPath) {
     const pi = parsePath(parentPath);
     const parent = entity(pi.kind, pi.id);
     const ck = childKind(pi.kind, parent);
-    const items = addPickerIds(spec).map((id) => {
-      const posName = posItemById(id).name;
-      return { id, name: posLabel(id), alt: posName !== posLabel(id) ? posName : '', meta: [id, priceOf ? priceOf(id) : ''].filter(Boolean).join(' · ') };
-    });
-    const nouns = childNoun(parentPath);
-    openListPicker({
-      title,
-      intro,
-      placeholder: 'Search by name or POS ID',
-      groups: [{ id: 'pos', name: '', items }],
-      noun: nouns,
-      empty: withImported ? `All ${noun} are already in ${nameOf(pi.kind, parent)}` : `All ${noun} are imported. Add them under Add existing`,
-      cta: (n) => (withImported ? (n ? `Add ${plural(n, ...nouns)}` : `Add ${nouns[1]}`) : n ? `Import ${plural(n, ...nouns)}` : `Import ${nouns[1]}`),
-      onSave: (ids) => {
-        const ds = ids.map((id) => posDesc(id, { chainCat: ck === 'product' ? (pi.kind === 'category' && !isVirtual(parent) ? parent.externalId : posCategoriesOf(id)[0] || null) : null }));
-        const t = { path: parentPath, pos: 'inside' };
-        if (ds.length > 1) return performPosMultiDrop(ds, t);
-        const res = performDrop(ds[0], t);
-        if (res && res.newPath && !res.alsoIn) toast(`${posLabel(ids[0])} added`);
-      },
-    });
-  }
-
-  function posCategorySpec() {
-    const menu = activeMenu();
-    const pm = linkedPosMenu(menu);
-    return {
-      title: 'Import POS category',
-      intro: 'Categories not imported yet. Each comes with its POS products, options, and prices.',
-      parentPath: menu.id,
-      ids: pm ? pm.roots : [...new Set(S.data.pos.menus.flatMap((m) => m.roots))],
-      priceOf: (id) => plural(posChildren(id).length, 'product', 'products'),
-      noun: 'POS categories',
+    const pName = nameOf(pi.kind, parent);
+    const already = `Already in ${pName}`;
+    const usesText = (ent) => {
+      const uses = (ctx.usage.get(`${ck}:${ent.id}`) || []).length;
+      return uses ? `Used in ${plural(uses, 'place', 'places')}` : 'Not in any menu';
     };
+    const fits = (ent) => pi.kind === 'menu' || !reaches(ck, ent.id, pi.kind, pi.id);
+    const groups = new Map();
+    const seen = new Set();
+    for (const { id, home, homeName } of addPosSource(parentPath)) {
+      const item = posItemById(id);
+      if (seen.has(id) || !item || item.type !== ck) continue;
+      seen.add(id);
+      const ent = findByExt(ck, id);
+      const imported = !!ent && !ent.pending;
+      const present = !!ent && parent.children.includes(ent.id);
+      if (!present && (dropError(parentPath, posDesc(id)) || (ent && !fits(ent)))) continue;
+      if (!groups.has(home)) groups.set(home, { id: `pos:${home}`, name: homeName || posLabel(home), sub: 'On POS', items: [] });
+      groups.get(home).items.push({
+        id: `pos:${id}`,
+        name: imported ? nameOf(ck, ent) : posLabel(id),
+        alt: item.name,
+        tag: imported ? '' : 'Not imported yet',
+        meta: [present ? already : imported ? usesText(ent) : '', id].filter(Boolean).join(' · '),
+        disabled: present,
+      });
+    }
+    const out = [...groups.values()];
+    if (!pendingRoot(parentPath) && !(pi.kind === 'product' && parent.ptype === 'size')) {
+      const made = Object.values(S.data.entities[ck])
+        .filter((x) => x.source !== 'pos' && !x.pending)
+        .filter((x) => {
+          if (parent.children.includes(x.id)) return true;
+          const d = { origin: 'canvas', id: x.id, kind: ck, name: nameOf(ck, x), source: x.source, posId: null, ptype: x.ptype || null, gtype: x.gtype || null };
+          return fits(x) && !dropError(parentPath, d);
+        })
+        .sort((a, b) => nameOf(ck, a).localeCompare(nameOf(ck, b)))
+        .map((x) => {
+          const present = parent.children.includes(x.id);
+          return { id: `ent:${x.id}`, name: nameOf(ck, x), alt: x.internalName, meta: `${kindLabel(ck, x)} · ${present ? already : usesText(x)}`, disabled: present };
+        });
+      if (made.length) out.push({ id: 'made', name: 'Made by you', items: made });
+    }
+    return out;
   }
 
-  function openPosCategoryPicker() {
-    openAddPicker(posCategorySpec());
+  const canAdd = (parentPath) => addRows(parentPath).some((g) => g.items.some((it) => !it.disabled));
+
+  function addMenuItem(parentPath) {
+    const pi = parsePath(parentPath);
+    const [one, many] = childNoun(parentPath);
+    const pName = nameOf(pi.kind, entity(pi.kind, pi.id));
+    const items = addRows(parentPath).flatMap((g) => g.items);
+    if (items.some((it) => !it.disabled)) return { label: `Add ${one}`, hint: 'From POS or made by you', icon: 'plus', onClick: () => openAddDialog(parentPath) };
+    return { label: `Add ${one}`, hint: items.length ? `Every ${one} that can go here is already in ${pName}` : `No ${many} can go in ${pName}`, icon: 'plus', disabled: true };
   }
 
-  function openPosProductPicker(parentPath) {
-    openAddPicker(posProductSpec(parentPath));
-  }
-
-  function posProductSpec(parentPath) {
+  function openAddDialog(parentPath) {
     const pi = parsePath(parentPath);
     const parent = entity(pi.kind, pi.id);
-    if (pi.kind === 'category') {
-      const own = !isVirtual(parent);
-      return {
-        title: 'Import POS product',
-        intro: own ? `Products in ${posLabel(parent.externalId)} on POS, not imported yet.` : 'Products not imported yet. Each keeps its POS price and options.',
-        parentPath,
-        ids: own ? posChildren(parent.externalId) : posProductChoices().map((c) => c.id),
-        noun: own ? `products from ${posLabel(parent.externalId)}` : 'POS products',
-      };
-    }
-    if (parent.ptype === 'size') {
+    const nouns = childNoun(parentPath);
+    const pName = nameOf(pi.kind, parent);
+    let scope = '';
+    if (pi.kind === 'product' && parent.ptype === 'size') {
       const home = entity('category', parsePath(pi.parentPath).id);
-      const own = !isVirtual(home);
-      return {
-        title: 'Add POS product',
-        intro: own
-          ? `Products in ${posLabel(home.externalId)} on POS, where ${nameOf('product', parent)} is. Customers pick one. Only that product is sent to POS.`
-          : 'Customers pick one of these products. Only that product is sent to POS.',
-        parentPath,
-        ids: posProductChoices()
-          .map((c) => c.id)
-          .filter((id) => !dropError(parentPath, posDesc(id))),
-        noun: own ? `products from ${posLabel(home.externalId)}` : 'POS products',
-        withImported: true,
-      };
+      scope = `${isVirtual(home) ? '' : `Products in ${posLabel(home.externalId)} on POS, where ${pName} is. `}Customers pick one. Only that product is sent to POS. `;
     }
-    if (parent.gtype === 'standalone') {
-      return {
-        title: 'Import POS product',
-        intro: 'Products not imported yet. Each one customers pick is added to the order as its own item.',
-        parentPath,
-        ids: posProductChoices().map((c) => c.id),
-        noun: 'POS products',
-      };
-    }
-    const gpos = posIdOf('group', parent);
-    return {
-      title: 'Import POS option',
-      intro: `Options of ${posLabel(gpos)} on POS, not imported yet.`,
-      parentPath,
-      ids: posChildren(gpos),
-      noun: `options from ${posLabel(gpos)}`,
-    };
+    openListPicker({
+      title: `Add ${nouns[1]}`,
+      intro: `${scope}Imported ${nouns[1]} come with your changes, and edits apply everywhere they’re used. ${nouns[1][0].toUpperCase()}${nouns[1].slice(1)} not imported yet come in when you import.`,
+      placeholder: 'Search by name or POS ID',
+      groups: addRows(parentPath),
+      noun: nouns,
+      empty: `No ${nouns[1]} can go in ${pName}`,
+      onSave: (ids) => addPicked(parentPath, ids),
+    });
   }
 
-  const posGroupSpec = (productPath) => ({ parentPath: productPath, ids: allowedPosGroupsFor(productPath), noun: 'POS groups of this product' });
-
-  function posGroupMenu(anchor, productPath) {
-    const p = entity('product', parsePath(productPath).id);
-    const ids = addPickerIds(posGroupSpec(productPath));
-    openPopover(
-      anchor,
-      ids.length
-        ? [{ heading: 'Import POS group' }].concat(
-            ids.map((gid) => ({
-              label: posLabel(gid),
-              hint: `${C.groupTypes[posItemById(gid).groupType || 1].label} · ${plural(posChildren(gid).length, 'option', 'options')}`,
-              icon: 'layers',
-              onClick: () => performDrop(posDesc(gid), { path: productPath, pos: 'inside' }),
-            })),
-          )
-        : [{ empty: `<strong>No POS groups to import</strong><span>All POS groups of ${esc(nameOf('product', p))} are imported. Add them under Add existing.</span>` }],
-    );
+  function addPicked(parentPath, ids) {
+    const pi = parsePath(parentPath);
+    const parent = entity(pi.kind, pi.id);
+    const ck = childKind(pi.kind, parent);
+    const pName = nameOf(pi.kind, parent);
+    const paths = [];
+    let alsoIn = null;
+    let choices = 0;
+    const done = commit(() => {
+      const before = new Set(parent.children);
+      ids.forEach((key) => {
+        const id = key.slice(4);
+        if (key.startsWith('pos:')) {
+          const chainCat = ck === 'product' ? (pi.kind === 'category' && !isVirtual(parent) ? parent.externalId : posCategoriesOf(id)[0] || null) : null;
+          const r = dropInto(posDesc(id, { chainCat }), parentPath, Infinity);
+          paths.push(r.newPath);
+          alsoIn = alsoIn || r.alsoIn;
+        } else paths.push(...linkInto(parentPath, [{ kind: ck, id }]));
+      });
+      const picked = new Set(paths.map((p) => parsePath(p).id));
+      choices = parent.children.filter((id) => !before.has(id) && !picked.has(id)).length;
+      selectLinked(paths, [parentPath]);
+    });
+    if (!done) return;
+    const waiting = paths.filter((p) => pendingRoot(p)).length;
+    const first = entity(ck, parsePath(paths[0]).id);
+    let text;
+    if (paths.length === 1) {
+      const uses = (ctx.usage.get(`${ck}:${first.id}`) || []).length;
+      text = alsoIn
+        ? alsoInText(nameOf(ck, first), alsoIn)
+        : `${nameOf(ck, first)} added to ${pName}${waiting ? '. Import it to finish' : uses > 1 && !choices ? `. Edits apply in all ${uses} places` : ''}`;
+    } else {
+      text = `${plural(paths.length, ...childNoun(parentPath))} added to ${pName}${waiting ? `. Import ${waiting === paths.length ? 'them' : `${waiting} of them`} to finish` : ''}`;
+    }
+    if (choices) text += `. ${plural(choices, 'choice is', 'choices are')} also in ${pName} now, hidden there, so they get their POS prices`;
+    toast(text, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
   function addCategoryMenu(anchor) {
     openPopover(anchor, [
-      ...existingMenuItems(activeMenu().id),
-      { heading: 'Import from POS' },
-      importable({ label: 'POS category', hint: 'Not imported yet. Comes with its POS products and prices', icon: 'folder', onClick: openPosCategoryPicker }, posCategorySpec()),
+      addMenuItem(activeMenu().id),
       { heading: 'Create' },
       { label: 'Menu-only category', hint: 'Arrange products your own way. Not on POS', icon: 'dashed', onClick: createVirtualCategory },
     ]);
@@ -375,81 +391,10 @@
     return cat.children.filter((pid) => !before.has(pid)).length;
   }
 
-  const EXISTING = {
-    category: { noun: 'category', nouns: 'categories' },
-    product: { noun: 'product', nouns: 'products' },
-    upsell: { noun: 'product', nouns: 'products' },
-    group: { noun: 'group', nouns: 'groups' },
-    folder: { noun: 'option', nouns: 'options' },
-  };
-
   const isImported = (kind, posId) => {
     const ent = findByExt(kind, posId);
     return !!ent && !ent.pending;
   };
-
-  function existingFor(parentPath) {
-    const pi = parsePath(parentPath);
-    const parent = entity(pi.kind, pi.id);
-    if (pi.kind === 'product' && parent.ptype === 'size') return null;
-    const ck = childKind(pi.kind, parent);
-    const which = pi.kind === 'menu' ? 'category' : pi.kind === 'category' ? 'product' : pi.kind === 'product' ? 'group' : parent.gtype === 'standalone' ? 'upsell' : 'folder';
-    const pm = pi.kind === 'menu' ? linkedPosMenu(parent) : null;
-    const ents = Object.values(S.data.entities[ck])
-      .filter((x) => !x.pending && !parent.children.includes(x.id))
-      .filter((x) => !pm || x.source !== 'pos' || pm.roots.includes(x.externalId))
-      .filter((x) => pi.kind === 'menu' || !reaches(ck, x.id, pi.kind, pi.id))
-      .filter(
-        (x) =>
-          !dropError(parentPath, {
-            origin: 'canvas',
-            id: x.id,
-            kind: ck,
-            name: nameOf(ck, x),
-            source: x.source,
-            posId: x.source === 'pos' ? x.externalId : null,
-            ptype: x.ptype || null,
-            gtype: x.gtype || null,
-          }),
-      )
-      .sort((a, b) => nameOf(ck, a).localeCompare(nameOf(ck, b)));
-    return { ...EXISTING[which], kind: ck, ents };
-  }
-
-  function existingMenuItems(parentPath, wrap = (it) => it) {
-    const ex = existingFor(parentPath);
-    if (!ex) return [];
-    const pi = parsePath(parentPath);
-    const label = `Existing ${ex.noun}`;
-    const item = ex.ents.length
-      ? wrap({ label, hint: 'Imported or made by you, with your changes', icon: 'copy', onClick: () => openExistingPicker(parentPath) })
-      : { label, hint: `Every ${ex.noun} that can go here is already in ${nameOf(pi.kind, entity(pi.kind, pi.id))}`, icon: 'copy', disabled: true };
-    return [{ heading: 'Add existing' }, item];
-  }
-
-  function openExistingPicker(parentPath) {
-    const ex = existingFor(parentPath);
-    const pi = parsePath(parentPath);
-    const nouns = ex.nouns;
-    openListPicker({
-      title: `Add existing ${ex.noun}`,
-      intro: `${nouns[0].toUpperCase()}${nouns.slice(1)} you imported or made. They come with your changes. Each stays one ${ex.noun}, so edits apply everywhere it’s used.`,
-      placeholder: 'Search by name or internal name',
-      groups: [
-        {
-          id: 'existing',
-          name: '',
-          items: ex.ents.map((x) => {
-            const uses = (ctx.usage.get(`${ex.kind}:${x.id}`) || []).length;
-            return { id: x.id, name: nameOf(ex.kind, x), alt: x.internalName, meta: `${kindLabel(ex.kind, x)} · ${uses ? `Used in ${plural(uses, 'place', 'places')}` : 'Not in any menu'}`, thumb: thumb(ex.kind, x, 'thumb-sm') };
-          }),
-        },
-      ],
-      noun: [ex.noun, nouns],
-      empty: `No ${nouns} to add to ${nameOf(pi.kind, entity(pi.kind, pi.id))}`,
-      onSave: (ids) => (ids.length > 1 ? linkMany(parentPath, ids.map((id) => ({ kind: ex.kind, id }))) : linkExisting(parentPath, ex.kind, ids[0])),
-    });
-  }
 
   function linkExisting(parentPath, kind, id, index = Infinity) {
     const pi = parsePath(parentPath);
