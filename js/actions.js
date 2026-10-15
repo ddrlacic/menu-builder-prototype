@@ -201,6 +201,9 @@
       case 'add-pos-category':
         openPosCategoryPicker();
         break;
+      case 'add-existing-category':
+        openExistingPicker(activeMenu().id);
+        break;
       case 'pos-add': {
         e.stopPropagation();
         const posRow = el.closest('.pos-row');

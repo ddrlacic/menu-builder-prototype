@@ -638,13 +638,17 @@
 
     const tree = $('#canvas-tree');
     if (!menu.children.length) {
+      const ex = existingFor(menu.id);
+      const canAdd = !!(ex && ex.ents.length);
+      const canImport = addPickerIds(posCategorySpec()).length > 0;
       tree.innerHTML = `
         <div class="blank">
           <div class="blank-art">${icon('layers', 22)}</div>
           <h3>Build your first category</h3>
-          <p>Add categories from POS, or drag a POS menu here. Products keep their POS prices and options. To arrange products your own way, create a menu-only category.</p>
+          <p>Add categories you imported or made, import new ones from POS, or drag a POS menu here. Products keep their POS prices and options. To arrange products your own way, create a menu-only category.</p>
           <div class="blank-actions">
-            <button class="btn primary" data-action="add-pos-category">${icon('plus', 15)}Add POS category</button>
+            ${canAdd ? `<button class="btn primary" data-action="add-existing-category">${icon('copy', 15)}Add existing category</button>` : ''}
+            <button class="btn ${canAdd ? 'secondary' : 'primary'}" data-action="add-pos-category"${canImport ? '' : ' disabled title="All POS categories are imported"'}>${icon('plus', 15)}Import POS category</button>
             <button class="btn secondary" data-action="create-category">${icon('dashed', 15)}Create menu-only category</button>
           </div>
         </div>`;
