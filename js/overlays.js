@@ -283,7 +283,7 @@
         : `<div class="empty-small"><strong>${esc(T.picker.noMatch[0])}</strong><span>${esc(T.picker.noMatch[1])}</span></div>`;
   }
 
-  function openListPicker({ title, intro, groups, empty, noun, placeholder = `Search ${noun[1]}`, onAdd, cta = null, onSave = null }) {
+  function openListPicker({ title, intro, groups, empty, noun, placeholder = `Search ${noun[1]}`, onAdd, cta = null, onSave = null, single = false }) {
     groups = groups.filter((g) => g.items.length);
     const total = new Set(groups.flatMap((g) => g.items.map((it) => it.id))).size;
     openModal({
@@ -295,7 +295,7 @@
         <div id="lp-list"></div>`,
       foot: '<div class="modal-foot" id="lp-foot"></div>',
     });
-    T.lp = { groups, empty, noun, onAdd, cta, onSave, sel: new Set(), open: new Set(groups.length === 1 || total <= 40 ? groups.map((g) => g.id) : []), query: '', onlySelected: false };
+    T.lp = { groups, empty, noun, onAdd, cta, onSave, single, sel: new Set(), open: new Set(groups.length === 1 || total <= 40 ? groups.map((g) => g.id) : []), query: '', onlySelected: false };
     renderListPicker();
     $('#lp-search').focus();
   }
@@ -328,13 +328,14 @@
     const allSt = stateOf(groups.flatMap((x) => x.list));
     const row = (it) => {
       const on = o.sel.has(it.id);
-      return `<button type="button" class="ms-row ms-store" role="checkbox" aria-checked="${on}" data-action="lp-item" data-id="${esc(it.id)}">${box(on ? 'on' : 'off')}${it.thumb || ''}<span class="ms-name">${esc(it.name)}${it.alt ? `<span class="ms-sub">${esc(it.alt)}</span>` : ''}</span>${it.meta ? `<span class="ms-city">${esc(it.meta)}</span>` : ''}</button>`;
+      const mark = o.single ? `<span class="check is-round${on ? ' is-on' : ''}" aria-hidden="true">${on ? icon('check', 12) : ''}</span>` : box(on ? 'on' : 'off');
+      return `<button type="button" class="ms-row ms-store" role="${o.single ? 'radio' : 'checkbox'}" aria-checked="${on}" data-action="lp-item" data-id="${esc(it.id)}">${mark}${it.thumb || ''}<span class="ms-name">${esc(it.name)}${it.alt && it.alt !== it.name ? `<span class="ms-sub">${esc(it.alt)}</span>` : ''}</span>${it.meta ? `<span class="ms-city">${esc(it.meta)}</span>` : ''}</button>`;
     };
     $('#lp-list').innerHTML = !o.groups.length
       ? `<div class="empty-small">${icon('checkCircle', 18)}<strong>${esc(o.empty)}</strong></div>`
       : groups.length
-        ? `<div class="ms-tree">
-          <button type="button" class="ms-row ms-all" role="checkbox" aria-checked="${checked(allSt)}" data-action="lp-all" data-on="${allSt === 'on' ? 0 : 1}">${box(allSt)}Select all</button>
+        ? `<div class="ms-tree"${o.single ? ' role="radiogroup"' : ''}>
+          ${o.single ? '' : `<button type="button" class="ms-row ms-all" role="checkbox" aria-checked="${checked(allSt)}" data-action="lp-all" data-on="${allSt === 'on' ? 0 : 1}">${box(allSt)}Select all</button>`}
           ${
             flat
               ? `<div class="ms-stores ms-flat">${groups[0].list.map(row).join('')}</div>`
@@ -357,12 +358,16 @@
           ? `<div class="empty-small"><strong>No matching ${esc(o.noun[1])}</strong><span>Try a different name.</span></div>`
           : `<div class="empty-small"><strong>No ${esc(o.noun[1])} selected</strong></div>`;
     const n = o.sel.size;
-    $('#lp-foot').innerHTML = `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="lp-only"${o.groups.length ? '' : ' disabled'}>${box(o.onlySelected ? 'on' : 'off')}Show only selected</button>
+    $('#lp-foot').innerHTML = `${o.single ? '' : `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="lp-only"${o.groups.length ? '' : ' disabled'}>${box(o.onlySelected ? 'on' : 'off')}Show only selected</button>`}
       <button type="button" class="btn secondary" data-modal-close>Cancel</button>
       <button type="button" class="btn primary" data-action="lp-add"${n ? '' : ' disabled'}>${esc(o.cta ? o.cta(n) : n ? `Add ${plural(n, o.noun[0], o.noun[1])}` : `Add ${o.noun[1]}`)}</button>`;
   }
 
   function setListPicker(ids, on) {
+    if (T.lp.single) {
+      T.lp.sel.clear();
+      on = true;
+    }
     ids.forEach((id) => (on ? T.lp.sel.add(id) : T.lp.sel.delete(id)));
     renderListPicker();
   }

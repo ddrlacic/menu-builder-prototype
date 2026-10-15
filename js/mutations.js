@@ -211,27 +211,36 @@
 
   const importable = (item, spec) => (addPickerIds(spec).length ? item : { ...item, hint: `All ${spec.noun} are imported`, disabled: true, submenu: false });
 
+  const childNoun = (parentPath) => {
+    const pi = parsePath(parentPath);
+    const parent = entity(pi.kind, pi.id);
+    return pi.kind === 'group' && parent.gtype !== 'standalone' ? ['option', 'options'] : BULK_NOUN[childKind(pi.kind, parent)];
+  };
+
   function openAddPicker(spec) {
     const { title, intro, parentPath, priceOf, noun, withImported = false } = spec;
     const pi = parsePath(parentPath);
     const parent = entity(pi.kind, pi.id);
     const ck = childKind(pi.kind, parent);
-    const items = addPickerIds(spec).map((id) => ({ id, name: posLabel(id), alt: posItemById(id).name, meta: id, price: priceOf ? priceOf(id) : '' }));
-    openPicker({
+    const items = addPickerIds(spec).map((id) => {
+      const posName = posItemById(id).name;
+      return { id, name: posLabel(id), alt: posName !== posLabel(id) ? posName : '', meta: [id, priceOf ? priceOf(id) : ''].filter(Boolean).join(' · ') };
+    });
+    const nouns = childNoun(parentPath);
+    openListPicker({
       title,
       intro,
       placeholder: 'Search by name or POS ID',
-      items,
+      groups: [{ id: 'pos', name: '', items }],
+      noun: nouns,
       empty: withImported ? `All ${noun} are already in ${nameOf(pi.kind, parent)}` : `All ${noun} are imported. Add them under Add existing`,
-      keepOpen: true,
-      onPick: (id) => {
-        const chainCat = ck === 'product' ? (pi.kind === 'category' && !isVirtual(parent) ? parent.externalId : posCategoriesOf(id)[0] || null) : null;
-        const res = performDrop(posDesc(id, { chainCat }), { path: parentPath, pos: 'inside' });
-        const now = entity(pi.kind, pi.id);
-        if (!T.picker || !now || !now.children.some((c) => posIdOf(ck, entity(ck, c)) === id)) return;
-        T.picker.items = T.picker.items.filter((it) => it.id !== id);
-        renderPicker();
-        if (!(res && res.alsoIn)) toast(`${posLabel(id)} added`);
+      cta: (n) => (withImported ? (n ? `Add ${plural(n, ...nouns)}` : `Add ${nouns[1]}`) : n ? `Import ${plural(n, ...nouns)}` : `Import ${nouns[1]}`),
+      onSave: (ids) => {
+        const ds = ids.map((id) => posDesc(id, { chainCat: ck === 'product' ? (pi.kind === 'category' && !isVirtual(parent) ? parent.externalId : posCategoriesOf(id)[0] || null) : null }));
+        const t = { path: parentPath, pos: 'inside' };
+        if (ds.length > 1) return performPosMultiDrop(ds, t);
+        const res = performDrop(ds[0], t);
+        if (res && res.newPath && !res.alsoIn) toast(`${posLabel(ids[0])} added`);
       },
     });
   }
@@ -422,22 +431,23 @@
     const ex = existingFor(parentPath);
     const pi = parsePath(parentPath);
     const nouns = ex.nouns;
-    openPicker({
+    openListPicker({
       title: `Add existing ${ex.noun}`,
       intro: `${nouns[0].toUpperCase()}${nouns.slice(1)} you imported or made. They come with your changes. Each stays one ${ex.noun}, so edits apply everywhere it’s used.`,
       placeholder: 'Search by name or internal name',
-      items: ex.ents.map((x) => {
-        const uses = (ctx.usage.get(`${ex.kind}:${x.id}`) || []).length;
-        return { id: x.id, name: nameOf(ex.kind, x), alt: x.internalName, meta: `${kindLabel(ex.kind, x)} · ${uses ? `Used in ${plural(uses, 'place', 'places')}` : 'Not in any menu'}`, price: '' };
-      }),
+      groups: [
+        {
+          id: 'existing',
+          name: '',
+          items: ex.ents.map((x) => {
+            const uses = (ctx.usage.get(`${ex.kind}:${x.id}`) || []).length;
+            return { id: x.id, name: nameOf(ex.kind, x), alt: x.internalName, meta: `${kindLabel(ex.kind, x)} · ${uses ? `Used in ${plural(uses, 'place', 'places')}` : 'Not in any menu'}`, thumb: thumb(ex.kind, x, 'thumb-sm') };
+          }),
+        },
+      ],
+      noun: [ex.noun, nouns],
       empty: `No ${nouns} to add to ${nameOf(pi.kind, entity(pi.kind, pi.id))}`,
-      noMatch: [`No matching ${nouns}`, 'Try a different name.'],
-      keepOpen: true,
-      onPick: (id) => {
-        if (!linkExisting(parentPath, ex.kind, id) || !T.picker) return;
-        T.picker.items = T.picker.items.filter((it) => it.id !== id);
-        renderPicker();
-      },
+      onSave: (ids) => (ids.length > 1 ? linkMany(parentPath, ids.map((id) => ({ kind: ex.kind, id }))) : linkExisting(parentPath, ex.kind, ids[0])),
     });
   }
 
@@ -521,53 +531,67 @@
         : single
           ? `Pick where ${name} goes. It’s removed from ${nameOf(from.kind, entity(from.kind, from.id))}.`
           : `Pick where they go. They’re removed from where they are now.`;
-    openPicker({
+    openListPicker({
       title: mode === 'add' ? `Add ${name} to another place` : `Move ${name}`,
       intro,
       placeholder: 'Search by name',
-      items: placeTargets(ds, mode).map(({ path, kind: k, ent }) => {
-        const where = crumbText(parsePath(path).parentPath);
-        const uses = (ctx.usage.get(`${k}:${ent.id}`) || []).length;
-        return {
-          id: path,
-          name: nameOf(k, ent),
-          meta: `${kindLabel(k, ent)} in ${where}${uses > 1 ? ` · Used in ${uses} places` : ''}`,
-          thumb: thumb(k, ent, 'thumb-sm'),
-          search: [nameOf(k, ent), ent.internalName, where],
-          price: '',
-        };
-      }),
-      noMatch: ['No matching places', 'Try a different name.'],
-      onPick: (path) => {
-        closeModal();
-        expandTo(path);
-        const t = { path, pos: 'inside' };
-        if (mode === 'add') return single ? linkExisting(path, kind, ds[0].id) : linkMany(path, ds);
-        return single ? confirmDrop(ds[0], t) : confirmMultiDrop(ds, t);
+      groups: [
+        {
+          id: 'places',
+          name: '',
+          items: placeTargets(ds, mode).map(({ path, kind: k, ent }) => {
+            const where = crumbText(parsePath(path).parentPath);
+            const uses = (ctx.usage.get(`${k}:${ent.id}`) || []).length;
+            return { id: path, name: nameOf(k, ent), alt: ent.internalName, meta: `${kindLabel(k, ent)} in ${where}${uses > 1 ? ` · Used in ${uses} places` : ''}`, thumb: thumb(k, ent, 'thumb-sm') };
+          }),
+        },
+      ],
+      noun: ['place', 'places'],
+      empty: 'No other places it can go',
+      single: mode !== 'add',
+      cta: mode === 'add' ? (n) => (n ? `Add to ${plural(n, 'place', 'places')}` : `Add ${single ? one : many}`) : () => `Move ${single ? one : many}`,
+      onSave: (targets) => {
+        targets.forEach(expandTo);
+        if (mode !== 'add') {
+          const t = { path: targets[0], pos: 'inside' };
+          return single ? confirmDrop(ds[0], t) : confirmMultiDrop(ds, t);
+        }
+        if (targets.length === 1) return single ? linkExisting(targets[0], kind, ds[0].id) : linkMany(targets[0], ds);
+        const done = commit(() => {
+          const paths = targets.flatMap((t) => linkInto(t, ds));
+          selectLinked(paths, targets);
+        });
+        if (done) toast(`${name} added to ${plural(targets.length, 'place', 'places')}`, 'success', { action: { label: 'Undo', onClick: undo } });
       },
     });
+  }
+
+  function linkInto(parentPath, ds) {
+    const pi = parsePath(parentPath);
+    const parent = entity(pi.kind, pi.id);
+    return ds.map((d) => {
+      const ent = entity(d.kind, d.id);
+      parent.children.push(d.id);
+      if (ent.source === 'pos') stageLink(pi.kind, pi.id, d.kind, d.id);
+      if (pi.kind === 'category' && ent.ptype === 'size') keepChoicesInCategory(ent, parent);
+      if (pi.kind === 'product' && parent.ptype === 'size') keepChoiceInMenu(parentPath, d.id);
+      return childPath(parentPath, d.kind, d.id);
+    });
+  }
+
+  function selectLinked(paths, parentPaths) {
+    parentPaths.forEach(openRow);
+    paths.forEach(flash);
+    T.sel = paths;
+    S.ui.selected = paths[paths.length - 1];
+    T.selAnchor = paths[0];
+    T.focusRow = S.ui.selected;
   }
 
   function linkMany(parentPath, ds) {
     const pi = parsePath(parentPath);
     const parent = entity(pi.kind, pi.id);
-    const paths = [];
-    const done = commit(() => {
-      ds.forEach((d) => {
-        const ent = entity(d.kind, d.id);
-        parent.children.push(d.id);
-        if (ent.source === 'pos') stageLink(pi.kind, pi.id, d.kind, d.id);
-        if (pi.kind === 'category' && ent.ptype === 'size') keepChoicesInCategory(ent, parent);
-        if (pi.kind === 'product' && parent.ptype === 'size') keepChoiceInMenu(parentPath, d.id);
-        paths.push(childPath(parentPath, d.kind, d.id));
-      });
-      openRow(parentPath);
-      paths.forEach(flash);
-      T.sel = paths;
-      S.ui.selected = paths[paths.length - 1];
-      T.selAnchor = paths[0];
-      T.focusRow = S.ui.selected;
-    });
+    const done = commit(() => selectLinked(linkInto(parentPath, ds), [parentPath]));
     if (done) toast(`${plural(ds.length, ...BULK_NOUN[ds[0].kind])} added to ${nameOf(pi.kind, parent)}`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
@@ -790,13 +814,16 @@
   }
 
   function openLinkedProductPicker(categoryPath) {
-    openPicker({
+    openListPicker({
       title: 'Create custom product',
       intro: 'Choose the POS product it rings up as. The custom product gets its own name, image, and preselected options, and always uses that product’s POS price. It starts with that product’s description and dietary info.',
       placeholder: 'Search by product name or POS ID',
-      items: posProductChoices(),
-      onPick: (posId) => {
-        closeModal(true);
+      groups: [{ id: 'pos', name: '', items: posProductChoices() }],
+      noun: ['product', 'products'],
+      empty: 'No POS products yet',
+      single: true,
+      cta: () => 'Create custom product',
+      onSave: ([posId]) => {
         commit(() => {
           const parentItem = posItemById(posId);
           const source = findByExt('product', posId);
@@ -1177,19 +1204,17 @@
         name: nameOf('group', x),
         alt: x.internalName,
         meta: `${kindLabel('group', x)} · ${plural(x.children.length, 'option', 'options')} · in ${plural(groupParents(x.id).length, 'product', 'products')}`,
-        price: '',
       }));
-    openPicker({
+    openListPicker({
       title: 'Add a group to every option',
       intro: `Each option in ${name} gets this group, with the same options and rules. Options you add later get it too.`,
       placeholder: 'Search by group name',
-      items,
+      groups: [{ id: 'groups', name: '', items }],
+      noun: ['group', 'groups'],
       empty: 'No other groups to add',
-      noMatch: ['No matching groups', 'Try a different name.'],
-      onPick: (gid) => {
-        closeModal(true);
-        commit(() => g.propagated.push(gid));
-        toast(`${nameOf('group', entity('group', gid))} added to every option`, 'success', { action: { label: 'Undo', onClick: undo } });
+      onSave: (gids) => {
+        commit(() => g.propagated.push(...gids));
+        toast(`${gids.length === 1 ? nameOf('group', entity('group', gids[0])) : plural(gids.length, 'group', 'groups')} added to every option`, 'success', { action: { label: 'Undo', onClick: undo } });
       },
     });
   }
