@@ -490,9 +490,8 @@
       }
       if (info.kind === 'product' && ent.ptype === 'size') return openAddDialog(path);
       if (info.kind === 'product') {
-        const items = [addMenuItem(path)];
-        if (ent.ptype === 'linked') items.push({ label: 'All POS groups', hint: `Every group of ${posLabel(ent.posParentExt)}`, icon: 'plus', onClick: () => addParentGroups(path) });
-        items.push(
+        return openPopover(anchor, [
+          addMenuItem(path),
           { heading: 'Create' },
           built({
             label: 'Custom group',
@@ -502,8 +501,7 @@
             onClick: () => linkedGroupMenu(anchor, path),
           }),
           built({ label: 'Suggested products', hint: 'Products customers can add to this item. Each one goes on the order as its own item', icon: 'dashed', onClick: () => createVirtualGroup(path, 'upsell') }),
-        );
-        return openPopover(anchor, items);
+        ]);
       }
       if (ent.gtype === 'standalone') {
         return openPopover(anchor, [
