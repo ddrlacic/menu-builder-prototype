@@ -34,6 +34,45 @@
     };
   }
 
+  function sectionIssues(path, hostName, add, byPath) {
+    const sc = sectionCtx(path);
+    if (!sc || !sc.src.sections.length) return;
+    const mark = (p, level, text) => {
+      if (!byPath.has(p)) byPath.set(p, []);
+      byPath.get(p).push({ level, text });
+    };
+    const taken = new Map();
+    sc.src.sections.forEach((s) => {
+      const sp = childPath(path, 'section', s.id);
+      const n = s.name.trim().toLowerCase();
+      if (!n) return mark(sp, 'error', 'Add a section name');
+      if (lengthError(s.name)) mark(sp, 'error', lengthError(s.name));
+      if (sc.kind === 'option' && taken.has(n)) {
+        mark(taken.get(n), 'error', `Another section in ${hostName} has this name`);
+        add(sp, 'error', `${hostName}: two sections are named ${s.name.trim()}`, `${sc.nestKey}|dup|${n}`, 'options');
+      }
+      taken.set(n, sp);
+    });
+    sectionBlocks(sc)
+      .pop()
+      .ids.forEach((id) => {
+        const itemPath = childPath(path, sc.kind === 'group' ? 'group' : 'product', id);
+        if (groupHiddenAt(itemPath)) return;
+        if (sc.kind === 'option') {
+          return add(itemPath, 'warning', `${optionName(sc.g, id)} is not in a section, so customers see it after the sections, with no heading`, `${sc.own ? sc.nestKey : `group|${sc.g.id}`}>${id}`);
+        }
+        const g = entity('group', id);
+        if (g.isSubstitutionContainer) return;
+        const required = rulesOf(g).min > 0;
+        add(
+          itemPath,
+          required ? 'error' : 'warning',
+          required ? `${nameOf('group', g)} is required but not in a section, so customers cannot order ${hostName} in Web App` : `${nameOf('group', g)} is not in a section, so Web App does not show it`,
+          `${sc.p.id}>group:${id}`,
+        );
+      });
+  }
+
   function computeIssues(menu) {
     const byPath = new Map();
     const list = [];
@@ -166,6 +205,7 @@
         if (ungrouped) gAdd('warning', `${label}: ${plural(ungrouped, 'option looks', 'options look')} like ${ungrouped === 1 ? 'a half' : 'halves'}. Customers see each one as its own option until you group halves`, 'halves');
         if (ent.metadata.some(tagTooLong)) gAdd('error', `${label}: a metadata tag is longer than ${TEXT_LIMIT} characters`, 'advanced');
       }
+      if (kind === 'product' || kind === 'group') sectionIssues(path, name, add, byPath);
     });
 
     list.sort((a, b) => (a.level === 'error' ? 0 : 1) - (b.level === 'error' ? 0 : 1));

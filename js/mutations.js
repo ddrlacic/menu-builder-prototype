@@ -36,6 +36,7 @@
 
   function toggleInSelection(path) {
     const kind = parsePath(path).kind;
+    if (kind === 'section') return select(path, { focusRow: true });
     const base = T.sel.length ? T.sel : parsePath(S.ui.selected).kind === 'menu' ? [] : [S.ui.selected];
     if (!base.length || parsePath(base[0]).kind !== kind) return select(path, { focusRow: true });
     const next = base.includes(path) ? base.filter((p) => p !== path) : [...base, path];
@@ -46,6 +47,7 @@
   function selectRange(path) {
     const anchor = T.selAnchor || S.ui.selected;
     const kind = parsePath(path).kind;
+    if (kind === 'section') return select(path, { focusRow: true });
     const paths = treePaths();
     let a = paths.indexOf(anchor);
     let b = paths.indexOf(path);
@@ -56,14 +58,14 @@
 
   function extendSelection(dir) {
     const kind = parsePath(S.ui.selected).kind;
-    if (kind === 'menu') return;
+    if (kind === 'menu' || kind === 'section') return;
     const paths = treePaths();
     for (let i = paths.indexOf(S.ui.selected) + dir; i >= 0 && i < paths.length; i += dir) if (parsePath(paths[i]).kind === kind) return selectRange(paths[i]);
   }
 
   function selectAllOfKind() {
     const kind = parsePath(S.ui.selected).kind;
-    if (kind === 'menu') return;
+    if (kind === 'menu' || kind === 'section') return;
     setSelection(treePaths().filter((p) => parsePath(p).kind === kind), S.ui.selected);
   }
 
@@ -77,6 +79,10 @@
 
   function expandTo(path) {
     ancestorsOf(path).forEach(openRow);
+    [...ancestorsOf(path), path].forEach((p) => {
+      const s = sectionOfRow(p);
+      if (s) openRow(s);
+    });
   }
 
   function revealSelection() {
@@ -544,7 +550,12 @@
   function nudgeSelection(dir) {
     const picked = (T.sel.length ? T.sel : [S.ui.selected]).filter((p) => p.includes('>'));
     if (!picked.length) return;
-    const rows = $$('#canvas-tree .row:not([data-half-of])').map((r) => r.dataset.path);
+    if (parsePath(picked[0]).kind === 'section') {
+      const at = sectionAt(picked[0]);
+      if (at) moveSection(picked[0], at.index + dir);
+      return;
+    }
+    const rows = $$('#canvas-tree .row:not([data-half-of]):not([data-kind="section"])').map((r) => r.dataset.path);
     const groups = new Map();
     rows
       .filter((p) => picked.includes(p))
@@ -554,10 +565,19 @@
         groups.get(pp).push(p);
       });
     const moves = [];
+    const sectioned = [];
     const parents = new Set();
     groups.forEach((group, pp) => {
       const pi = parsePath(pp);
       const parent = entity(pi.kind, pi.id);
+      const sc = sectionCtx(pp);
+      if (sc && sc.src.sections.length) {
+        const key = sc.p ? `${sc.nestKey}` : `${pi.kind}:${pi.id}`;
+        if (parents.has(key)) return;
+        parents.add(key);
+        sectioned.push({ pp, ids: [...new Set(group.map((p) => parsePath(p).id))].filter((id) => sc.ids.includes(id)) });
+        return;
+      }
       if (parents.has(`${pi.kind}:${pi.id}`)) return;
       parents.add(`${pi.kind}:${pi.id}`);
       const ids = [...new Set(group.map((p) => parsePath(p).id))].filter((id) => parent.children.includes(id));
@@ -568,13 +588,14 @@
       if (!ids.length || !target || !parent.children.includes(target)) return;
       moves.push({ parent, ids, target });
     });
-    if (!moves.length) return;
+    if (!moves.length && !sectioned.length) return;
     commit(() => {
       moves.forEach(({ parent, ids, target }) => {
         const list = parent.children.filter((c) => !ids.includes(c));
         list.splice(list.indexOf(target) + (dir > 0 ? 1 : 0), 0, ...ids);
         parent.children.splice(0, parent.children.length, ...list);
       });
+      sectioned.forEach(({ pp, ids }) => ids.length && nudgeInSections(pp, ids, dir));
       T.focusRow = S.ui.selected;
     }, { key: `nudge:${picked.join('|')}` });
   }
@@ -827,23 +848,142 @@
     const { ent, mapKey } = nestTarget(key);
     const byId = new Map(ent.sections.map((s) => [s.id, s]));
     ent.sections = order.map((o) => byId.get(o.sid)).filter(Boolean);
-    order.forEach((o) => o.ids.forEach((id) => (ent[mapKey][id] = o.sid)));
+    order.forEach((o) =>
+      o.ids.forEach((id) => {
+        if (o.sid) ent[mapKey][id] = o.sid;
+        else delete ent[mapKey][id];
+      }),
+    );
     const placed = order.flatMap((o) => o.ids);
     ent.children = [...placed, ...ent.children.filter((id) => !placed.includes(id))];
   }
 
   function removeNestSection(key, index) {
     const { ent, mapKey } = nestTarget(key);
-    const sectionOfItem = mapKey === 'groupSection' ? sectionOf : sectionOfOption;
     const [gone] = ent.sections.splice(index, 1);
+    const next = ent.sections[0];
     ent.children.forEach((id) => {
-      if (ent[mapKey][id] === gone.id) delete ent[mapKey][id];
+      if (ent[mapKey][id] !== gone.id) return;
+      if (next) ent[mapKey][id] = next.id;
+      else delete ent[mapKey][id];
     });
-    arrangeSections(
-      key,
-      ent.sections.map((s) => ({ sid: s.id, ids: ent.children.filter((id) => sectionOfItem(ent, id) === s.id) })),
-    );
+    arrangeSections(key, [
+      ...ent.sections.map((s) => ({ sid: s.id, ids: ent.children.filter((id) => ent[mapKey][id] === s.id) })),
+      { sid: '', ids: ent.children.filter((id) => !ent.sections.some((s) => s.id === ent[mapKey][id])) },
+    ]);
     return gone;
+  }
+
+  function addNestSection(key, prefix) {
+    const { ent, mapKey } = nestTarget(key);
+    const first = !ent.sections.length;
+    const s = { id: uid(prefix), name: freeSectionName(ent.sections) };
+    ent.sections.push(s);
+    if (first) ent.children.forEach((id) => (ent[mapKey][id] = s.id));
+  }
+
+  function freeSectionName(sections) {
+    const taken = new Set(sections.map((s) => s.name.trim().toLowerCase()));
+    let n = sections.length + 1;
+    while (taken.has(`section ${n}`)) n++;
+    return `Section ${n}`;
+  }
+
+  function placeInSection(hostPath, ids, { sid = '', before = null, after = null, shared = false } = {}) {
+    const sc = sectionCtx(hostPath, { shared });
+    const blocks = sectionBlocks(sc).map((b) => ({ sid: b.sid, ids: b.ids.filter((id) => !ids.includes(id)) }));
+    const block = blocks.find((b) => b.sid === (sid || '')) || blocks[blocks.length - 1];
+    let at = block.ids.length;
+    if (before && block.ids.includes(before)) at = block.ids.indexOf(before);
+    else if (after && block.ids.includes(after)) at = block.ids.indexOf(after) + 1;
+    block.ids.splice(at, 0, ...ids.filter((id) => sc.ids.includes(id)));
+    arrangeSections(sc.nestKey, blocks);
+  }
+
+  function sectionTargets(paths) {
+    if (!paths.length || paths.some((p) => parsePath(p).kind === 'section' || pendingRoot(p))) return null;
+    const hostPath = parsePath(paths[0]).parentPath;
+    if (!hostPath || paths.some((p) => parsePath(p).parentPath !== hostPath)) return null;
+    const sc = sectionCtx(hostPath);
+    if (!sc) return null;
+    const ids = sc.ids.filter((id) => paths.some((p) => parsePath(p).id === id));
+    return ids.length === paths.length ? { sc, ids } : null;
+  }
+
+  function createSection(hostPath, ids = []) {
+    const sc = sectionCtx(hostPath);
+    if (!sc || pendingRoot(hostPath)) return;
+    commit(() => {
+      const { ent } = nestTarget(sc.nestKey);
+      const sid = uid(sc.kind === 'group' ? 'sec' : 'osec');
+      const from = ids.length ? sectionIdIn(sc, ids[0]) : null;
+      const at = from ? ent.sections.findIndex((s) => s.id === from) + 1 : ent.sections.length;
+      ent.sections.splice(at, 0, { id: sid, name: freeSectionName(ent.sections) });
+      placeInSection(hostPath, ids, { sid });
+      const path = childPath(hostPath, 'section', sid);
+      openRow(hostPath);
+      openRow(path);
+      S.ui.selected = path;
+      T.sel = [];
+      T.focusName = true;
+      flash(path);
+    });
+  }
+
+  function deleteSection(path) {
+    const at = sectionAt(path);
+    if (!at) return;
+    const { hostPath } = at.sc;
+    const ok = commit(() => {
+      const { ent, mapKey } = nestTarget(at.sc.nestKey);
+      ent.sections = ent.sections.filter((s) => s.id !== at.sid);
+      Object.keys(ent[mapKey]).forEach((id) => ent[mapKey][id] === at.sid && delete ent[mapKey][id]);
+      const sc = sectionCtx(hostPath);
+      arrangeSections(sc.nestKey, sectionBlocks(sc));
+      if (S.ui.selected === path) {
+        S.ui.selected = hostPath;
+        T.focusRow = hostPath;
+      }
+    });
+    if (ok) toast(`${sectionLabel(at.section)} deleted`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function moveSection(path, to) {
+    const at = sectionAt(path);
+    if (!at) return;
+    const blocks = sectionBlocks(at.sc);
+    const outside = blocks.pop();
+    if (to < 0 || to >= blocks.length || to === at.index) return;
+    blocks.splice(to, 0, blocks.splice(at.index, 1)[0]);
+    commit(() => {
+      arrangeSections(at.sc.nestKey, [...blocks, outside]);
+      flash(path);
+      T.focusRow = S.ui.selected === path ? path : T.focusRow;
+    }, { key: `section-move:${path}` });
+  }
+
+  function removeFromSection(paths) {
+    const t = sectionTargets(paths);
+    if (!t) return;
+    const names = [...new Set(t.ids.map((id) => sectionIdIn(t.sc, id)).filter(Boolean))].map((sid) => sectionLabel(t.sc.src.sections.find((s) => s.id === sid)));
+    const ok = commit(() => placeInSection(t.sc.hostPath, t.ids, { sid: '' }));
+    if (ok) toast(`${plural(t.ids.length, ...t.sc.noun)} removed from ${listJoin(names)}`, 'success', { action: { label: 'Undo', onClick: undo } });
+  }
+
+  function nudgeInSections(hostPath, ids, dir) {
+    const sc = sectionCtx(hostPath);
+    const blocks = sectionBlocks(sc);
+    const flat = blocks.flatMap((b) => b.ids.map((id) => ({ id, sid: b.sid })));
+    const own = sectionIdIn(sc, ids[0]) || '';
+    const edge = flat.findIndex((x) => x.id === ids[dir < 0 ? 0 : ids.length - 1]);
+    const near = flat.slice(dir < 0 ? 0 : edge + 1, dir < 0 ? edge : undefined).filter((x) => !ids.includes(x.id));
+    const next = dir < 0 ? near[near.length - 1] : near[0];
+    if (next && next.sid === own) return placeInSection(hostPath, ids, dir < 0 ? { sid: own, before: next.id } : { sid: own, after: next.id });
+    const bi = blocks.findIndex((b) => b.sid === own);
+    const target = blocks[bi + dir];
+    if (!target) return false;
+    placeInSection(hostPath, ids, dir < 0 ? { sid: target.sid } : { sid: target.sid, before: target.ids.find((id) => !ids.includes(id)) || null });
+    return true;
   }
 
   const pickItem = (x, extra = {}) => ({ id: x.id, name: nameOf('product', x), alt: x.internalName || '', code: posIdOf('product', x) || '', thumb: thumb('product', x, 'thumb-sm'), ...extra });
@@ -1594,6 +1734,7 @@
   function confirmRemove(path) {
     const info = parsePath(path);
     if (info.kind === 'menu') return;
+    if (info.kind === 'section') return deleteSection(path);
     if (inheritedAt(path).length || isPendingLink(path)) return removeLink(path);
     if (info.kind === 'category') return confirmRemoveCategory(entity('category', info.id), menuById(info.menuId));
     const pInfo = parsePath(info.parentPath);

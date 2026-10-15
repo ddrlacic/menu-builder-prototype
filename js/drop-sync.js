@@ -2,6 +2,10 @@
 
   function dragDescFromPath(path) {
     const info = parsePath(path);
+    if (info.kind === 'section') {
+      const at = sectionAt(path);
+      return { origin: 'canvas', path, id: info.id, kind: 'section', name: sectionLabel(at.section), hostPath: at.sc.hostPath, glyph: at.sc.kind === 'group' ? 'gsection' : 'osection' };
+    }
     const ent = entity(info.kind, info.id);
     return {
       origin: 'canvas',
@@ -19,11 +23,23 @@
   function resolveDrop(d, t) {
     if (t.auto) return { parentPath: null, index: Infinity, auto: true };
     const targetInfo = parsePath(t.path);
+    if (targetInfo.kind === 'section') return { parentPath: targetInfo.parentPath, index: Infinity, section: { sid: targetInfo.id } };
     if (t.pos === 'inside') return { parentPath: t.path, index: Infinity };
     const parentPath = targetInfo.parentPath;
     const pi = parsePath(parentPath);
     const index = entity(pi.kind, pi.id).children.indexOf(targetInfo.id) + (t.pos === 'after' ? 1 : 0);
-    return { parentPath, index };
+    const sc = d.kind !== 'section' ? sectionCtx(parentPath) : null;
+    const section = sc && sc.src.sections.length && sc.ids.includes(targetInfo.id) ? { sid: sectionIdIn(sc, targetInfo.id) || '', [t.pos === 'after' ? 'after' : 'before']: targetInfo.id } : null;
+    return { parentPath, index, section };
+  }
+
+  const inParentRow = (d, parentPath) => d.origin === 'canvas' && parsePath(d.path).parentPath === parentPath;
+
+  function placeDropped(parentPath, ids, section, fresh) {
+    const sc = sectionCtx(parentPath);
+    if (!sc || !ids.length) return;
+    if (section.sid) openRow(childPath(parentPath, 'section', section.sid));
+    placeInSection(parentPath, ids, { ...section, shared: fresh && sc.kind === 'option' && !!sc.p && !sc.own });
   }
 
   function dropInto(d, parentPath, index) {
@@ -86,12 +102,15 @@
 
   function performDrop(d, t) {
     if (t.auto) return autoPlace(d);
-    const { parentPath, index } = resolveDrop(d, t);
+    const { parentPath, index, section } = resolveDrop(d, t);
     const err = dropError(parentPath, d);
     if (err) return toast(err, 'error');
     let r = {};
     commit(() => {
-      r = dropInto(d, parentPath, index);
+      const stay = section && inParentRow(d, parentPath);
+      const had = !stay && entity(parsePath(parentPath).kind, parsePath(parentPath).id).children.includes(d.id);
+      r = stay ? { newPath: d.path } : dropInto(d, parentPath, index);
+      if (section) placeDropped(parentPath, [parsePath(r.newPath).id], section, !stay && !had);
       S.ui.selected = r.newPath;
       if (d.origin === 'canvas') T.focusRow = r.newPath;
       flash(r.newPath);
@@ -132,7 +151,7 @@
   const multiDropError = (parentPath, ds) => ds.map((d) => dropError(parentPath, d)).find(Boolean) || null;
 
   function performMultiDrop(ds, t) {
-    const { parentPath, index } = resolveDrop(ds[0], t.auto ? { path: activeMenu().id, pos: 'inside' } : t);
+    const { parentPath, index, section } = resolveDrop(ds[0], t.auto ? { path: activeMenu().id, pos: 'inside' } : t);
     const err = multiDropError(parentPath, ds);
     if (err) return toast(err, 'error');
     const pi = parsePath(parentPath);
@@ -140,12 +159,21 @@
     let moved = 0;
     const ok = commit(() => {
       let at = index;
+      const fresh = [];
       ds.forEach((d) => {
+        if (section && inParentRow(d, parentPath)) return paths.push(d.path);
+        const had = entity(pi.kind, pi.id).children.includes(d.id);
         const r = dropInto(d, parentPath, at);
         at = r.index + 1;
         paths.push(r.newPath);
+        if (!had) fresh.push(parsePath(r.newPath).id);
         if (r.movedTo) moved++;
       });
+      if (section) {
+        const ids = paths.map((p) => parsePath(p).id);
+        placeDropped(parentPath, ids.filter((id) => !fresh.includes(id)), section, false);
+        placeDropped(parentPath, fresh, section.sid ? { sid: section.sid } : section, true);
+      }
       paths.forEach(flash);
       T.sel = paths;
       S.ui.selected = paths[paths.length - 1];
@@ -174,7 +202,7 @@
 
   function performPosMultiDrop(ds, t) {
     if (t.auto) return autoPlaceMany(ds);
-    const { parentPath, index } = resolveDrop(ds[0], t);
+    const { parentPath, index, section } = resolveDrop(ds[0], t);
     const err = posMultiDropError(parentPath, ds);
     if (err) return toast(err, 'error');
     const { fresh, present } = posDropSplit(parentPath, ds);
@@ -188,6 +216,7 @@
         linked = linked || r.linked;
         paths.push(r.newPath);
       });
+      if (section) placeDropped(parentPath, paths.map((p) => parsePath(p).id), section, true);
       selectAdded(paths);
     });
     if (!ok) return;

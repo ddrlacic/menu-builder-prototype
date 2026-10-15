@@ -314,7 +314,7 @@
     if (!handle || e.target.closest('button, input, a')) return;
     const list = handle.closest('.nest-list');
     const isSection = handle.dataset.nestRow === 'section';
-    if (isSection && list.querySelectorAll('.nest-block').length < 2) return;
+    if (isSection && list.querySelectorAll('.nest-block:not(.nest-outside)').length < 2) return;
     const moving = isSection ? handle.closest('.nest-block') : handle;
     const startY = e.clientY;
     let lifted = false;
@@ -323,7 +323,7 @@
       lifted = true;
       box = list.getBoundingClientRect();
       r = moving.getBoundingClientRect();
-      const blocks = [...list.querySelectorAll('.nest-block')];
+      const blocks = [...list.querySelectorAll(isSection ? '.nest-block:not(.nest-outside)' : '.nest-block')];
       if (isSection) {
         const others = blocks.filter((b) => b !== moving);
         slots = others.map((b, i) => ({ y: b.getBoundingClientRect().top - 4, at: i }));
@@ -396,7 +396,7 @@
       const sid = e.target.closest('.nest-block').dataset.sid;
       const from = order.findIndex((o) => o.sid === sid);
       const to = from + (up ? -1 : 1);
-      if (to < 0 || to >= order.length) return;
+      if (to < 0 || to >= order.filter((o) => o.sid).length) return;
       order.splice(to, 0, order.splice(from, 1)[0]);
       return applyNest(list, order, { sid, keyboard: true });
     }
@@ -493,6 +493,7 @@
     category: 'Drop between categories to change the order',
     product: 'Drop between products to change the order, or on a category or group to move it. Hold ⌥ to add it there too',
     group: 'Drop between groups to change the order, or on a product to move it. Hold ⌥ to add it there too',
+    section: 'Drop between sections to change the order',
   };
   const DRAG_HINT_MANY = {
     category: 'Drop on the menu to add the categories',
@@ -564,7 +565,7 @@
     e.dataTransfer.effectAllowed = T.drag.origin === 'pos' ? 'copy' : 'copyMove';
     e.dataTransfer.setData('text/plain', T.drag.name);
     const ghost = $('#drag-ghost');
-    ghost.innerHTML = `<span class="kind-glyph kind-${T.drag.kind}">${icon(KIND_ICON[T.drag.kind], 13)}</span>${esc(T.drag.name)}`;
+    ghost.innerHTML = `<span class="kind-glyph kind-${T.drag.glyph || T.drag.kind}">${icon(KIND_ICON[T.drag.kind], 13)}</span>${esc(T.drag.name)}`;
     e.dataTransfer.setDragImage(ghost, 16, 18);
     document.body.dataset.dragKind = T.drag.kind;
     const cardText = $('.menu-card-drop');
@@ -646,11 +647,63 @@
     return { path: anc, pos, mark: pos === 'before' ? head : last, depth: head.style.getPropertyValue('--depth') };
   }
 
+  function sectionBlockRows(head) {
+    const rows = $$('#canvas-tree .row');
+    const level = Number(head.getAttribute('aria-level'));
+    const out = [head];
+    for (let i = rows.indexOf(head) + 1; i < rows.length && Number(rows[i].getAttribute('aria-level')) > level; i++) out.push(rows[i]);
+    return out;
+  }
+
+  function sectionHeadFor(row, hostPath) {
+    const rows = $$('#canvas-tree .row');
+    let level = Number(row.getAttribute('aria-level'));
+    for (let i = rows.indexOf(row); i >= 0; i--) {
+      const r = rows[i];
+      const lv = Number(r.getAttribute('aria-level'));
+      if (i !== rows.indexOf(row) && lv >= level) continue;
+      if (r.dataset.kind === 'section' && parsePath(r.dataset.path).parentPath === hostPath) return r;
+      if (r.dataset.path === hostPath) return null;
+      level = lv;
+    }
+    return null;
+  }
+
+  function sectionDragOver(e, row, d) {
+    const head = sectionHeadFor(row, d.hostPath);
+    if (T.markedRow) unmark(T.markedRow);
+    canvasEl.classList.remove('drop-end');
+    T.markedRow = null;
+    T.dropTarget = null;
+    if (!head) {
+      T.markedRow = row;
+      row.dataset.drop = 'invalid';
+      const hi = parsePath(d.hostPath);
+      return setHint(`Sections move only within ${nameOf(hi.kind, entity(hi.kind, hi.id))}`, 'error');
+    }
+    const block = sectionBlockRows(head);
+    const pos = e.clientY < (head.getBoundingClientRect().top + block[block.length - 1].getBoundingClientRect().bottom) / 2 ? 'before' : 'after';
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setHint(baseHint(d));
+    if (head.dataset.path === d.path) return;
+    const mark = pos === 'before' ? head : block[block.length - 1];
+    mark.dataset.drop = pos;
+    mark.style.setProperty('--drop-depth', head.style.getPropertyValue('--depth'));
+    T.markedRow = mark;
+    T.dropTarget = { path: head.dataset.path, pos };
+  }
+
   const canvasEl = $('#canvas');
   canvasEl.addEventListener('dragover', (e) => {
     const d = T.drag;
     if (!d) return;
     const row = e.target.closest('.row');
+    if (d.kind === 'section') {
+      if (row) return sectionDragOver(e, row, d);
+      clearDropMark();
+      return;
+    }
     const menuCard = e.target.closest('.menu-card');
     if ((d.origin === 'pos' && d.kind === 'menu') || (menuCard && menuCardDrop(d))) {
       e.preventDefault();
@@ -745,6 +798,13 @@
     e.preventDefault();
     endDrag();
     if (!t) return;
+    if (d.kind === 'section') {
+      const from = sectionAt(d.path);
+      const to = sectionAt(t.path);
+      if (!from || !to) return;
+      const at = to.index + (t.pos === 'after' ? 1 : 0);
+      return moveSection(d.path, at > from.index ? at - 1 : at);
+    }
     if (d.multi) return d.origin === 'pos' ? performPosMultiDrop(d.multi, t) : confirmMultiDrop(d.multi, t);
     if (t.link) {
       const { parentPath, index } = resolveDrop(d, t);
@@ -860,7 +920,7 @@
           T.focusRow = cur.dataset.path;
           render();
         } else {
-          const parent = cur.dataset.halfOf || parsePath(cur.dataset.path).parentPath;
+          const parent = cur.dataset.halfOf || sectionOfRow(cur.dataset.path) || parsePath(cur.dataset.path).parentPath;
           if (parent && parent.includes('>')) select(parent, { focusRow: true });
         }
         break;

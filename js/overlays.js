@@ -464,8 +464,54 @@
     );
   }
 
+  function sectionRowMenu(anchor, path, opts) {
+    const at = sectionAt(path);
+    if (!at) return;
+    const last = at.sc.src.sections.length - 1;
+    const items = [
+      { label: 'Move up', icon: 'chevUp', kbd: '⌥↑', disabled: at.index === 0, onClick: () => moveSection(path, at.index - 1) },
+      { label: 'Move down', icon: 'chevDown', kbd: '⌥↓', disabled: at.index === last, onClick: () => moveSection(path, at.index + 1) },
+    ];
+    if (at.ids.length)
+      items.push({
+        label: 'Expand all inside',
+        icon: 'expand',
+        kbd: '⌥ Click',
+        onClick: () => {
+          setExpandedDeep(path, true);
+          render();
+        },
+      });
+    items.push('-', { label: 'Delete section', icon: 'trash', tone: 'danger', kbd: '⌫', onClick: () => deleteSection(path) });
+    openPopover(anchor, items, opts);
+  }
+
+  function sectionItems(path, targets) {
+    const items = [];
+    const sc = targets.length === 1 && ['product', 'group'].includes(parsePath(path).kind) ? sectionCtx(path) : null;
+    if (sc && !pendingRoot(path) && sc.ids.length) {
+      const first = !sc.src.sections.length;
+      items.push({
+        label: sc.kind === 'group' ? 'Create group section' : 'Create option section',
+        icon: 'rows',
+        hint: first ? `Puts all its ${sc.noun[1]} in it` : '',
+        onClick: () => createSection(path, first ? sc.ids : []),
+      });
+    }
+    const t = sectionTargets(targets);
+    if (!t) return items;
+    items.push({ label: 'Create section', icon: 'rows', hint: `Puts ${targets.length > 1 ? `these ${plural(t.ids.length, ...t.sc.noun)}` : `${t.sc.noun[0] === 'group' ? 'this group' : `this ${t.sc.noun[0]}`}`} in a new section`, onClick: () => createSection(t.sc.hostPath, t.ids) });
+    const inSections = [...new Set(t.ids.map((id) => sectionIdIn(t.sc, id)).filter(Boolean))];
+    if (inSections.length) {
+      const one = inSections.length === 1 ? sectionLabel(t.sc.src.sections.find((s) => s.id === inSections[0])) : '';
+      items.push({ label: one ? `Remove from ${one}` : 'Remove from sections', icon: 'x', onClick: () => removeFromSection(targets) });
+    }
+    return items;
+  }
+
   function rowMenu(anchor, path, which, opts) {
     const info = parsePath(path);
+    if (info.kind === 'section') return which === 'add' ? null : sectionRowMenu(anchor, path, opts);
     const ent = entity(info.kind, info.id);
     const pInfo = parsePath(info.parentPath);
     const parentName = nameOf(pInfo.kind, entity(pInfo.kind, pInfo.id));
@@ -529,6 +575,11 @@
     if (!many && canCustomizeProduct(path)) items.push(built({ label: 'Create custom product', icon: 'link', onClick: () => createCustomProductFrom(path) }));
     if (!many && canCustomizeGroup(path)) items.push(built({ label: 'Create custom group', icon: 'link', onClick: () => createCustomGroupFrom(path) }));
     if (!many && canUngroup(path)) items.push({ label: 'Ungroup', icon: 'layers', onClick: () => ungroupChoiceProduct(path) });
+    const sectionMenu = sectionItems(path, targets);
+    if (sectionMenu.length) {
+      sep();
+      items.push(...sectionMenu);
+    }
     sep();
     if (info.kind === 'category' && detectSizeSets(ent).length) items.push({ label: 'Group sizes', icon: 'sparkles', onClick: () => groupSizes(path) });
     if (info.kind === 'category') items.push(built({ label: 'Upload images', icon: 'upload', onClick: () => openBulkImages(path) }));
@@ -555,7 +606,7 @@
         icon: 'expand',
         kbd: '⌥ Click',
         onClick: () => {
-          walkSubtree(path, (k, id, e, p) => setExpanded(p, true));
+          setExpandedDeep(path, true);
           render();
         },
       });
@@ -745,6 +796,7 @@
                   closeModal();
                   localStorage.removeItem(storageKey());
                   seed();
+                  migrateUnsectioned();
                   normalizeAll();
                   S.ui = defaultUi();
                   focusPosCategory();

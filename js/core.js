@@ -8,8 +8,8 @@
   const BASE_MODIFIER_CODES = C.modifierCodes;
   const CHILD_KIND = { menu: 'category', category: 'product', product: 'group', group: 'product' };
   const childKind = (kind, ent) => (kind === 'product' && ent && ent.ptype === 'size' ? 'product' : CHILD_KIND[kind]);
-  const SEG = { category: 'c', product: 'p', group: 'g' };
-  const SEG_KIND = { c: 'category', p: 'product', g: 'group' };
+  const SEG = { category: 'c', product: 'p', group: 'g', section: 's' };
+  const SEG_KIND = { c: 'category', p: 'product', g: 'group', s: 'section' };
   const KIND_LABEL = { menu: 'Menu', category: 'Category', product: 'Product', group: 'Product group' };
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const SIZE_WORDS = ['kids', 'small', 'regular', 'medium', 'large', 'extra large'];
@@ -253,7 +253,8 @@
     halves: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18"/>',
     panelClose: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>',
     panelOpen: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/>',
+    rows: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 12h18"/>',
   };
   const icon = (name, size = 16) =>
     `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
-  const KIND_ICON = { category: 'folder', product: 'utensils', group: 'layers', menu: 'book' };
+  const KIND_ICON = { category: 'folder', product: 'utensils', group: 'layers', menu: 'book', section: 'rows' };

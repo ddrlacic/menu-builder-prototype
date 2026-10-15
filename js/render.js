@@ -348,9 +348,10 @@
   }
 
   function isExpanded(path, depth) {
-    if (T.canvasSearch) return path in T.canvasSearchOpen ? T.canvasSearchOpen[path] : T.canvasSearch.open.has(path);
+    const section = parsePath(path).kind === 'section';
+    if (T.canvasSearch) return path in T.canvasSearchOpen ? T.canvasSearchOpen[path] : section || T.canvasSearch.open.has(path);
     const v = S.ui.expanded[path];
-    return v == null ? depth <= 1 : v;
+    return v == null ? section || depth <= 1 : v;
   }
 
   function setExpanded(path, open) {
@@ -361,6 +362,31 @@
   function openRow(path) {
     S.ui.expanded[path] = true;
     if (T.canvasSearch) T.canvasSearchOpen[path] = true;
+  }
+
+  function sectionPathsAt(kind, path) {
+    const sc = kind === 'product' || kind === 'group' ? sectionCtx(path) : null;
+    return sc ? sc.src.sections.map((s) => childPath(path, 'section', s.id)) : [];
+  }
+
+  function setExpandedDeep(path, open) {
+    const at = sectionAt(path);
+    if (at) {
+      setExpanded(path, open);
+      at.ids.forEach((id) => setExpandedDeep(childPath(at.sc.hostPath, at.sc.kind === 'group' ? 'group' : 'product', id), open));
+      return;
+    }
+    walkSubtree(path, (k, id, ent, p) => {
+      setExpanded(p, open);
+      sectionPathsAt(k, p).forEach((s) => setExpanded(s, open));
+    });
+  }
+
+  function sectionOfRow(path) {
+    const info = parsePath(path);
+    const sc = info.parentPath && info.kind !== 'section' ? sectionCtx(info.parentPath) : null;
+    const sid = sc && sc.src.sections.length ? sectionIdIn(sc, info.id) : null;
+    return sid ? childPath(info.parentPath, 'section', sid) : null;
   }
 
   function visibleRows(menu) {
@@ -405,7 +431,48 @@
         return expanded;
       });
     }
-    return nestHalves(rows);
+    return withSections(nestHalves(rows));
+  }
+
+  function withSections(rows) {
+    const out = [];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      out.push(r);
+      const sc = r.expanded && !r.nestedHalf && (r.kind === 'product' || r.kind === 'group') ? sectionCtx(r.path) : null;
+      if (!sc || !sc.src.sections.length) continue;
+      const kids = new Map();
+      const lead = [];
+      const rest = [];
+      let j = i + 1;
+      for (let cur = null; j < rows.length && rows[j].depth > r.depth; j++) {
+        if (rows[j].depth === r.depth + 1) {
+          cur = [];
+          const id = parsePath(rows[j].path).id;
+          if (rows[j].nestedHalf) lead.push(cur);
+          else if (sc.ids.includes(id) && !kids.has(id)) kids.set(id, cur);
+          else rest.push(cur);
+        }
+        if (cur) cur.push(rows[j]);
+      }
+      out.push(...lead.flat());
+      const shift = (list) => withSections(list).map((x) => ({ ...x, depth: x.depth + 1 }));
+      sectionBlocks(sc).forEach((b) => {
+        const subtree = b.ids.filter((id) => kids.has(id)).flatMap((id) => kids.get(id));
+        if (!b.sid) {
+          out.push(...withSections(subtree).map((x) => (x.depth === r.depth + 1 ? { ...x, unsectioned: sc } : x)));
+          return;
+        }
+        if (T.canvasSearch && !subtree.length) return;
+        const path = childPath(r.path, 'section', b.sid);
+        const expanded = isExpanded(path, r.depth + 1);
+        out.push({ kind: 'section', id: b.sid, path, depth: r.depth + 1, expanded, sc, section: sc.src.sections.find((s) => s.id === b.sid), count: b.ids.length });
+        if (expanded) out.push(...shift(subtree));
+      });
+      out.push(...withSections(rest.flat()));
+      i = j - 1;
+    }
+    return out;
   }
 
   function nestHalves(rows) {
@@ -471,7 +538,31 @@
     return `${C.groupTypes[rulesOf(ent).type].label} group`;
   }
 
+  function sectionRowHtml(r) {
+    const { path, depth, sc, section } = r;
+    const selected = isSelected(path);
+    const issues = ctx.issues.byPath.get(path) || [];
+    const issueTone = issues.some((i) => i.level === 'error') ? 'error' : issues.length ? 'warning' : '';
+    const issueDot = issueTone ? `<span class="issue-dot tone-${issueTone}" title="${esc(issues.map((i) => i.text).join('\n'))}"></span>` : '';
+    const hostKind = parsePath(sc.hostPath).kind;
+    const tone = sc.kind === 'group' ? 'gsection' : 'osection';
+    const label = sc.kind === 'group' ? 'Group section' : 'Option section';
+    const name = sectionLabel(section);
+    const flashCls = T.flashPaths.has(path) ? ' is-flash' : '';
+    return `<div class="row row-section${selected ? ' is-selected' : ''}${flashCls}" role="treeitem" aria-level="${depth}" aria-selected="${selected}" ${r.count ? `aria-expanded="${r.expanded}"` : ''} tabindex="${S.ui.selected === path ? 0 : -1}" draggable="true" data-path="${esc(path)}" data-kind="section" data-section-kind="${sc.kind}" data-child-kind="${sc.kind === 'group' ? 'group' : 'product'}" data-parent-kind="${hostKind}" data-name="${esc(name)}" style="--depth:${depth - 1}">
+      <span class="row-indent" aria-hidden="true"></span>
+      ${r.count ? `<button class="twisty" data-action="toggle" data-path="${esc(path)}" tabindex="-1" aria-label="${r.expanded ? 'Collapse' : 'Expand'}">${icon('chevRight', 14)}</button>` : '<span class="twisty-spacer"></span>'}
+      <span class="thumb kind-${tone}">${icon('rows', 15)}</span>
+      <span class="row-main"><span class="row-title${section.name.trim() ? '' : ' is-placeholder'}">${esc(name)}</span><span class="row-meta">${esc(`${label} · ${plural(r.count, ...sc.noun)}`)}</span></span>
+      ${issueDot}
+      <span class="row-actions">
+        <button class="icon-btn sm" data-action="remove-row" data-path="${esc(path)}" aria-label="Delete section" title="Delete section" data-tip-kbd="⌫">${icon('x', 15)}</button>
+      </span>
+    </div>`;
+  }
+
   function rowHtml(r) {
+    if (r.kind === 'section') return sectionRowHtml(r);
     const { kind, id, ent, path, depth } = r;
     const info = parsePath(path);
     const parentKind = parsePath(info.parentPath).kind;
@@ -533,6 +624,7 @@
           ? `<button class="badge badge-action" data-action="group-halves" data-id="${esc(id)}" title="Match left and right halves to their toppings">${icon('sparkles', 12)}Group halves</button>`
           : '';
     const badges = [];
+    if (r.unsectioned) badges.push(`<span class="badge tone-warning" title="Drag it into a section, or right-click it and create one">Not in a section</span>`);
     if (staged) badges.push(`<span class="badge tone-staged" title="${ent.pending ? 'Import to edit its settings' : `Import to add it to ${esc(parentName)}`}">Not imported</span>`);
     if (isMissingOnPos(ent)) badges.push(`<span class="badge tone-error">Deleted on POS</span>`);
     else if (removedFromPos(path)) badges.push(`<span class="badge tone-warning">Removed on POS</span>`);

@@ -887,6 +887,41 @@ button.status-pill:focus-visible {
   color: var(--grp);
 }
 
+.kind-glyph.kind-gsection,
+.thumb.kind-gsection,
+.kind-chip.kind-gsection {
+  background: var(--grp-soft);
+  color: var(--grp);
+}
+
+.kind-glyph.kind-osection,
+.thumb.kind-osection,
+.kind-chip.kind-osection {
+  background: var(--prd-soft);
+  color: var(--prd);
+}
+
+.row-section .row-title {
+  font-weight: 600;
+}
+
+.row-title.is-placeholder {
+  color: var(--ink-3);
+}
+
+.section-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.section-items .crumb-link {
+  font-size: var(--text-sm);
+}
+
 .empty-small {
   display: flex;
   flex-direction: column;
@@ -1646,6 +1681,19 @@ body[data-menu-drop] .menu-card-drop {
 .nest-head .muted {
   flex: none;
   font-size: var(--text-xs);
+}
+
+.nest-outside-head {
+  min-height: 32px;
+  padding: 6px 12px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.nest-outside-head > span:first-of-type {
+  flex: 1;
 }
 
 .nest-item {

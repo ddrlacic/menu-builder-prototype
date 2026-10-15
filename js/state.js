@@ -257,13 +257,28 @@
 
   const sectionOf = (p, gid) => {
     const s = p.groupSection[gid];
-    return p.sections.some((x) => x.id === s) ? s : p.sections.length ? p.sections[0].id : null;
+    return p.sections.some((x) => x.id === s) ? s : null;
   };
 
   const sectionOfOption = (g, pid) => {
     const s = g.optionSection[pid];
-    return g.sections.some((x) => x.id === s) ? s : g.sections.length ? g.sections[0].id : null;
+    return g.sections.some((x) => x.id === s) ? s : null;
   };
+
+  function migrateUnsectioned() {
+    if (S.data.sectionsExplicit) return;
+    const fill = (owner, map, ids) => {
+      if (!owner.sections.length) return;
+      const sids = new Set(owner.sections.map((s) => s.id));
+      ids.forEach((id) => !sids.has(owner[map][id]) && (owner[map][id] = owner.sections[0].id));
+    };
+    Object.values(S.data.entities.group).forEach((g) => fill(g, 'optionSection', g.children));
+    Object.values(S.data.entities.product).forEach((p) => {
+      fill(p, 'groupSection', p.children);
+      Object.values(p.optionSections || {}).forEach((o) => fill(o, 'optionSection', o.children));
+    });
+    S.data.sectionsExplicit = true;
+  }
 
   function normalizeProduct(p) {
     for (const [gid, o] of Object.entries(p.optionSections || {})) {
@@ -944,6 +959,7 @@
           migrateCodesHere();
           migrateChoicesInMenus();
           migrateIgnored();
+          migrateUnsectioned();
           normalizeAll();
           S.ui = { ...defaultUi(), ...parsed.ui, posQuery: '', canvasQuery: '' };
           S.ui.selected = fixPath(S.ui.selected);
@@ -958,6 +974,7 @@
       /* fall through to seed */
     }
     seed();
+    migrateUnsectioned();
     normalizeAll();
     S.ui = defaultUi();
     focusPosCategory();
@@ -1298,8 +1315,8 @@
     markStructureChanged(changedMenus);
     dataVersion++;
     const { subjects, parents, paths } = undoSubjects(before, S.data);
-    let target = null;
-    for (const s of subjects.length ? subjects : parents) {
+    let target = S.ui.selected && parsePath(S.ui.selected).kind === 'section' && pathExists(S.ui.selected) ? S.ui.selected : null;
+    for (const s of target ? [] : subjects.length ? subjects : parents) {
       const p = pathOfSubject(s, paths);
       if (p) {
         target = p;

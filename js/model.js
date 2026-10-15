@@ -97,6 +97,7 @@
   }
 
   function pathExists(path) {
+    if (parsePath(path).kind === 'section') return pathExists(parsePath(path).parentPath) && !!sectionAt(path);
     const segs = path.split('>');
     let kind = 'menu';
     let ent = menuById(segs[0]);
@@ -122,6 +123,10 @@
   function crumbs(path) {
     return [...ancestorsOf(path), path].map((p) => {
       const info = parsePath(p);
+      if (info.kind === 'section') {
+        const at = sectionAt(p);
+        return { path: p, kind: info.kind, name: at ? sectionLabel(at.section) : 'Unknown' };
+      }
       return { path: p, kind: info.kind, name: nameOf(info.kind, entity(info.kind, info.id)) };
     });
   }
@@ -392,6 +397,61 @@
     if (pi.kind !== 'product' || (pi.parentPath && parsePath(pi.parentPath).kind === 'group')) return null;
     const p = entity('product', pi.id);
     return { p, own: (p.optionSections && p.optionSections[info.id]) || null };
+  }
+
+  function sectionCtx(hostPath, { shared = false } = {}) {
+    const info = parsePath(hostPath);
+    if (info.kind === 'product') {
+      const p = entity('product', info.id);
+      if (!p || p.ptype === 'size') return null;
+      return { kind: 'group', hostPath, p, src: p, mapKey: 'groupSection', nestKey: `product|${p.id}|groupSection`, ids: p.children.filter((gid) => entity('group', gid)), noun: ['group', 'groups'] };
+    }
+    if (info.kind !== 'group') return null;
+    const g = entity('group', info.id);
+    if (!g) return null;
+    const host = shared ? null : sectionHost(hostPath);
+    const src = (host && host.own) || g;
+    const listed = listedOptions(g);
+    const ids = [...src.children.filter((pid) => listed.includes(pid)), ...listed.filter((pid) => !src.children.includes(pid))];
+    return {
+      kind: 'option',
+      hostPath,
+      g,
+      p: host ? host.p : null,
+      own: host ? host.own : null,
+      src,
+      mapKey: 'optionSection',
+      nestKey: host ? `place|${host.p.id}:${g.id}|optionSection` : `group|${g.id}|optionSection`,
+      ids,
+      noun: g.gtype === 'standalone' ? ['product', 'products'] : ['option', 'options'],
+    };
+  }
+
+  function sectionIdIn(sc, id) {
+    const sid = sc.src[sc.mapKey][id];
+    return sc.src.sections.some((s) => s.id === sid) ? sid : null;
+  }
+
+  const sectionBlocks = (sc) => [
+    ...sc.src.sections.map((s) => ({ sid: s.id, ids: sc.ids.filter((id) => sectionIdIn(sc, id) === s.id) })),
+    { sid: '', ids: sc.ids.filter((id) => !sectionIdIn(sc, id)) },
+  ];
+
+  function sectionAt(path) {
+    const info = parsePath(path);
+    if (info.kind !== 'section') return null;
+    const sc = sectionCtx(info.parentPath);
+    const index = sc ? sc.src.sections.findIndex((s) => s.id === info.id) : -1;
+    if (index < 0) return null;
+    return { sc, sid: info.id, index, section: sc.src.sections[index], ids: sc.ids.filter((id) => sectionIdIn(sc, id) === info.id) };
+  }
+
+  const sectionLabel = (s) => s.name.trim() || 'Untitled section';
+
+  function sectionScopeText(sc) {
+    if (sc.kind === 'group') return `Changes apply to ${nameOf('product', sc.p)} everywhere it’s used.`;
+    if (sc.p) return `Changes here apply only to ${nameOf('product', sc.p)}, in every menu.`;
+    return `Changes here apply to every product that uses ${nameOf('group', sc.g)}.`;
   }
 
   const siblingGroupedHalves = (g) =>

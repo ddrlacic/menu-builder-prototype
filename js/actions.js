@@ -128,12 +128,16 @@
         select(activeMenu().id);
         break;
       case 'expand-all':
-        walkMenu(activeMenu(), (k, id, ent, p) => setExpanded(p, true));
+        walkMenu(activeMenu(), (k, id, ent, p) => {
+          setExpanded(p, true);
+          sectionPathsAt(k, p).forEach((s) => setExpanded(s, true));
+        });
         render();
         break;
       case 'collapse-all':
         walkMenu(activeMenu(), (k, id, ent, p) => {
           setExpanded(p, false);
+          sectionPathsAt(k, p).forEach((s) => setExpanded(s, false));
         });
         render();
         break;
@@ -214,7 +218,7 @@
         break;
       case 'toggle': {
         const open = !isExpanded(path, parsePath(path).depth);
-        if (e && e.altKey) walkSubtree(path, (k, id, ent, p) => setExpanded(p, open));
+        if (e && e.altKey) setExpandedDeep(path, open);
         else setExpanded(path, open);
         render();
         break;
@@ -537,7 +541,7 @@
         break;
       case 'section-add': {
         const p = entity('product', parsePath(S.ui.selected).id);
-        commit(() => p.sections.push({ id: uid('sec'), name: `Section ${p.sections.length + 1}` }));
+        commit(() => addNestSection(`product|${p.id}|groupSection`, 'sec'));
         requestAnimationFrame(() => {
           const inputs = document.querySelectorAll(`[data-bind^="e|product|${p.id}|sections."][data-bind$=".name"]`);
           const last = inputs[inputs.length - 1];
@@ -702,6 +706,26 @@
         if (gone) toast(`${gone.name.trim() || 'Section'} removed`, 'success', { action: { label: 'Undo', onClick: undo } });
         break;
       }
+      case 'section-move': {
+        const at = sectionAt(path);
+        if (at) moveSection(path, at.index + Number(el.dataset.delta));
+        break;
+      }
+      case 'section-edit-all':
+        S.ui.tabs.group = 'options';
+        T.sectionsHere = null;
+        T.inspScrollTo = 'Option sections';
+        select(path, { focusRow: true });
+        break;
+      case 'section-own-reset': {
+        const { g, p } = sectionCtx(path);
+        commit(() => {
+          delete p.optionSections[g.id];
+          if (!sectionAt(S.ui.selected)) S.ui.selected = path;
+        });
+        toast(`${nameOf('product', p)} uses the sections of ${nameOf('group', g)}`, 'success', { action: { label: 'Undo', onClick: undo } });
+        break;
+      }
       case 'own-sections-reset': {
         const g = entity('group', parsePath(S.ui.selected).id);
         const { p } = sectionHost(S.ui.selected);
@@ -712,10 +736,7 @@
       case 'own-section-add': {
         const g = entity('group', parsePath(S.ui.selected).id);
         const { p } = sectionHost(S.ui.selected);
-        commit(() => {
-          const own = ownSections(p, g);
-          own.sections.push({ id: uid('osec'), name: `Section ${own.sections.length + 1}` });
-        });
+        commit(() => addNestSection(`place|${p.id}:${g.id}|optionSection`, 'osec'));
         requestAnimationFrame(() => {
           const inputs = document.querySelectorAll(`[data-bind^="e|product|${p.id}|optionSections.${g.id}.sections."][data-bind$=".name"]`);
           const last = inputs[inputs.length - 1];
@@ -725,7 +746,7 @@
       }
       case 'opt-section-add': {
         const g = entity('group', parsePath(S.ui.selected).id);
-        commit(() => g.sections.push({ id: uid('osec'), name: `Section ${g.sections.length + 1}` }));
+        commit(() => addNestSection(`group|${g.id}|optionSection`, 'osec'));
         requestAnimationFrame(() => {
           const inputs = document.querySelectorAll(`[data-bind^="e|group|${g.id}|sections."][data-bind$=".name"]`);
           const last = inputs[inputs.length - 1];

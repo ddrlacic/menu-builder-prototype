@@ -57,7 +57,14 @@
         </div>`;
       })
       .join('');
-    return `<div class="nest-list" data-nest="${esc(key)}">${blocks}</div>`;
+    const outside = items.filter((it) => !sections.some((s) => s.id === it.section));
+    const outsideBlock = outside.length
+      ? `<div class="nest-block nest-outside" data-sid="">
+          <div class="nest-head nest-outside-head">${icon('alert', 13)}<span>Not in a section</span><span class="muted tnum">${plural(outside.length, one, many)}</span></div>
+          ${outside.map((it) => `<div class="nest-item" data-nest-row="item" data-id="${esc(it.id)}" tabindex="0" aria-label="${esc(it.name)}, not in a section. Drag or use the arrow keys to move it">${grip}<span class="nest-name">${esc(it.name)}</span></div>`).join('')}
+        </div>`
+      : '';
+    return `<div class="nest-list" data-nest="${esc(key)}">${blocks}${outsideBlock}</div>`;
   }
 
   const liveNote = (menuId) => {
@@ -469,10 +476,74 @@
     $('#inspector-body').innerHTML = `<div class="empty-small insp-empty">${icon('cursorClick', 20)}<strong>Nothing selected</strong><span>Select a category, product, or group to edit it. Shift-click or ⌘-click to select several.</span></div>`;
   }
 
+  function sectionNameBind(sc, i) {
+    if (sc.kind === 'group') return `e|product|${sc.p.id}|sections.${i}.name`;
+    if (sc.p) return `e|product|${sc.p.id}|optionSections.${sc.g.id}.sections.${i}.name`;
+    return `e|group|${sc.g.id}|sections.${i}.name`;
+  }
+
+  function renderSectionInspector(path) {
+    const at = sectionAt(path);
+    const { sc, section: s, index, ids } = at;
+    const hostKind = parsePath(sc.hostPath).kind;
+    const hostName = nameOf(hostKind, hostKind === 'product' ? sc.p : sc.g);
+    const nameError = s.name.trim() ? lengthError(s.name) : 'Add a section name';
+    const issues = (ctx.issues.byPath.get(path) || []).filter((i) => i.text !== nameError);
+    const tone = sc.kind === 'group' ? 'gsection' : 'osection';
+    const [one, many] = sc.noun;
+    const count = sc.src.sections.length;
+    $('#inspector-head').innerHTML = `
+      <div class="insp-head">
+        <span class="thumb kind-${tone} thumb-lg">${icon('rows', 15)}</span>
+        <div class="insp-titles">
+          <div class="insp-kicker"><span class="kind-chip kind-${tone}">${sc.kind === 'group' ? 'Group section' : 'Option section'}</span></div>
+          <h2 class="insp-title" title="${esc(sectionLabel(s))}">${esc(sectionLabel(s))}</h2>
+          <nav class="crumbs" aria-label="Location">${crumbs(sc.hostPath)
+            .map((c) => `<button type="button" class="crumb" data-action="goto" data-path="${esc(c.path)}">${esc(c.name)}</button>`)
+            .join('<span class="crumb-sep">›</span>')}</nav>
+        </div>
+      </div>
+      <p class="insp-type-help">A heading customers see over ${esc(many)} in ${esc(hostName)}. Only Web App shows headings.</p>
+      ${issues.length ? `<div class="insp-issues">${issues.map((i) => callout(i.level, esc(i.text))).join('')}</div>` : ''}`;
+    $('#inspector-tabs').innerHTML = '';
+    const btn = (delta, ic, label) =>
+      `<button type="button" class="icon-btn sm" data-action="section-move" data-path="${esc(path)}" data-delta="${delta}" data-focus-key="section-move|${delta}|${esc(path)}" aria-label="${label}" title="${label}" ${index + delta < 0 || index + delta >= count ? 'disabled' : ''}>${icon(ic, 14)}</button>`;
+    const links = [
+      sc.kind === 'option' && sc.p ? `<button type="button" class="link-btn" data-action="section-edit-all" data-path="${esc(sc.hostPath)}">Edit for every product</button>` : '',
+      sc.own ? `<button type="button" class="link-btn" data-action="section-own-reset" data-path="${esc(sc.hostPath)}">Use the same as other products</button>` : '',
+    ].filter(Boolean);
+    const list = ids.length
+      ? `<ul class="section-items">${ids
+          .map((id) => {
+            const p = childPath(sc.hostPath, sc.kind === 'group' ? 'group' : 'product', id);
+            const name = sc.kind === 'group' ? nameOf('group', entity('group', id)) : optionName(sc.g, id);
+            return `<li><button type="button" class="crumb-link" data-action="goto" data-path="${esc(p)}">${esc(name)}</button></li>`;
+          })
+          .join('')}</ul>`
+      : `<p class="field-help">No ${esc(many)} yet. Drag ${esc(many)} onto it in the builder.</p>`;
+    $('#inspector-body').innerHTML =
+      section('', field('Name', inputText(sectionNameBind(sc, index), s.name, { id: 'insp-name' }), { id: 'insp-name', error: nameError, help: 'Customers see it as a heading.' })) +
+      section(
+        `In ${hostName}`,
+        field(
+          'Position',
+          `<div class="position-control"><span class="muted tnum">${index + 1} of ${count}</span>${btn(-1, 'chevUp', 'Move up')}${btn(1, 'chevDown', 'Move down')}</div>`,
+          { help: esc(sectionScopeText(sc)) },
+        ) + (links.length ? `<div class="link-btns field-actions">${links.join('')}</div>` : ''),
+      ) +
+      section(`${many.charAt(0).toUpperCase()}${many.slice(1)} (${ids.length})`, list) +
+      section(
+        '',
+        `<div class="hint-actions"><button type="button" class="btn secondary tone-danger" data-action="remove-row" data-path="${esc(path)}">${icon('trash', 15)}Delete section</button></div>
+        <p class="field-help">${ids.length ? esc(`Its ${plural(ids.length, one, many)} stay in ${hostName}, outside a section.`) : 'Nothing else changes.'}</p>`,
+      );
+  }
+
   function renderInspector() {
     if (T.cleared) return renderEmptyInspector();
     if (T.sel.length > 1) return renderBulkInspector();
     const path = S.ui.selected;
+    if (parsePath(path).kind === 'section') return renderSectionInspector(path);
     const info = parsePath(path);
     const ent = entity(info.kind, info.id);
     const kind = info.kind;
