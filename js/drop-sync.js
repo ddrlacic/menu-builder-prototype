@@ -494,6 +494,10 @@
     for (const [id, r] of Object.entries(demo.rules || {})) if (items[id]) Object.assign(items[id], r), touched.add(id);
     for (const [id, item] of Object.entries(demo.add || {})) (items[id] = JSON.parse(JSON.stringify(item))), touched.add(id);
     for (const [parent, child] of demo.addTo || []) if (items[parent] && !items[parent].children.includes(child)) items[parent].children.push(child), touched.add(child);
+    for (const [pmId, cat] of demo.addRoot || []) {
+      const pm = S.data.pos.menus.find((m) => m.id === pmId);
+      if (pm && items[cat] && !pm.roots.includes(cat)) pm.roots.push(cat), touched.add(cat);
+    }
     for (const [parent, child] of demo.removeFrom || []) if (items[parent]) (items[parent].children = items[parent].children.filter((c) => c !== child)), touched.add(child);
     for (const [id, list] of Object.entries(demo.includedModifiers || {})) if (items[id]) items[id].includedModifiers = JSON.parse(JSON.stringify(list));
     for (const id of demo.delete || []) {
@@ -602,6 +606,42 @@
 
   const IMPORT_MS = 2400;
 
+  function ignoreLeftOut(menus) {
+    const scopes = new Map();
+    for (const menu of menus) {
+      const key = ignoreKey(menu, '');
+      if (!scopes.has(key)) scopes.set(key, S.data.menus.filter((m) => ignoreKey(m, '') === key));
+    }
+    for (const shared of scopes.values()) {
+      const inMenu = new Set();
+      const missing = new Set();
+      const todo = [];
+      for (const menu of shared) {
+        const pm = linkedPosMenu(menu);
+        if (pm) todo.push(...pm.roots);
+        walkMenu(menu, (k, id, ent) => {
+          const posId = posIdOf(k, ent);
+          if (posId) inMenu.add(posId);
+          if (ent.source === 'pos') todo.push(...posChildren(ent.externalId));
+        });
+        const d = compareData(menu);
+        [...d.missing, ...d.ignored].forEach((m) => missing.add(m.posId));
+      }
+      const seen = new Set();
+      while (todo.length) {
+        const id = todo.pop();
+        if (seen.has(id) || !posItemById(id)) continue;
+        seen.add(id);
+        todo.push(...posChildren(id));
+      }
+      for (const id of new Set([...seen, ...missing])) {
+        const key = ignoreKey(shared[0], id);
+        if (inMenu.has(id) && !missing.has(id)) delete S.data.ignored[key];
+        else if (!S.data.ignored[key]) S.data.ignored[key] = ignoreBaseline(posItemById(id));
+      }
+    }
+  }
+
   function importStaged(done) {
     if (T.importing || !pendingRows().length) return;
     closePopover();
@@ -609,6 +649,7 @@
     render();
     setTimeout(() => {
       T.importing = false;
+      const imported = new Set(pendingRows().map((p) => parsePath(p).menuId));
       const reached = new Set();
       S.data.menus.forEach((m) => walkMenu(m, (k, id) => void reached.add(`${k}:${id}`)));
       for (const [kind, map] of Object.entries(S.data.entities))
@@ -616,6 +657,7 @@
       finishStagedSizes();
       Object.values(S.data.entities.product).forEach((p) => p.pending && applyPosIncluded(p));
       clearPending();
+      ignoreLeftOut(S.data.menus.filter((m) => imported.has(m.id)));
       clearHistory();
       dataVersion++;
       render();

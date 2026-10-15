@@ -175,6 +175,7 @@ window.EXAMPLE_PRODUCTS = {
 };
 
 window.EXAMPLE_SYNC_DEMO = {
+  rename: { 'pos-mushroom-swiss': 'Mushroom Swiss Melt' },
   price: { 'pos-truffle': 19 },
   rules: { 'pos-g-addons': { max: 5 } },
   add: {

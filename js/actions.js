@@ -883,7 +883,7 @@
         break;
       case 'cmp-ignore': {
         const n = T.cmp.sel.size;
-        commit(() => T.cmp.sel.forEach((k) => (S.data.ignored[ignoreKey(activeMenu(), k)] = true)));
+        commit(() => T.cmp.sel.forEach((k) => (S.data.ignored[ignoreKey(activeMenu(), k)] = ignoreBaseline(posItemById(k)))));
         T.cmp.sel.clear();
         renderCompare();
         toast(`${plural(n, 'item', 'items')} ignored`, 'info');
@@ -891,6 +891,9 @@
       }
       case 'cmp-unignore':
         commit(() => delete S.data.ignored[ignoreKey(activeMenu(), el.dataset.key)]);
+        break;
+      case 'cmp-keep-ignoring':
+        commit(() => (S.data.ignored[ignoreKey(activeMenu(), el.dataset.key)] = ignoreBaseline(posItemById(el.dataset.key))));
         break;
       case 'cmp-review':
         commit(() => ctx.compare.changed.forEach((c) => (c.ent.reviewed = posSnapshot(posItem(c.ent)))));

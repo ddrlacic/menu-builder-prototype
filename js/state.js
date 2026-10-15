@@ -358,11 +358,22 @@
   }
 
   function migrateIgnored() {
-    for (const k of Object.keys(S.data.ignored || {})) {
+    if (!S.data.ignored) S.data.ignored = {};
+    for (const k of Object.keys(S.data.ignored)) {
       if (!k.includes('/')) continue;
       const posId = k.split('/').pop();
       S.data.menus.forEach((m) => (S.data.ignored[ignoreKey(m, posId)] = true));
       delete S.data.ignored[k];
+    }
+    for (const [k, v] of Object.entries(S.data.ignored)) {
+      if (v !== true) continue;
+      const it = posItemById(k.slice(k.indexOf('|') + 1));
+      if (it) S.data.ignored[k] = ignoreBaseline(it);
+      else delete S.data.ignored[k];
+    }
+    if (!S.data.ignoreOnImport) {
+      S.data.ignoreOnImport = true;
+      ignoreLeftOut(S.data.menus);
     }
   }
 
@@ -624,6 +635,13 @@
     return snap;
   }
 
+  function ignoreBaseline(item) {
+    const base = { name: item.name };
+    if (item.type !== 'category') base.children = [...(item.children || [])].sort();
+    if (item.type === 'group') base.rules = { groupType: item.groupType || 1, min: ruleValue('min', item.min), max: ruleValue('max', item.max) };
+    return base;
+  }
+
   function newPosEntity(posId) {
     const item = posItemById(posId);
     const kind = item.type;
@@ -679,6 +697,7 @@
       placements: {},
       pendingLinks: {},
       ignored: {},
+      ignoreOnImport: true,
       oneGroupPerStore: true,
     };
     if (!S.data.pos.syncedAt) S.data.pos.syncedAt = Date.now() - 1000 * 60 * 18;
@@ -691,6 +710,7 @@
       if (!m.image) m.image = posImageOf(m);
     });
     clearPending();
+    ignoreLeftOut(S.data.menus);
   }
 
   function migratePosImages() {

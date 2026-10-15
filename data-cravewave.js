@@ -494,10 +494,11 @@ window.POS_DATASETS.cravewave = {
     ],
   },
   syncDemo: {
-    rename: {"673962572":"Garden Side Salad"},
+    rename: {"673962572":"Garden Side Salad","673961682":"10\" Garden Harvest Deluxe"},
     rules: {"673962400":{"max":2}},
-    add: {"cw-mozzarella-sticks":{"type":"product","name":"Mozzarella Sticks","price":7.99,"description":"Breaded mozzarella, fried golden.","children":["673962400"]}},
+    add: {"cw-mozzarella-sticks":{"type":"product","name":"Mozzarella Sticks","price":7.99,"description":"Breaded mozzarella, fried golden.","children":["673962400"]},"cw-cat-game-day":{"type":"category","name":"Game Day","children":["cw-mozzarella-sticks"]}},
     addTo: [["673962384","cw-mozzarella-sticks"]],
+    addRoot: [["default","cw-cat-game-day"]],
     delete: ["673963604"],
     includedModifiers: {"673962572":[["673962573","673962575"],["673962573","673962056"],["673962573","673962582"],["673962573","673962589"]]},
   },

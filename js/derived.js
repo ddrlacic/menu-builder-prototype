@@ -300,12 +300,47 @@
     return { diffs, name, rules, type };
   }
 
+  function ignoredChanges(base, it) {
+    const diffs = [];
+    if (base.name !== it.name) diffs.push(`Name: ${base.name} → ${it.name}`);
+    if (base.children) {
+      const now = it.children || [];
+      const names = (ids) => listJoin(ids.map((c) => (posItemById(c) || { name: c }).name));
+      const label = it.type === 'group' ? 'Options' : 'Groups';
+      const added = now.filter((c) => !base.children.includes(c));
+      const removed = base.children.filter((c) => !now.includes(c));
+      if (added.length) diffs.push(`${label} added: ${names(added)}`);
+      if (removed.length) diffs.push(`${label} removed: ${names(removed)}`);
+    }
+    if (base.rules) {
+      const was = base.rules;
+      const now = { groupType: it.groupType || 1, min: ruleValue('min', it.min), max: ruleValue('max', it.max) };
+      const lim = (v) => (v == null ? 'no limit' : v);
+      if (was.groupType !== now.groupType) diffs.push(`Type: ${C.groupTypes[was.groupType].label} → ${C.groupTypes[now.groupType].label}`);
+      if (was.min !== now.min) diffs.push(`Minimum: ${was.min} → ${now.min}`);
+      if (was.max !== now.max) diffs.push(`Maximum: ${lim(was.max)} → ${lim(now.max)}`);
+    }
+    return diffs;
+  }
+
   function compareData(menu) {
     const missing = new Map();
     const changed = new Map();
     const gone = [];
     const goneSeen = new Set();
     const deleted = new Map();
+    const missingEntry = (cid, kind, group) => ({ key: cid, kind, posId: cid, group, paths: [], parents: [], seen: new Set(), ignored: S.data.ignored[ignoreKey(menu, cid)] || null });
+    const pm = linkedPosMenu(menu);
+    if (pm) {
+      const here = new Set(menu.children.map((cid) => posIdOf('category', entity('category', cid))).filter(Boolean));
+      for (const cid of pm.roots) {
+        if (here.has(cid) || !posItemById(cid)) continue;
+        const m = missingEntry(cid, 'category', `menu:${menu.id}`);
+        m.paths.push(menu.id);
+        m.parents.push(nameOf('menu', menu));
+        missing.set(cid, m);
+      }
+    }
     walkMenu(menu, (kind, id, ent, path) => {
       const pi = parsePath(parsePath(path).parentPath);
       const linkKey = `${pi.kind}:${pi.id}>${kind}:${id}`;
@@ -332,7 +367,7 @@
       for (const cid of posChildren(ent.externalId)) {
         if (!posItemById(cid) || childOnCanvas(kind, path, ent, cid)) continue;
         let m = missing.get(cid);
-        if (!m) missing.set(cid, (m = { key: cid, kind: childKind(kind, ent), posId: cid, group: `${kind}:${id}`, paths: [], parents: [], seen: new Set(), ignored: !!S.data.ignored[ignoreKey(menu, cid)] }));
+        if (!m) missing.set(cid, (m = missingEntry(cid, childKind(kind, ent), `${kind}:${id}`)));
         if (m.seen.has(`${kind}:${id}`)) continue;
         m.seen.add(`${kind}:${id}`);
         m.paths.push(path);
@@ -341,12 +376,15 @@
     });
     const all = [...missing.values()];
     const fresh = all.filter((m) => !m.ignored);
+    const ignored = all.filter((m) => m.ignored);
+    const ignoredChanged = ignored.map((m) => ({ ...m, diffs: ignoredChanges(m.ignored, posItemById(m.posId)) })).filter((m) => m.diffs.length);
     return {
       missing: fresh,
-      ignored: all.filter((m) => m.ignored),
+      ignored,
+      ignoredChanged,
       changed: [...changed.values()],
       gone,
-      count: fresh.length + changed.size + gone.length,
+      count: fresh.length + changed.size + ignoredChanged.length + gone.length,
     };
   }
 

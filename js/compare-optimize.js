@@ -5,7 +5,8 @@
   function openCompare() {
     openModal({ title: 'Compare to POS', body: '<div id="cmp"></div>', size: 'lg', top: true, foot: '<div class="modal-foot" id="cmp-foot"></div>' });
     const d = ctx.compare;
-    T.cmp = { tab: d.missing.length || !(d.changed.length || d.gone.length) ? 'new' : d.changed.length ? 'changed' : 'gone', sel: new Set() };
+    const changes = d.changed.length + d.ignoredChanged.length;
+    T.cmp = { tab: d.missing.length || !(changes || d.gone.length) ? 'new' : changes ? 'changed' : 'gone', sel: new Set() };
     renderCompare();
   }
 
@@ -14,7 +15,7 @@
     const data = ctx.compare;
     const { tab, sel } = T.cmp;
     for (const k of [...sel]) if (!data.missing.some((m) => m.key === k)) sel.delete(k);
-    const posRow = (m, control, grouped) => {
+    const posRow = (m, control, grouped, tail = '', note = '') => {
       const it = posItemById(m.posId);
       const ps = grouped ? m.parents.slice(1) : m.parents;
       const where = ps.length > 1 ? `${ps[0]} and ${ps.length - 1} more` : ps[0];
@@ -22,12 +23,13 @@
       return `<div class="cmp-row">
         ${control}
         <span class="kind-glyph kind-${it.type}">${icon(KIND_ICON[it.type], 13)}</span>
-        <span class="cmp-main"><span class="cmp-name">${esc(it.name)}</span><span class="cmp-meta">${place}<span class="mono">${esc(m.posId)}</span></span></span>
+        <span class="cmp-main"><span class="cmp-name">${esc(it.name)}</span><span class="cmp-meta">${place}<span class="mono">${esc(m.posId)}</span></span>${note ? `<span class="cmp-meta tnum">${esc(note)}</span>` : ''}</span>
+        ${tail}
       </div>`;
     };
     const tabs = [
       ['new', 'New on POS', data.missing.length],
-      ['changed', 'Changed on POS', data.changed.length],
+      ['changed', 'Changed on POS', data.changed.length + data.ignoredChanged.length],
       ['gone', 'No longer on POS', data.gone.length],
       ['ignored', 'Ignored items', data.ignored.length],
     ];
@@ -41,14 +43,14 @@
         const allOn = data.missing.every((m) => sel.has(m.key));
         const box = (st) => `<span class="check${st === 'off' ? '' : ' is-on'}" aria-hidden="true">${st === 'on' ? icon('check', 12) : st === 'mixed' ? icon('minus', 12) : ''}</span>`;
         body += `<section class="cmp-section">
-          <header class="cmp-head"><p class="section-desc">On POS under items in this menu, but not added yet.</p>
+          <header class="cmp-head"><p class="section-desc">On POS, but not in ${esc(activeMenu().name)} yet. Anything you leave out is ignored when you import.</p>
             <button type="button" class="btn ghost sm" data-action="cmp-all">${allOn ? 'Clear selection' : 'Select all'}</button></header>
           <div class="cmp-groups">${compareGroups(data.missing)
             .map((g) => {
               const n = g.items.filter((m) => sel.has(m.key)).length;
               const st = n === 0 ? 'off' : n === g.items.length ? 'on' : 'mixed';
               const pi = parsePath(g.path);
-              const where = pi.kind === 'category' ? '' : crumbText(parsePath(g.path).parentPath);
+              const where = pi.kind === 'menu' || pi.kind === 'category' ? '' : crumbText(pi.parentPath);
               return `<div class="cmp-list">
                 <button type="button" class="cmp-row cmp-group-head" role="checkbox" aria-checked="${st === 'mixed' ? 'mixed' : st === 'on'}" data-action="cmp-toggle-group" data-group="${esc(g.key)}">
                   ${box(st)}
@@ -71,8 +73,8 @@
         </section>`;
       }
     } else if (tab === 'changed') {
-      if (!data.changed.length) body += empty('Nothing changed on POS');
-      else {
+      if (!data.changed.length && !data.ignoredChanged.length) body += empty('Nothing changed on POS');
+      if (data.changed.length) {
         body += `<section class="cmp-section">
           <header class="cmp-head"><p class="section-desc">Already in the menu. Nothing changes here until you use the POS name or rules.</p>
             <button type="button" class="btn ghost sm" data-action="cmp-review">Mark as reviewed</button></header>
@@ -83,6 +85,23 @@
                 ${c.name && c.ent.name !== posItem(c.ent).name ? `<button type="button" class="btn secondary sm" data-action="cmp-use-name" data-path="${esc(c.path)}">Use POS name</button>` : ''}
                 ${c.rules && rulesDifferFromPos(c.ent) ? `<button type="button" class="btn secondary sm" data-action="cmp-use-rules" data-path="${esc(c.path)}">Use POS rules</button>` : ''}
                 <button type="button" class="btn ghost sm" data-action="cmp-goto" data-path="${esc(c.path)}">Show</button></div>`,
+            )
+            .join('')}</div>
+        </section>`;
+      }
+      if (data.ignoredChanged.length) {
+        body += `<section class="cmp-section">
+          <p class="section-desc">Ignored items that changed on POS. Stop ignoring one to add it from New on POS.</p>
+          <div class="cmp-list">${data.ignoredChanged
+            .map((m) =>
+              posRow(
+                m,
+                '',
+                false,
+                `<button type="button" class="btn secondary sm" data-action="cmp-unignore" data-key="${esc(m.key)}">Stop ignoring</button>
+                <button type="button" class="btn ghost sm" data-action="cmp-keep-ignoring" data-key="${esc(m.key)}">Keep ignoring</button>`,
+                m.diffs.join(' · '),
+              ),
             )
             .join('')}</div>
         </section>`;
@@ -105,8 +124,8 @@
       }
     } else {
       body += data.ignored.length
-        ? `<section class="cmp-section"><p class="section-desc">Hidden from New on POS. They stay on POS.</p><div class="cmp-list">${data.ignored
-            .map((m) => posRow(m, '').replace('</div>', '') + `<button type="button" class="btn ghost sm" data-action="cmp-unignore" data-key="${esc(m.key)}">Stop ignoring</button></div>`)
+        ? `<section class="cmp-section"><p class="section-desc">Hidden from New on POS. They stay on POS, and show under Changed on POS if they change there.</p><div class="cmp-list">${data.ignored
+            .map((m) => posRow(m, '', false, `<button type="button" class="btn ghost sm" data-action="cmp-unignore" data-key="${esc(m.key)}">Stop ignoring</button>`))
             .join('')}</div></section>`
         : `<div class="empty-small"><strong>No ignored items</strong><span>Items you ignore show up here.</span></div>`;
     }
