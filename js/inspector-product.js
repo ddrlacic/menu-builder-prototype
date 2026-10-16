@@ -3,10 +3,6 @@
   const productBind = (p) => (f) => `e|product|${p.id}|${f}`;
   const PRODUCT_SHOWN = 'Shown in Web App and Kiosk, and sent to delivery partners';
 
-  const moveButtons = (bind, i, count, label) =>
-    `<button type="button" class="icon-btn sm" data-action="arr-move" data-bind="${esc(bind)}" data-index="${i}" data-delta="-1" aria-label="Move ${esc(label)} up" title="Move up" ${i === 0 ? 'disabled' : ''}>${icon('chevUp', 14)}</button>` +
-    `<button type="button" class="icon-btn sm" data-action="arr-move" data-bind="${esc(bind)}" data-index="${i}" data-delta="1" aria-label="Move ${esc(label)} down" title="Move down" ${i === count - 1 ? 'disabled' : ''}>${icon('chevDown', 14)}</button>`;
-
   const removeButton = (bind, i, label) =>
     `<button type="button" class="icon-btn sm" data-action="arr-remove" data-bind="${esc(bind)}" data-index="${i}" aria-label="Remove ${esc(label)}" title="Remove">${icon('x', 14)}</button>`;
 
@@ -29,7 +25,6 @@
     `<div class="hint-actions">${add}${count > 1 ? `<button type="button" class="btn ghost sm tone-danger" data-action="subs-clear" data-bind="${esc(bind)}">${icon('x', 14)}Remove all</button>` : ''}</div>`;
 
   function choicesSection(p, path) {
-    const pb = productBind(p);
     const pName = nameOf('product', p);
     const add = addButton('add-choice', 'Add product');
     if (!p.children.length)
@@ -38,7 +33,7 @@
     const menuName = nameOf('menu', menu);
     const home = entity('category', parsePath(parsePath(path).parentPath).id);
     const rows = p.children
-      .map((pid, i) => {
+      .map((pid) => {
         const x = entity('product', pid);
         if (!x) return '';
         const op = childPath(path, 'product', pid);
@@ -47,25 +42,18 @@
         const sub = !home.children.includes(pid)
           ? `Not in ${nameOf('category', home)}, so ${inMenuCategory(menu, pid) ? 'delivery apps leave it out' : 'customers cannot pick it'}`
           : '';
-        const open = T.openCard === `choice:${pid}`;
-        const detail = open
-          ? `<div class="opt-detail"><div class="opt-detail-foot">
-              <div class="position-control"><span class="tnum">${i + 1} of ${p.children.length}</span>${moveButtons(pb('children'), i, p.children.length, name)}</div>
-              <button type="button" class="btn ghost sm tone-danger" data-action="remove" data-path="${esc(op)}">${icon('x', 14)}Remove from ${esc(pName)}</button>
-            </div></div>`
-          : '';
-        return `<div class="opt-item${open ? ' is-open' : ''}"><div class="opt-row${hidden ? ' is-muted' : ''}">
+        return `<div class="opt-item"><div class="opt-row${hidden ? ' is-muted' : ''}">
             <button type="button" class="opt-name" data-action="goto" data-path="${esc(op)}">${thumb('product', x, 'thumb-sm')}<span class="opt-name-text"><span class="opt-name-label" title="${esc(name)}">${esc(name)}</span>${sub ? `<span class="opt-name-sub"><span class="tone-warning">${esc(sub)}</span></span>` : ''}</span></button>
             <button type="button" class="switch" role="switch" aria-checked="${!hidden}" aria-label="Show ${esc(name)}" data-toggle="pl|${esc(op)}|hidden" data-focus-key="pl|${esc(op)}|hidden"><span class="switch-thumb"></span></button>
-            <button type="button" class="icon-btn sm opt-expand" data-action="card-open" data-id="choice:${esc(pid)}" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings">${icon('chevDown', 14)}</button>
-          </div>${detail}</div>`;
+            <button type="button" class="icon-btn sm" data-action="remove" data-path="${esc(op)}" aria-label="Remove ${esc(name)} from ${esc(pName)}" title="Remove from ${esc(pName)}">${icon('x', 14)}</button>
+          </div></div>`;
       })
       .join('');
     return (
       section(
         'Choices',
         `<div class="opt-table has-expand no-pre no-price">
-          <div class="opt-head"><span>Choice</span><span>Shown</span><span class="sr-only">Settings</span></div>
+          <div class="opt-head"><span>Choice</span><span>Shown</span><span class="sr-only">Remove</span></div>
           ${rows}
         </div>
         <p class="field-help">Customers pick one. Only the product they pick goes to POS, at its own POS price. Shown applies only in ${esc(menuName)}.${liveNote(parsePath(path).menuId)}</p>

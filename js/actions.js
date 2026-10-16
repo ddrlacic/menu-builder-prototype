@@ -463,23 +463,6 @@
         toast(editing ? 'Tag updated' : 'Tag added');
         break;
       }
-      case 'arr-move': {
-        const list = (getBind(el.dataset.bind) || []).slice();
-        const from = Number(el.dataset.index);
-        const to = from + Number(el.dataset.delta);
-        if (to < 0 || to >= list.length) break;
-        list.splice(to, 0, list.splice(from, 1)[0]);
-        commit(() => setBind(el.dataset.bind, list));
-        requestAnimationFrame(() => {
-          const at = `[data-action="arr-move"][data-bind="${CSS.escape(el.dataset.bind)}"][data-index="${to}"]`;
-          const btn = document.querySelector(`${at}[data-delta="${el.dataset.delta}"]:not(:disabled)`) || document.querySelector(`${at}:not(:disabled)`);
-          if (!btn) return;
-          btn.focus({ preventScroll: true });
-          const row = btn.closest('.list-row, .segment-row, .opt-item');
-          if (row) row.classList.add('is-flash');
-        });
-        break;
-      }
       case 'subs-clear': {
         const n = (getBind(el.dataset.bind) || []).length;
         commit(() => setBind(el.dataset.bind, []));

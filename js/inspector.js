@@ -11,7 +11,7 @@
     const parent = entity(pInfo.kind, pInfo.id);
     const index = parent.children.indexOf(info.id);
     const count = parent.children.length;
-    if (index < 0 || count < 2) return '';
+    if (index < 0 || count < 2 || (pInfo.kind === 'product' && info.kind === 'product')) return '';
     const name = esc(nameOf(pInfo.kind, parent));
     const where = {
       menu: `Order customers see in ${name}`,
@@ -19,7 +19,7 @@
       group: `Same order in every product that uses ${name}`,
       product: `Same order everywhere ${name} is used`,
     }[pInfo.kind];
-    const noun = { category: 'products', group: 'options', product: info.kind === 'group' ? 'groups' : 'choices' }[pInfo.kind];
+    const noun = { category: 'products', group: 'options', product: 'groups' }[pInfo.kind];
     const anyHidden = noun && parent.children.some((id) => id !== info.id && groupHiddenAt(childPath(info.parentPath, info.kind, id)));
     const btn = (delta, ic, label) =>
       `<button type="button" class="icon-btn sm" data-action="pos-move" data-path="${esc(path)}" data-delta="${delta}" data-focus-key="pos-move|${delta}|${esc(path)}" aria-label="${label}" title="${label}" ${index + delta < 0 || index + delta >= count ? 'disabled' : ''}>${icon(ic, 14)}</button>`;
