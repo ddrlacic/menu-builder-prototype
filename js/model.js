@@ -449,16 +449,16 @@
   const sectionLabel = (s) => s.name.trim() || 'Untitled section';
 
   function deleteSectionHelp(sc, index, count, hostName) {
-    if (!count) return 'Nothing else changes.';
+    if (!count) return 'Nothing else changes';
     const items = plural(count, ...sc.noun);
-    if (sc.src.sections.length > 1) return `Its ${items} stay in ${hostName}, outside a section.`;
-    return `Its ${items} stay in ${hostName}, ${sc.kind === 'group' ? 'without tabs' : 'without headings'}.`;
+    if (sc.src.sections.length > 1) return `Its ${items} stay in ${hostName}, outside a section`;
+    return `Its ${items} stay in ${hostName}, ${sc.kind === 'group' ? 'without tabs' : 'without headings'}`;
   }
 
   function sectionScopeText(sc) {
-    if (sc.kind === 'group') return `Changes apply to ${nameOf('product', sc.p)} everywhere it’s used.`;
-    if (sc.p) return `Changes here apply only to ${nameOf('product', sc.p)}, in every menu.`;
-    return `Changes here apply to every product that uses ${nameOf('group', sc.g)}.`;
+    if (sc.kind === 'group') return `Changes apply to ${nameOf('product', sc.p)} everywhere it’s used`;
+    if (sc.p) return `Changes here apply only to ${nameOf('product', sc.p)}, in every menu`;
+    return `Changes here apply to every product that uses ${nameOf('group', sc.g)}`;
   }
 
   const siblingGroupedHalves = (g) =>
@@ -794,14 +794,16 @@
     const max = limitOf(r.max);
     const opt = (n) => plural(n, 'option', 'options');
     let s;
-    if (min > 0 && max === min) s = `Customers need to choose exactly ${opt(min)}.`;
-    else if (min > 0 && max == null) s = `Customers need to choose at least ${opt(min)}.`;
-    else if (min > 0) s = `Customers need to choose between ${min} and ${opt(max)}.`;
-    else if (max != null) s = `Customers can skip this group or choose up to ${opt(max)}.`;
-    else s = 'Customers can skip this group or choose as many options as they like.';
-    if ((r.maxSingle || 1) > 1) s += ` Each option can be picked up to ${r.maxSingle} times.`;
-    if (r.freeCount > 0) s += ` The first ${r.freeCount === 1 ? 'choice is' : `${r.freeCount} choices are`} free, in the order customers pick them.`;
-    return s;
+    if (min > 0 && max === min) s = `Customers need to choose exactly ${opt(min)}`;
+    else if (min > 0 && max == null) s = `Customers need to choose at least ${opt(min)}`;
+    else if (min > 0) s = `Customers need to choose between ${min} and ${opt(max)}`;
+    else if (max != null) s = `Customers can skip this group or choose up to ${opt(max)}`;
+    else s = 'Customers can skip this group or choose as many options as they like';
+    return sentences(
+      s,
+      (r.maxSingle || 1) > 1 && `Each option can be picked up to ${r.maxSingle} times`,
+      r.freeCount > 0 && `The first ${r.freeCount === 1 ? 'choice is' : `${r.freeCount} choices are`} free, in the order customers pick them`,
+    );
   }
 
   function removedFromPos(path) {

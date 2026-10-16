@@ -67,7 +67,7 @@
         throw new Abort(`${nameOf(d.kind, entity(d.kind, id))} is already in ${parentName}`);
       } else if (inheritedAt(d.path).length) {
         const from = listJoin(inheritedAt(d.path).map((g) => nameOf('group', g)));
-        throw new Abort(`${from} adds this group to every option. Remove it on the Options tab of ${from}.`);
+        throw new Abort(`${from} adds this group to every option. Remove it on the Options tab of ${from}`);
       }
       moved = oldParent !== parent;
       oldParent.children.splice(oldIndex, 1);
@@ -599,9 +599,9 @@
       res = applyPosIncluded(p);
       if (!res || !(res.added + res.updated + res.removed + res.preselected)) throw new Abort('');
     });
-    if (!ok) return res && toast('Included ingredients already match POS.', 'info');
+    if (!ok) return res && toast('Included ingredients already match POS', 'info');
     const parts = [res.added && `${res.added} added`, res.updated && `${res.updated} updated`, res.removed && `${res.removed} removed`].filter(Boolean);
-    toast(parts.length ? `Included ingredients now match POS: ${listJoin(parts)}.` : 'Preselections now match POS.', 'success', { action: { label: 'Undo', onClick: undo } });
+    toast(parts.length ? `Included ingredients now match POS: ${listJoin(parts)}` : 'Preselections now match POS', 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
   const IMPORT_MS = 2400;
@@ -869,7 +869,7 @@
       title: `Couldn’t publish at ${plural(n, 'store', 'stores')}`,
       body: `<p>${now} ${canRetry ? `Retry to send it to ${n === 1 ? 'this store' : 'them'} again.` : `Publishing failed ${tries} times. Contact support to publish it.`}</p>
         <div class="store-list">${rows}</div>
-        ${callout('info', `Until it’s published, adding, moving and removing items in ${esc(m.name)} is paused.`)}`,
+        ${callout('info', `Until it’s published, adding, moving and removing items in ${esc(m.name)} is paused`)}`,
       actions: [
         { label: 'Close', kind: 'secondary', onClick: closeModal },
         ...(canRetry ? [{ label: 'Retry publishing', kind: 'primary', onClick: () => { closeModal(); retryPublish(m); } }] : []),

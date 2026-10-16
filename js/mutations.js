@@ -363,7 +363,7 @@
     openPopover(anchor, [
       addMenuItem(activeMenu().id),
       { heading: 'Create' },
-      { label: 'Menu-only category', hint: 'Arrange products your own way. Not on POS', icon: 'dashed', onClick: createVirtualCategory },
+      { label: 'Menu-only category', hint: 'Arrange products your own way. Not on POS.', icon: 'dashed', onClick: createVirtualCategory },
     ]);
   }
 
@@ -478,8 +478,8 @@
     const intro =
       mode === 'add'
         ? single
-          ? `It stays one ${one}, so edits apply everywhere it’s used.`
-          : `Each stays one ${one}, so edits apply everywhere they’re used.`
+          ? `It stays one ${one}, so edits apply everywhere it’s used`
+          : `Each stays one ${one}, so edits apply everywhere they’re used`
         : single
           ? `Pick where ${name} goes. It’s removed from ${nameOf(from.kind, entity(from.kind, from.id))}.`
           : `Pick where they go. They’re removed from where they are now.`;
@@ -1008,7 +1008,7 @@
     );
     openListPicker({
       title,
-      intro: `Products from the menus that have ${name}.`,
+      intro: `Products from the menus that have ${name}`,
       groups,
       noun: ['product', 'products'],
       empty: menus.length ? 'Every product is already added' : `Add ${name} to a category first`,
@@ -1023,7 +1023,7 @@
     const taken = new Set(p.included.map((it) => `${it.gid}:${it.pid}`));
     openListPicker({
       title: 'Add included ingredients',
-      intro: `Options from the groups of ${nameOf('product', p)}.`,
+      intro: `Options from the groups of ${nameOf('product', p)}`,
       groups: optionGroups(
         productOptions(p, { noHalves: true }).filter((o) => !taken.has(o.key)),
         (o) => pickItem(o.x, { id: o.key, name: optionName(o.g, o.pid) }),
@@ -1044,7 +1044,7 @@
     const seen = new Set([originId, p.id, ...chosen]);
     openListPicker({
       title: `Add substitutes for ${nameOf('product', entity('product', originId))}`,
-      intro: `Options from the groups of ${nameOf('product', p)}.`,
+      intro: `Options from the groups of ${nameOf('product', p)}`,
       groups: optionGroups(
         productOptions(p, { noHalves: true }).filter((o) => !seen.has(o.pid) && seen.add(o.pid)),
         (o) => pickItem(o.x, { name: optionName(o.g, o.pid) }),
@@ -1068,7 +1068,7 @@
       intro:
         parents.length > 1
           ? `Options from groups on at least two of the products that use ${nameOf('group', g)}. A substitute works only on products that have its group.`
-          : `Options from the other groups of ${nameOf('product', parents[0])}.`,
+          : `Options from the other groups of ${nameOf('product', parents[0])}`,
       groups: swapSourceGroups(g).map((x) => ({
         id: x.id,
         name: nameOf('group', x),
@@ -1221,7 +1221,7 @@
       placeholder: 'Search by group name or POS ID',
       items: posGroupChoices(g, productPath),
       empty: `${name} has no other groups on POS`,
-      noMatch: ['No matching POS groups', 'Try a different name or POS ID.'],
+      noMatch: ['No matching POS groups', 'Try a different name or POS ID'],
       onPick: (posId) => {
         closeModal(true);
         linkGroup(g, posId);
@@ -1295,10 +1295,10 @@
   }
 
   function publishDeleteBlock(menus, what) {
-    if (menus.some((m) => m.status === 'publishing')) return `You can delete the ${what} once publishing finishes.`;
+    if (menus.some((m) => m.status === 'publishing')) return `You can delete the ${what} once publishing finishes`;
     const failed = menus.find((m) => m.status === 'failed');
     if (!failed) return '';
-    return canRetryPublish(failed) ? `Retry publishing ${failed.name} first, then delete the ${what}.` : `Contact support to finish publishing ${failed.name}, then delete the ${what}.`;
+    return canRetryPublish(failed) ? `Retry publishing ${failed.name} first, then delete the ${what}` : `Contact support to finish publishing ${failed.name}, then delete the ${what}`;
   }
 
   function groupDeleteBlock(g) {
@@ -1568,7 +1568,7 @@
   function removeLink(path, { quiet = false } = {}) {
     const from = inheritedAt(path).map((g) => nameOf('group', g));
     if (from.length) {
-      toast(`${listJoin(from)} adds this group to every option. Remove it on the Options tab of ${listJoin(from)}.`, 'error');
+      toast(`${listJoin(from)} adds this group to every option. Remove it on the Options tab of ${listJoin(from)}`, 'error');
       return;
     }
     const info = parsePath(path);
@@ -1634,7 +1634,7 @@
   }
 
   const menuDuplicateBlock = (m) =>
-    pendingRows().some((p) => parsePath(p).menuId === m.id) ? 'Import or discard the items not imported first, then duplicate the menu.' : '';
+    pendingRows().some((p) => parsePath(p).menuId === m.id) ? 'Import or discard the items not imported first, then duplicate the menu' : '';
 
   function duplicateMenu(id) {
     const m = menuById(id);
@@ -1713,8 +1713,8 @@
     const anyHidden = cat.children.some((pid) => placement(childPath(catPath, 'product', pid)).hidden);
     openModal({
       title: `Remove ${nameOf('category', cat)} from ${menuName}?`,
-      body: `<p>${m.publishedStoreIds.length ? `Customers stop seeing it in ${esc(menuName)} right away. ` : ''}${anyHidden ? `Products you hid in ${esc(menuName)} are shown again if you add it back. ` : ''}${cat.source === 'pos' ? 'It stays on POS.' : 'Nothing changes on POS.'}</p>
-        ${elsewhere ? '' : callout('warning', 'It is not in any other menu, so customers will not see it anywhere.')}`,
+      body: `<p>${sentences(m.publishedStoreIds.length && `Customers stop seeing it in ${esc(menuName)} right away`, anyHidden && `Products you hid in ${esc(menuName)} are shown again if you add it back`, cat.source === 'pos' ? 'It stays on POS' : 'Nothing changes on POS')}</p>
+        ${elsewhere ? '' : callout('warning', 'It is not in any other menu, so customers will not see it anywhere')}`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },
         { label: 'Remove category', kind: 'danger', onClick: () => { closeModal(); removeLink(catPath); } },
@@ -1811,8 +1811,8 @@
       const who = only === n ? (n === 1 ? 'It is' : 'They are') : `${only} of them are`;
       return openModal({
         title: `Remove ${noun(n)} from ${menuName}?`,
-        body: `<p>${m.publishedStoreIds.length ? `Customers stop seeing them in ${esc(menuName)} right away. ` : ''}Nothing changes on POS.</p>
-          ${only ? callout('warning', `${who} not in any other menu, so customers will not see ${only === 1 ? 'it' : 'them'} anywhere.`) : ''}`,
+        body: `<p>${sentences(m.publishedStoreIds.length && `Customers stop seeing them in ${esc(menuName)} right away`, 'Nothing changes on POS')}</p>
+          ${only ? callout('warning', `${who} not in any other menu, so customers will not see ${only === 1 ? 'it' : 'them'} anywhere`) : ''}`,
         actions: [cancel, { label: 'Remove categories', kind: 'danger', onClick: run }],
       });
     }

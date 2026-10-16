@@ -17,7 +17,7 @@
         placementSection(path) +
         section(
           '',
-          nameBlock('group', g, { error: lengthError(g.name, 'Add a group name'), help: 'Customers see this name in Web App and Kiosk.' }) +
+          nameBlock('group', g, { error: lengthError(g.name, 'Add a group name'), help: 'Customers see this name in Web App and Kiosk' }) +
             field('Internal name', inputText(gb('internalName'), g.internalName, { id: 'g-int' }), {
               id: 'g-int',
               error: lengthError(g.internalName),
@@ -52,7 +52,7 @@
                   <button type="button" class="btn ghost sm" data-action="add-option" data-path="${esc(path)}" data-pos-id="${esc(cid)}">${icon('plus', 14)}Add</button></div>`,
               )
               .join('')}</div>`,
-            { desc: 'On POS in this group, but not shown to customers.' },
+            { desc: 'On POS in this group, but not shown to customers' },
           )
         : '';
       const rulesHtml = groupRulesSection(g, gb, rules);
@@ -60,7 +60,7 @@
         const hint =
           g.gtype === 'standalone'
             ? 'Drag any POS product here. Each one customers pick goes on the order as its own item, at its POS price.'
-            : `Add options from ${esc(posLabel(gpos))}.`;
+            : `Add options from ${esc(posLabel(gpos))}`;
         return rulesHtml + section('Options', `<div class="empty-small"><strong>No options yet</strong><span>${hint}</span></div>`) + groupPropagationSection(g) + missingHtml;
       }
       return rulesHtml + groupOptionsSection(g, path, gb, rules) + groupPropagationSection(g) + missingHtml + groupSectionsSection(g, gb, path);
@@ -74,7 +74,7 @@
         field('External ID', inputText(gb('reportingId'), g.reportingId, { id: 'g-ext', mono: true }), {
           id: 'g-ext',
           error: lengthError(g.reportingId),
-          help: 'Use it to match this group in reports outside this platform.',
+          help: 'Use it to match this group in reports outside this platform',
         }),
       ) +
       metadataSection(g, 'group') +
@@ -93,7 +93,7 @@
         const x = entity('group', gid);
         const name = nameOf('group', x);
         const skipped = opts.filter((p) => !p.children.includes(gid)).map((p) => nameOf('product', p));
-        if (skipped.length) notes.push(`${listJoin(skipped)} ${skipped.length === 1 ? 'does' : 'do'} not get ${name}, because ${name} already contains ${skipped.length === 1 ? 'it' : 'them'}.`);
+        if (skipped.length) notes.push(`${listJoin(skipped)} ${skipped.length === 1 ? 'does' : 'do'} not get ${name}, because ${name} already contains ${skipped.length === 1 ? 'it' : 'them'}`);
         return `<div class="missing-row"><span class="missing-name">${esc(name)} <span class="muted">· ${esc(kindLabel('group', x))} · ${esc(plural(x.children.length, 'option', 'options'))}</span></span>
           <button type="button" class="icon-btn sm" data-action="prop-remove" data-id="${esc(gid)}" aria-label="Remove ${esc(name)}" title="Remove">${icon('x', 14)}</button></div>`;
       })
@@ -127,10 +127,10 @@
     const lockHide = noOptions || (rules.min > 0 && !hidden);
     const hiddenCount = g.children.filter((pid) => groupHiddenAt(childPath(path, 'product', pid))).length;
     let help = 'Hides every option here. Showing one option shows the group again. Other places stay as they are.';
-    if (noOptions) help = 'Add an option before hiding this group.';
+    if (noOptions) help = 'Add an option before hiding this group';
     else if (lockHide)
       help = rules.fixed
-        ? 'Customers always pick one option in this group, so it cannot be hidden.'
+        ? 'Customers always pick one option in this group, so it cannot be hidden'
         : 'Required groups cannot be hidden. Set the minimum to 0 first.';
     else if (hidden) help = 'Every option is hidden here, so the group is hidden. Turn this on to show every option. Other places stay as they are.';
     else if (hiddenCount) help = `${hiddenCount} of ${g.children.length} options are hidden here. The group stays visible until every option is hidden.`;
@@ -154,7 +154,7 @@
     const first = nameOf('product', choices[0]);
     const cur = posParentAt(path);
     const help = cur
-      ? `POS gets the picks in ${nameOf('group', g)} as modifiers of ${nameOf('product', cur)}, not ${first}.`
+      ? `POS gets the picks in ${nameOf('group', g)} as modifiers of ${nameOf('product', cur)}, not ${first}`
       : `POS gets the picks in ${nameOf('group', g)} as modifiers of ${first}. To send them with a product higher up, choose it here.`;
     return field(
       'Send to POS with',
@@ -195,16 +195,16 @@
     const posText = (k) => (k === 'max' && posR.max == null ? 'no limit' : posR[k]);
     const differs = (k) => hasOwn(g.ruleOverrides, k) || (now && (k === 'min' || k === 'max') && rules[k] !== now[k]);
     const cells = [
-      ['Minimum', 'min', 'g-min', '0 makes the group optional.'],
-      ['Maximum', 'max', 'g-max', 'Leave it empty for no limit.'],
-      ['Per option', 'maxSingle', 'g-single', 'Times the same option can be picked.'],
-      ['Free choices', 'freeCount', 'g-free', 'Included in the price.'],
+      ['Minimum', 'min', 'g-min', '0 makes the group optional'],
+      ['Maximum', 'max', 'g-max', 'Leave it empty for no limit'],
+      ['Per option', 'maxSingle', 'g-single', 'Times the same option can be picked'],
+      ['Free choices', 'freeCount', 'g-free', 'Included in the price'],
     ];
     const grid = cells
       .map(([l, k, id, help]) =>
         field(l, inputNum(bindOf(k), rawRule(g, k), { int: true, id, placeholder: k === 'max' ? 'No limit' : '' }), {
           id,
-          help: fromPos && differs(k) ? `POS: ${posText(k)}. ${help}` : help,
+          help: fromPos && differs(k) ? sentences(`POS: ${posText(k)}`, help) : help,
           error: errs[k],
         }),
       )
@@ -216,7 +216,7 @@
         ? `<p class="field-help">Changed from the POS rules. <button type="button" class="link-btn" data-action="rules-reset">Reset to POS rules</button></p>`
         : '<p class="field-help">Same as the POS rules. A change applies to every product that uses this group.</p>'
       : g.gtype === 'linked'
-        ? `<p class="field-help">Started from the rules of ${esc(posLabel(g.posGroupExt))} on POS.</p>`
+        ? `<p class="field-help">Started from the rules of ${esc(posLabel(g.posGroupExt))} on POS</p>`
         : '';
     return section('Rules', `<div class="grid-2">${grid}</div>${note}${preview}`);
   }
@@ -326,7 +326,7 @@
         {
           scope: onlyHere ? productScopeText(op) : '',
           error: p.isModifierCodeRequired && codes.every(([v]) => shownHere.includes(v)) ? 'A code is required, so keep at least one visible' : '',
-          help: onlyHere ? (codesOverridden(op) ? 'Other products use the codes set in this group.' : 'Same as in other products.') : 'Applies everywhere this group is used.',
+          help: onlyHere ? (codesOverridden(op) ? 'Other products use the codes set in this group' : 'Same as in other products') : 'Applies everywhere this group is used',
         },
       );
     }
@@ -368,17 +368,17 @@
         nestedSections(`place|${host.p.id}:${g.id}|optionSection`, src.sections, ob, items, 'option', 'options') +
           addButton('own-section-add', 'Create section') +
           (host.own ? `<div class="link-btns field-actions"><button type="button" class="link-btn" data-action="own-sections-reset">Use the same as other products</button></div>` : ''),
-        !src.sections.length ? `Split the options in ${pName} under headings, like Cheese and Veggies.` : host.own ? `Customers see these headings in ${pName} only. Drag options and headings to arrange them.` : 'Drag options and headings to arrange them.',
+        !src.sections.length ? `Split the options in ${pName} under headings, like Cheese and Veggies` : host.own ? `Customers see these headings in ${pName} only. Drag options and headings to arrange them.` : 'Drag options and headings to arrange them',
       );
     }
     const items = listedOptions(g).map((pid) => ({ id: pid, name: optionName(g, pid), section: sectionOfOption(g, pid) }));
     const others = groupParents(g.id).filter((p) => p.optionSections && p.optionSections[g.id]).length;
-    const note = others ? `${plural(others, 'product uses', 'products use')} its own sections.` : '';
+    const note = others ? `${plural(others, 'product uses', 'products use')} its own sections` : '';
     return sectionsBox(
       nestedSections(`group|${g.id}|optionSection`, g.sections, gb, items, 'option', 'options') + addButton('opt-section-add', 'Create section') + (note ? `<p class="field-help">${note}</p>` : ''),
       g.sections.length
         ? `Customers see the options under these headings, in this order, in every product that uses ${gName}. Drag options and headings to arrange them.`
-        : 'Split the options under headings, like Cheese and Veggies.',
+        : 'Split the options under headings, like Cheese and Veggies',
     );
   }
 
@@ -402,7 +402,7 @@
       const groups = [...new Set(off.flatMap((p) => swapGroupsMissing(p, keys)))].map((gid) => nameOf('group', entity('group', gid)));
       const names = off.map((p) => nameOf('product', p)).sort((a, b) => a.localeCompare(b));
       const one = names.length === 1;
-      return `<p class="field-help">${esc(`${fewNames(names)} ${one ? 'does' : 'do'} not have ${fewNames(groups, 'or')}, so ${one ? 'it gets' : 'they get'} no substitutes for ${label}.`)}</p>`;
+      return `<p class="field-help">${esc(`${fewNames(names)} ${one ? 'does' : 'do'} not have ${fewNames(groups, 'or')}, so ${one ? 'it gets' : 'they get'} no substitutes for ${label}`)}</p>`;
     };
     const scope =
       opts.length > 1
@@ -416,7 +416,7 @@
         : '';
     const card = (rows) => `${scope}<div class="opt-cards"><div class="group-card is-open"><div class="group-card-body">${rows}</div></div></div>`;
     const body = !opts.length
-      ? '<p class="field-help">Add options to this group first.</p>'
+      ? '<p class="field-help">Add options to this group first</p>'
       : !swapSourceGroups(g, { shared: false }).length
         ? `<p class="field-help">Substitutes come from the other groups of the products that use ${esc(name)}. Add another group to ${parents.length === 1 ? esc(nameOf('product', parents[0])) : 'one of them'} first.</p>`
         : !swapSourceGroups(g).length
@@ -449,10 +449,10 @@
             const parts = [
               n ? `Uses its own substitutes for ${plural(n, 'option', 'options')}` : '',
               off.length ? `${plural(off.length, 'option', 'options')} without substitutes. Add ${listJoin(missing)} to use them` : '',
-            ].filter(Boolean);
+            ];
             const paths = ctx.usage.get(`product:${p.id}`) || [];
             const to = paths.find((u) => parsePath(u).menuId === S.ui.activeMenuId) || paths[0];
-            const label = `<span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${esc(parts.join('. ') || 'Same as this group')}</span></span>`;
+            const label = `<span class="store-name list-name"><span>${esc(nameOf('product', p))}</span><span class="muted">${esc(sentences(parts) || 'Same as this group')}</span></span>`;
             return to
               ? `<button type="button" class="store-row list-row row-link" data-action="goto" data-path="${esc(to)}" data-tab="ordering" data-section="Substitutes">${label}${icon('chevRight', 14)}</button>`
               : `<div class="store-row list-row">${label}</div>`;
@@ -461,8 +461,8 @@
       : '';
     return (
       section('Substitutes', body, {
-        desc: `Let customers swap an option here for one from another group on the same product, like ham for extra cheese.${sortable ? ' Drag substitutes to change the order customers see.' : ''}`,
-      }) + (applies ? section('Applies to', applies, { desc: 'Each product uses these substitutes unless you change them on its Ordering tab.' }) : '')
+        desc: sentences('Let customers swap an option here for one from another group on the same product, like ham for extra cheese', sortable && 'Drag substitutes to change the order customers see'),
+      }) + (applies ? section('Applies to', applies, { desc: 'Each product uses these substitutes unless you change them on its Ordering tab' }) : '')
     );
   }
 
@@ -523,7 +523,7 @@
             .join('')}
         </div>
         ${halfCount ? `<p class="field-help">${halfCount === 1 ? '1 option in this group is a half, so it is not listed.' : `${halfCount} options in this group are halves, so they are not listed.`} You’ll find each half under its topping in the menu.</p>` : ''}`
-      : '<p class="field-help">Add options to this group first.</p>';
+      : '<p class="field-help">Add options to this group first</p>';
     const applies = parents.length
       ? `<div class="store-list">${parents
           .map((p) => {
@@ -542,7 +542,7 @@
       section('Half and whole', body, {
         desc: 'Let customers put a topping on the left half, the right half, or the whole product. For each half, pick the POS option that rings up. Options come from the POS groups of the products that use this group.',
       }) +
-      (applies ? section('Applies to', applies, { desc: 'Each product uses these halves unless you change them on its Ordering tab.' }) : '')
+      (applies ? section('Applies to', applies, { desc: 'Each product uses these halves unless you change them on its Ordering tab' }) : '')
     );
   }
 

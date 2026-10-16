@@ -36,7 +36,7 @@
     let body = `<div class="cmp-tabs">${tabList(tabs, tab, (id) => `data-action="cmp-tab" data-tab="${id}"`)}</div>`;
     const empty = (title) => `<div class="empty-small">${icon('checkCircle', 20)}<strong>${title}</strong></div>`;
     if (tab !== 'ignored' && !data.count) {
-      body += `<div class="empty-small">${icon('checkCircle', 20)}<strong>${esc(activeMenu().name)} matches POS</strong><span>Nothing new, changed, or removed since the last review.</span></div>`;
+      body += `<div class="empty-small">${icon('checkCircle', 20)}<strong>${esc(activeMenu().name)} matches POS</strong><span>Nothing new, changed, or removed since the last review</span></div>`;
     } else if (tab === 'new') {
       if (!data.missing.length) body += empty('Nothing new on POS');
       else {
@@ -127,7 +127,7 @@
         ? `<section class="cmp-section"><p class="section-desc">Hidden from New on POS. They stay on POS, and show under Changed on POS if they change there.</p><div class="cmp-list">${data.ignored
             .map((m) => posRow(m, '', false, `<button type="button" class="btn ghost sm" data-action="cmp-unignore" data-key="${esc(m.key)}">Stop ignoring</button>`))
             .join('')}</div></section>`
-        : `<div class="empty-small"><strong>No ignored items</strong><span>Items you ignore show up here.</span></div>`;
+        : `<div class="empty-small"><strong>No ignored items</strong><span>Items you ignore show up here</span></div>`;
     }
     $('#cmp').innerHTML = body;
     $('#cmp-foot').innerHTML =
@@ -545,9 +545,9 @@
     $('#hh').innerHTML = o.items.length
       ? `<p>Customers pick a topping, then choose the left half, the right half, or the whole. Halves in ${esc(nameOf('group', g))} are matched to toppings by name. POS stays as it is.</p>
         ${block('Same name', '', exact, row)}
-        ${block('Similar name', 'Check these before you group them.', close, row)}
+        ${block('Similar name', 'Check these before you group them', close, row)}
         ${block('No matching topping', 'These look like halves, but no topping in this group has a matching name. Set them on the group’s Half and whole tab.', o.unmatched, (pid) => `<div class="cmp-row"><span class="cmp-main"><span class="cmp-name">${esc(nm(pid))}</span></span></div>`)}`
-      : `<div class="empty-small">${icon('checkCircle', 20)}<strong>No halves to group</strong><span>Every topping with matching halves is already grouped.</span></div>`;
+      : `<div class="empty-small">${icon('checkCircle', 20)}<strong>No halves to group</strong><span>Every topping with matching halves is already grouped</span></div>`;
     const on = o.items.filter((i) => !o.off.has(i.pid)).length;
     $('#hh-foot').innerHTML = `<button type="button" class="btn secondary" data-modal-close>Cancel</button>
       <button type="button" class="btn primary" data-action="hh-apply" ${on ? '' : 'disabled'}>${on ? `Group halves for ${plural(on, 'topping', 'toppings')}` : 'Group halves'}</button>`;
@@ -577,7 +577,7 @@
     };
     openListPicker({
       title: `${SIDE_LABEL[side]} of ${optionName(g, pid)}`,
-      intro: 'Pick the POS option that rings up when a customer puts this topping on this half.',
+      intro: 'Pick the POS option that rings up when a customer puts this topping on this half',
       placeholder: 'Search by name or POS ID',
       groups: groups.map((x) => ({ id: x.id, name: nameOf('group', x), items: x.children.filter((id) => id !== pid && isHalfOption(id)).map(item) })),
       noun: ['option', 'options'],
@@ -765,7 +765,7 @@
       )}</div>`;
     }
     if (!o.unused.length) return body + empty('Every image matches a product');
-    return `${body}<p class="section-desc">No product in ${esc(o.scopeName)} has a matching name.</p>${list(
+    return `${body}<p class="section-desc">No product in ${esc(o.scopeName)} has a matching name</p>${list(
       o.unused.map((f) => `<div class="cmp-row bi-row"><img class="thumb thumb-img thumb-lg" src="${f.url}" alt=""><span class="cmp-main"><span class="cmp-name">${esc(f.title)}</span><span class="cmp-meta">${esc(f.rel)}</span></span></div>`),
     )}`;
   }

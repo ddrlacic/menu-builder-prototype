@@ -249,7 +249,7 @@
     if (prev && prev.isConnected) prev.focus({ preventScroll: true });
   }
 
-  function openPicker({ title, intro, placeholder, items, onPick, empty = '', keepOpen = false, noMatch = ['No matching POS items', 'Try a different name or POS ID.'] }) {
+  function openPicker({ title, intro, placeholder, items, onPick, empty = '', keepOpen = false, noMatch = ['No matching POS items', 'Try a different name or POS ID'] }) {
     openModal({
       title,
       body: `${intro ? `<p>${esc(intro)}</p>` : ''}
@@ -367,7 +367,7 @@
           }
         </div>`
         : q
-          ? `<div class="empty-small"><strong>No matching ${esc(o.noun[1])}</strong><span>Try a different name.</span></div>`
+          ? `<div class="empty-small"><strong>No matching ${esc(o.noun[1])}</strong><span>Try a different name</span></div>`
           : `<div class="empty-small"><strong>No ${esc(o.noun[1])} selected</strong></div>`;
     const n = o.sel.size;
     $('#lp-foot').innerHTML = `${o.single ? '' : `<button type="button" class="check-toggle ms-only" role="checkbox" aria-checked="${o.onlySelected}" data-action="lp-only"${o.groups.length ? '' : ' disabled'}>${box(o.onlySelected ? 'on' : 'off')}Show only selected</button>`}
@@ -424,7 +424,7 @@
 
   function copyText(value, label) {
     const done = () => toast(`${label} copied`);
-    if (navigator.clipboard) navigator.clipboard.writeText(value).then(done, () => toast(`Couldn’t copy the ${label}. Select it and copy it manually.`, 'error'));
+    if (navigator.clipboard) navigator.clipboard.writeText(value).then(done, () => toast(`Couldn’t copy the ${label}. Select it and copy it manually`, 'error'));
   }
 
   function openIssues(anchor) {
@@ -448,7 +448,7 @@
             },
           })),
         )
-      : [{ empty: `${icon('checkCircle', 18)}<strong>No issues</strong><span>${esc(activeMenu().name)} is ready to publish.</span>` }];
+      : [{ empty: `${icon('checkCircle', 18)}<strong>No issues</strong><span>${esc(activeMenu().name)} is ready to publish</span>` }];
     openPopover(anchor, items, { className: 'popover-issues' });
   }
 
@@ -502,7 +502,7 @@
       {
         label,
         icon: 'rows',
-        hint: `${sc.kind === 'group' ? 'A tab for its groups in Web App' : `A heading over its ${sc.noun[1]}`}. ${first ? 'Starts with all of them' : `Drag ${sc.noun[1]} into it`}`,
+        hint: `${sc.kind === 'group' ? 'A tab for its groups in Web App' : `A heading over its ${sc.noun[1]}`}. ${first ? 'Starts with all of them' : `Drag ${sc.noun[1]} into it`}.`,
         onClick: () => createSection(path, first ? sc.ids : []),
       },
     ];
@@ -532,7 +532,7 @@
     if (which === 'add') {
       const customProduct = built({
         label: 'Custom product',
-        hint: 'Your name, image, and options for a POS product. POS gets the original',
+        hint: 'Your name, image, and options for a POS product. POS gets the original.',
         icon: 'link',
         onClick: () => openLinkedProductPicker(path),
       });
@@ -541,7 +541,7 @@
           addMenuItem(path),
           { heading: 'Create' },
           customProduct,
-          built({ label: 'Choice product', hint: 'Customers pick one product, like a size. Only that product goes to POS', icon: 'package', onClick: () => createChoiceProduct(path) }),
+          built({ label: 'Choice product', hint: 'Customers pick one product, like a size. Only that product goes to POS.', icon: 'package', onClick: () => createChoiceProduct(path) }),
         ];
         if (detectSizeSets(ent).length) items.push('-', { label: 'Group sizes', hint: 'Turn size variants into one choice product', icon: 'sparkles', onClick: () => groupSizes(path) });
         return openPopover(anchor, items);
@@ -553,12 +553,12 @@
           { heading: 'Create' },
           built({
             label: 'Custom group',
-            hint: 'Your own name and rules for a POS group. POS gets the original group',
+            hint: 'Your own name and rules for a POS group. POS gets the original group.',
             icon: 'link',
             submenu: true,
             onClick: () => linkedGroupMenu(anchor, path),
           }),
-          built({ label: 'Suggested products', hint: 'Products customers can add to this item. Each one goes on the order as its own item', icon: 'dashed', onClick: () => createVirtualGroup(path, 'upsell') }),
+          built({ label: 'Suggested products', hint: 'Products customers can add to this item. Each one goes on the order as its own item.', icon: 'dashed', onClick: () => createVirtualGroup(path, 'upsell') }),
           ...hostSectionItem(path).map(built),
         ]);
       }
@@ -575,7 +575,7 @@
         { heading: 'Create' },
         built({
           label: 'Option folder',
-          hint: 'An option that opens more options. POS gets only what customers pick inside',
+          hint: 'An option that opens more options. POS gets only what customers pick inside.',
           icon: 'dashed',
           onClick: () => createVirtualContainer(path),
         }),
@@ -662,11 +662,11 @@
     const info = parsePath(path);
     const hidden = groupHiddenAt(path);
     let why = '';
-    if (hidden && !canShowHere(path)) why = 'Hidden only in one product. Change it on the Options tab of its group';
+    if (hidden && !canShowHere(path)) why = 'Hidden only in one product. Change it on the Options tab of its group.';
     else if (!hidden && info.kind === 'group') {
       const g = entity('group', info.id);
       if (!g.children.length) why = 'It has no options to hide';
-      else if (rulesOf(g).min > 0) why = 'Required groups can’t be hidden. Set the minimum to 0 first';
+      else if (rulesOf(g).min > 0) why = 'Required groups can’t be hidden. Set the minimum to 0 first.';
     }
     return [{ label: `${hidden ? 'Show' : 'Hide'} ${scope}`, icon: hidden ? 'eye' : 'eyeOff', disabled: !!why, hint: why, onClick: () => bulkSetHidden(!hidden, [path]) }];
   }
@@ -719,8 +719,8 @@
       .join('');
     $('#mc').innerHTML = `<p>${esc(noun(ok.length))} get the codes you select, in that order. Their other codes are removed.</p>
       ${skipped ? `<p class="field-help">${plural(skipped, 'product is', 'products are')} skipped. Option folders and choice products do not have modifier codes.</p>` : ''}
-      ${field('Codes', `<div class="chips">${codeChips}</div>`, { help: o.codes.length ? 'Codes are in the order you select them.' : 'Select none to remove all codes.' })}
-      ${toggle('mc-req', o.req, { label: 'Require a modifier code', action: 'mc-req', help: o.codes.length ? 'Customers need a code to choose these options.' : 'Add a code first.', disabled: !o.codes.length })}
+      ${field('Codes', `<div class="chips">${codeChips}</div>`, { help: o.codes.length ? 'Codes are in the order you select them' : 'Select none to remove all codes' })}
+      ${toggle('mc-req', o.req, { label: 'Require a modifier code', action: 'mc-req', help: o.codes.length ? 'Customers need a code to choose these options' : 'Add a code first', disabled: !o.codes.length })}
       ${o.codes.length ? field('Preselection', `<div class="store-list" role="radiogroup" aria-label="Preselected code">${rows}</div>`, { help: `${o.req ? 'One code is always preselected.' : 'Preselect one code at most.'} Customers can change it.` }) : ''}`;
     $('#mc-foot').innerHTML = `<button type="button" class="btn secondary" data-modal-close>Cancel</button>
       <button type="button" class="btn primary" data-action="mc-apply">Replace codes</button>`;
@@ -841,14 +841,14 @@
 
   function loadImage(file, maxSide, done) {
     if (!file || !IMAGE_TYPES.includes(file.type)) {
-      toast('Could not add the image. Use a JPG, PNG, or GIF file.', 'error');
+      toast('Could not add the image. Use a JPG, PNG, or GIF file', 'error');
       return;
     }
     if (file.size > IMAGE_MAX_BYTES) {
-      toast('Could not add the image. Choose a file of 1 MB or less.', 'error');
+      toast('Could not add the image. Choose a file of 1 MB or less', 'error');
       return;
     }
-    shrinkImage(file, maxSide).then(done, () => toast('Could not add the image. Use a JPG, PNG, or GIF file.', 'error'));
+    shrinkImage(file, maxSide).then(done, () => toast('Could not add the image. Use a JPG, PNG, or GIF file', 'error'));
   }
 
   function shrinkImage(file, maxSide, quality = 0.82) {

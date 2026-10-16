@@ -120,7 +120,7 @@
       ? ['New menu', 'Drag categories or products here from POS items. The menu is linked to their POS menu.']
       : none || !pm
         ? ['No menus yet', 'Menus come from POS. Add a POS menu, category, or product from POS items, and its menu is added with it.']
-        : [`${pm.name} has no menu yet`, 'Drag categories or products here from POS items to create its menu.'];
+        : [`${pm.name} has no menu yet`, 'Drag categories or products here from POS items to create its menu'];
     $('#topbar').innerHTML = `
       <div class="brand">
         <span class="brand-mark">${icon('layers', 16)}</span>
@@ -151,11 +151,11 @@
       return [`Publishing · ${run.done} of ${plural(run.total, 'store', 'stores')}`, 'progress', 'Adding, moving and removing items is paused until it finishes'];
     }
     if (m.status === 'failed') return [`Failed at ${plural(m.publishRun.failedStoreIds.length, 'store', 'stores')}`, 'error', 'View the stores and retry'];
-    if (m.status === 'changed') return ['Unpublished changes', 'warn', 'New items and serving times reach stores when you publish. Other edits are already live'];
+    if (m.status === 'changed') return ['Unpublished changes', 'warn', 'New items and serving times reach stores when you publish. Other edits are already live.'];
     if (m.status === 'published' && live < total) return [`Live at ${live} of ${stores}`, 'warn', `Publish to make it live at the other ${plural(total - live, 'store', 'stores')}`];
-    if (m.status === 'published') return ['Published', 'ok', `Live at ${stores}. Edits reach customers right away`];
-    if (m.status === 'unpublished') return ['Unpublished', 'neutral', 'Not live at any store. Publish to make it live again'];
-    return ['Draft', 'neutral', total ? `Not live yet. Publish to make it live at ${stores}` : 'Not live yet'];
+    if (m.status === 'published') return ['Published', 'ok', `Live at ${stores}. Edits reach customers right away.`];
+    if (m.status === 'unpublished') return ['Unpublished', 'neutral', 'Not live at any store. Publish to make it live again.'];
+    return ['Draft', 'neutral', total ? `Not live yet. Publish to make it live at ${stores}.` : 'Not live yet'];
   }
 
   function statusPill(m) {
@@ -173,7 +173,7 @@
     }
     const nothing = !needsPublish(m);
     const off = m.status === 'publishing' || T.importing || nothing;
-    return `<button class="btn primary" data-action="publish" ${off ? 'disabled' : ''}${nothing ? ' title="Nothing to publish. Edits reach customers right away"' : ''}>${icon('send', 15)}Publish menu</button>`;
+    return `<button class="btn primary" data-action="publish" ${off ? 'disabled' : ''}${nothing ? ' title="Nothing to publish. Edits reach customers right away."' : ''}>${icon('send', 15)}Publish menu</button>`;
   }
 
   function menuTabs(activeId) {
@@ -273,7 +273,7 @@
         .join('')}</div>`;
 
     if (loading) {
-      $('#pos-tree').innerHTML = `<div class="empty-small"><span class="spinner"></span><strong>${loading === 'sync' ? 'Syncing with POS' : `Loading ${esc(storeGroup().name)}`}</strong><span>Large menus can take a few minutes.</span></div>`;
+      $('#pos-tree').innerHTML = `<div class="empty-small"><span class="spinner"></span><strong>${loading === 'sync' ? 'Syncing with POS' : `Loading ${esc(storeGroup().name)}`}</strong><span>Large menus can take a few minutes</span></div>`;
       return;
     }
 
@@ -335,7 +335,7 @@
             </div>`;
           })
           .join('')
-      : `<div class="empty-small"><strong>No matching POS items</strong><span>Try a different name or POS ID.</span></div>`;
+      : `<div class="empty-small"><strong>No matching POS items</strong><span>Try a different name or POS ID</span></div>`;
   }
 
   const canvasTerm = () => searchTerm(S.ui.canvasQuery);
@@ -516,7 +516,7 @@
     if (!isVirtual(ent)) return '';
     if (kind === 'category') return 'Arranges products your own way. Not on POS.';
     if (kind === 'product') {
-      if (ent.ptype === 'linked') return ent.posParentExt ? `Your version of ${posLabel(ent.posParentExt)}. POS gets the original, at its price.` : 'Choose the POS product it rings up as.';
+      if (ent.ptype === 'linked') return ent.posParentExt ? `Your version of ${posLabel(ent.posParentExt)}. POS gets the original, at its price.` : 'Choose the POS product it rings up as';
       if (ent.ptype === 'container') return 'Opens more options. POS gets only what customers pick inside.';
       if (ent.ptype === 'size') return 'Customers pick one product inside. Only that product goes to POS.';
       return '';
@@ -649,7 +649,7 @@
     }
     if (kind === 'category' && ent.isBundle) badges.push(`<span class="badge" title="Only for catering orders in Web App">${icon('package', 12)}Catering bundles</span>`);
     if (isCustomVersion(ent)) badges.push(`<span class="badge tone-virtual" title="Rings up on POS as the original">${icon('link', 12)}Custom</span>`);
-    else if (isVirtual(ent)) badges.push(`<span class="badge tone-virtual" title="Exists only in your menus. Not on POS">Menu only</span>`);
+    else if (isVirtual(ent)) badges.push(`<span class="badge tone-virtual" title="Exists only in your menus. Not on POS.">Menu only</span>`);
     if (uses > 1) badges.push(`<span class="badge" title="Used in ${uses} places">${icon('copy', 12)}${uses}</span>`);
     const posLink =
       ent.source === 'pos' && !isMissingOnPos(ent)
@@ -658,7 +658,7 @@
 
     const flashCls = T.flashPaths.has(path) || (ent.externalId && T.flashExt.has(ent.externalId)) ? ' is-flash' : '';
     const addTitle = kind === 'category' ? 'Add product' : kind === 'product' ? (ent.ptype === 'size' ? 'Add choice' : 'Add group') : 'Add option';
-    const removeTitle = from ? `Added by ${from}. Remove it on the Options tab of ${from}` : `Remove from ${parentName}`;
+    const removeTitle = from ? `Added by ${from}. Remove it on the Options tab of ${from}.` : `Remove from ${parentName}`;
     const imageOk = (kind === 'product' || kind === 'category') && !stagedRoot;
     const inMulti = T.sel.length > 1 && T.sel.includes(path);
     const uploadTitle = inMulti ? `Upload image for ${plural(T.sel.length, ...BULK_NOUN[kind])}` : 'Upload image';
@@ -736,5 +736,5 @@
       note +
       (rows.length
         ? rows.map(rowHtml).join('')
-        : `<div class="empty-small"><strong>Nothing matches “${esc(S.ui.canvasQuery)}”</strong><span>Try a different name or POS ID.</span></div>`);
+        : `<div class="empty-small"><strong>Nothing matches “${esc(S.ui.canvasQuery)}”</strong><span>Try a different name or POS ID</span></div>`);
   }

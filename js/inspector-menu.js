@@ -13,12 +13,12 @@
     const mb = (f) => `m|${m.id}|${f}`;
     if (tab === 'general') {
       const linked = linkedPosMenu(m);
-      const posNameHelp = linked ? (m.name === linked.name ? ' Same as the POS name.' : ` POS name: ${esc(linked.name)}. POS keeps its own name.`) : '';
+      const posNameHelp = linked ? (m.name === linked.name ? 'Same as the POS name' : [`POS name: ${esc(linked.name)}`, 'POS keeps its own name']) : '';
       return (
         menuOrderSection(m) +
         section(
           '',
-          field('Name', inputText(mb('name'), m.name, { id: 'insp-name' }), { id: 'insp-name', error: lengthError(m.name, 'Add a name'), help: `Customers see it when a store has more than one menu.${posNameHelp}` }) +
+          field('Name', inputText(mb('name'), m.name, { id: 'insp-name' }), { id: 'insp-name', error: lengthError(m.name, 'Add a name'), help: sentences('Customers see it when a store has more than one menu', posNameHelp) }) +
             field('Internal name', inputText(mb('internalName'), m.internalName, { id: 'm-int' }), { id: 'm-int', error: lengthError(m.internalName), help: 'Use it to tell apart menus with the same name. Only your team sees it.' }) +
             descriptionField(mb('description'), m.description, 'm-desc', MENU_PARTNER_ONLY) +
             imageField(mb('image'), m.image, { help: MENU_PARTNER_ONLY, posSrc: posImageOf(m) }),
@@ -44,7 +44,7 @@
         field('External ID', inputText(mb('externalId'), m.externalId, { id: 'm-ext', mono: true }), {
           id: 'm-ext',
           error: lengthError(m.externalId),
-          help: 'Use it to match this menu in reports outside this platform.',
+          help: 'Use it to match this menu in reports outside this platform',
         }) +
           (sameExt.length
             ? callout(
@@ -73,7 +73,7 @@
     if (index < 0 || count < 2) return '';
     const btn = (delta, ic, label) =>
       `<button type="button" class="icon-btn sm" data-action="menu-move" data-id="${m.id}" data-delta="${delta}" data-focus-key="menu-move|${delta}" aria-label="${label}" title="${label}" ${index + delta < 0 || index + delta >= count ? 'disabled' : ''}>${icon(ic, 14)}</button>`;
-    const live = S.data.menus.some((x) => x.publishedStoreIds.length) ? ' Customers see the change right away.' : '';
+    const live = S.data.menus.some((x) => x.publishedStoreIds.length);
     return section(
       'In apps',
       field(
@@ -82,7 +82,7 @@
           <input type="number" id="m-order" class="input tnum" inputmode="numeric" min="1" max="${count}" step="1" value="${index + 1}" data-menu-order data-id="${m.id}" data-focus-key="m-order">
           <span class="muted tnum">of ${count}</span>${btn(-1, 'chevUp', 'Move up')}${btn(1, 'chevDown', 'Move down')}
         </div>`,
-        { id: 'm-order', help: `Order customers see in the apps when a store has more than one menu.${live}` },
+        { id: 'm-order', help: sentences('Order customers see in the apps when a store has more than one menu', live && 'Customers see the change right away') },
       ),
     );
   }
@@ -104,17 +104,17 @@
         'Channels',
         field('', chips(mb('channels'), m.channels, C.channels), {
           error: m.channels.length ? '' : 'Choose at least one channel',
-          help: 'Customers can order from this menu in these apps.',
+          help: 'Customers can order from this menu in these apps',
         }),
       ) +
       section(
         'Order types',
         field('', `<div class="option-list">${orderTypeRows}</div>`, {
           error: m.orderTypes.length ? '' : 'Choose at least one order type',
-          help: 'Customers see this menu only for these order types.',
+          help: 'Customers see this menu only for these order types',
         }),
       ) +
-      section('Delivery partners', field('', chips(mb('externalChannels'), m.externalChannels, C.deliveryPartners), { help: 'Third-party apps that also get this menu.' }))
+      section('Delivery partners', field('', chips(mb('externalChannels'), m.externalChannels, C.deliveryPartners), { help: 'Third-party apps that also get this menu' }))
     );
   }
 
@@ -140,11 +140,11 @@
           ? scheduleEditor(mb('schedule'), m.schedule) +
             (overlap.length ? slotError(`Time slots overlap on ${listJoin(overlap.map((d) => DAYS[d]))}`) : '') +
             (sameTimes ? slotError('Each time slot needs different start and end times') : '') +
-            '<p class="field-help">Customers can order only when the store is open too.</p>'
-          : '<p class="field-help">Customers can order from this menu whenever the store is open.</p>'
+            '<p class="field-help">Customers can order only when the store is open too</p>'
+          : '<p class="field-help">Customers can order from this menu whenever the store is open</p>'
       }`;
 
-    return section('Serving times', schedule, { desc: 'Products can narrow these times further.' }) + segmentsSection(mb('segments'), m.segments, 'menu');
+    return section('Serving times', schedule, { desc: 'Products can narrow these times further' }) + segmentsSection(mb('segments'), m.segments, 'menu');
   }
 
   function segmentsSection(base, segments, subject) {
@@ -182,7 +182,7 @@
       : `<button type="button" class="btn ghost sm" data-action="segment-add" data-bind="${esc(base)}">${icon('plus', 14)}Add segment</button>`;
     return section('Customer segments', `${tagList}${segmentRows ? `<div class="segment-list">${segmentRows}</div>` : ''}${draftForm}`, {
       desc: segments.length
-        ? `Only signed-in customers in these segments see this ${subject}.${subject === 'product' ? ' Web App shows them the tag on the product.' : ''}`
+        ? sentences(`Only signed-in customers in these segments see this ${subject}`, subject === 'product' && 'Web App shows them the tag on the product')
         : `Everyone sees this ${subject}. Add a segment to limit it to specific customers.`,
     });
   }
@@ -195,7 +195,7 @@
       `<p class="store-summary">${total ? `${plural(total, 'store', 'stores')} from ${plural(m.storeGroups.length, 'group', 'groups')}` : 'No stores yet'}</p>
       <div class="group-cards">${m.storeGroups.map((a, i) => storeGroupCard(m, a, i)).join('')}</div>
       ${field('', `<button type="button" class="btn secondary sm" data-action="menu-manage-stores">${icon('store', 14)}Manage stores</button>`, { error })}`,
-      { desc: 'The menu goes live at these stores when you publish.' },
+      { desc: 'The menu goes live at these stores when you publish' },
     );
   }
 
@@ -205,7 +205,7 @@
     return section(
       '',
       `<button type="button" class="btn secondary tone-danger" data-action="menu-unpublish" ${busy ? 'disabled' : ''}>${icon('eyeOff', 15)}Unpublish menu</button>
-      <p class="field-help">${busy ? 'You can unpublish it once publishing finishes.' : 'Customers at every store stop seeing it right away.'}</p>`,
+      <p class="field-help">${busy ? 'You can unpublish it once publishing finishes' : 'Customers at every store stop seeing it right away'}</p>`,
     );
   }
 
@@ -295,7 +295,7 @@
             .join('')}
         </div>`
       : q
-        ? '<div class="empty-small"><strong>No stores match</strong><span>Check the spelling or search by city.</span></div>'
+        ? '<div class="empty-small"><strong>No stores match</strong><span>Check the spelling or search by city</span></div>'
         : '<div class="empty-small"><strong>No stores selected</strong></div>';
     const removed = manageStoresRemoved(o);
     $('#ms-warn').innerHTML = removed.length
@@ -432,15 +432,15 @@
         sizeHintSection(cat, path) +
         section(
           '',
-          nameBlock('category', cat, { error: lengthError(cat.name, 'Add a name'), help: 'Customers see this name in the apps.' }) +
+          nameBlock('category', cat, { error: lengthError(cat.name, 'Add a name'), help: 'Customers see this name in the apps' }) +
             field('Internal name', inputText(cb('internalName'), cat.internalName, { id: 'c-int' }), {
               id: 'c-int',
               error: lengthError(cat.internalName),
               help: 'Use it to tell apart categories with the same name. Only your team sees it.',
             }) +
-            descriptionField(cb('description'), cat.description, 'c-desc', 'Shown under the category name in Web App, and sent to delivery partners.') +
-            imageField(cb('image'), cat.image, { help: 'Shown on Kiosk, and in apps built with the Ordering API.', posSrc: posItemImage(cat) }) +
-            imageField(cb('bannerImage'), cat.bannerImage, { label: 'Header image', size: '2114 × 288', wide: true, help: 'Shown across the top of the category in Web App, on desktop and tablet.' }),
+            descriptionField(cb('description'), cat.description, 'c-desc', 'Shown under the category name in Web App, and sent to delivery partners') +
+            imageField(cb('image'), cat.image, { help: 'Shown on Kiosk, and in apps built with the Ordering API', posSrc: posItemImage(cat) }) +
+            imageField(cb('bannerImage'), cat.bannerImage, { label: 'Header image', size: '2114 × 288', wide: true, help: 'Shown across the top of the category in Web App, on desktop and tablet' }),
         )
       );
     }
@@ -454,13 +454,13 @@
         field('External ID', inputText(cb('reportingId'), cat.reportingId, { id: 'c-ext', mono: true }), {
           id: 'c-ext',
           error: lengthError(cat.reportingId),
-          help: 'Use it to match this category in reports outside this platform.',
+          help: 'Use it to match this category in reports outside this platform',
         }),
       ) +
       section(
         'Catering',
         toggle(cb('isBundle'), cat.isBundle, { label: 'Catering bundles', help: 'Only for catering orders in Web App. Option quantities scale to the number of guests, and prices are hidden.' }) +
-          (cat.isBundle && !isCateringMenu(menu) ? callout('info', `${esc(menu.name)} has no catering order types, so this has no effect there.`) : ''),
+          (cat.isBundle && !isCateringMenu(menu) ? callout('info', `${esc(menu.name)} has no catering order types, so this has no effect there`) : ''),
       ) +
       removeSection(path, 'category', cat) +
       section(

@@ -1,7 +1,7 @@
 'use strict';
 
   const productBind = (p) => (f) => `e|product|${p.id}|${f}`;
-  const PRODUCT_SHOWN = 'Shown in Web App and Kiosk, and sent to delivery partners.';
+  const PRODUCT_SHOWN = 'Shown in Web App and Kiosk, and sent to delivery partners';
 
   const moveButtons = (bind, i, count, label) =>
     `<button type="button" class="icon-btn sm" data-action="arr-move" data-bind="${esc(bind)}" data-index="${i}" data-delta="-1" aria-label="Move ${esc(label)} up" title="Move up" ${i === 0 ? 'disabled' : ''}>${icon('chevUp', 14)}</button>` +
@@ -20,7 +20,7 @@
         const name = nameOf('product', x);
         return `<div class="store-row list-row" data-sort-index="${i}"${sortable ? ` tabindex="0" aria-label="${esc(name)}. Drag or use the arrow keys to move it"` : ''}>${thumb('product', x, 'thumb-sm')}<span class="store-name">${esc(name)}</span><span class="row-tools">${removeButton(bind, i, name)}</span>${sortable ? `<span class="sort-grip" aria-hidden="true">${icon('grip', 14)}</span>` : ''}</div>`;
       })
-      .join('')}</div>${sortable ? '<p class="field-help">Drag products to change the order customers see.</p>' : ''}`;
+      .join('')}</div>${sortable ? '<p class="field-help">Drag products to change the order customers see</p>' : ''}`;
   }
 
   const addButton = (action, label, attrs = '') => `<button type="button" class="btn ghost sm" data-action="${action}" ${attrs}>${icon('plus', 14)}${esc(label)}</button>`;
@@ -33,7 +33,7 @@
     const pName = nameOf('product', p);
     const add = addButton('add-choice', 'Add product');
     if (!p.children.length)
-      return section('Choices', `<div class="empty-small"><strong>No choices yet</strong><span>Add the POS products customers choose between, like Small and Large.</span></div>${add}`);
+      return section('Choices', `<div class="empty-small"><strong>No choices yet</strong><span>Add the POS products customers choose between, like Small and Large</span></div>${add}`);
     const menu = menuById(parsePath(path).menuId);
     const menuName = nameOf('menu', menu);
     const home = entity('category', parsePath(parsePath(path).parentPath).id);
@@ -125,7 +125,7 @@
       ${
         hasLimit
           ? field('Limits apply to', segmented(pb('qtyScope'), p.qtyScope, [['cart', 'Per order'], ['item', 'Per cart item']]), {
-              help: p.qtyScope === 'item' ? 'Each cart item is counted on its own.' : 'All of this product in the cart counts toward the limit.',
+              help: p.qtyScope === 'item' ? 'Each cart item is counted on its own' : 'All of this product in the cart counts toward the limit',
             })
           : ''
       }`,
@@ -154,7 +154,7 @@
       field('Codes', chips(bind, p.modifierCodes, C.modifierCodes)) +
         toggle(pb('isModifierCodeRequired'), p.isModifierCodeRequired, {
           label: 'Require a modifier code',
-          help: enabled.length ? 'Customers need a code to choose this option.' : 'Add a code first.',
+          help: enabled.length ? 'Customers need a code to choose this option' : 'Add a code first',
           disabled: !enabled.length,
         }) +
         (enabled.length
@@ -186,13 +186,13 @@
           <button type="button" class="btn secondary sm" data-action="bulk-code-req" data-on="1" ${req < withCodes.length ? '' : 'disabled'}>Require code</button>
           <button type="button" class="btn secondary sm" data-action="bulk-code-req" data-on="0" ${req ? '' : 'disabled'}>Make code optional</button>
         </div>`
-      : '<p class="store-summary">Add a code first.</p>';
+      : '<p class="store-summary">Add a code first</p>';
     return section(
       'Modifier codes',
       field('Codes', `<div class="chips">${codeChips}</div>`, { help: 'Each product keeps its own order and preselection. New codes go last.' }) +
-        field('Require a modifier code', reqBody, { help: withCodes.length < n ? 'Products with no codes are skipped.' : '' }) +
+        field('Require a modifier code', reqBody, { help: withCodes.length < n ? 'Products with no codes are skipped' : '' }) +
         field('', `<div class="hint-actions"><button type="button" class="btn secondary sm" data-action="bulk-codes-replace">Replace codes</button></div>`, {
-          help: 'Gives all of them the same codes, order and preselection.',
+          help: 'Gives all of them the same codes, order and preselection',
         }) +
         skipNote,
       { desc: 'Select a code to add it to all of them. Select a code they all have to remove it.' },
@@ -242,13 +242,13 @@
         ? field('Group name', inputText(pb('includedName'), p.includedName, { id: 'p-inc-name' }), {
             id: 'p-inc-name',
             error: lengthError(p.includedName),
-            help: 'Customers see this name above the ingredients.',
+            help: 'Customers see this name above the ingredients',
           }) + `<div class="store-list"${sortable ? ` data-sortable="${esc(pb('included'))}"` : ''}>${rows}</div>`
         : '') + `<div class="hint-actions">${addButton('add-included', 'Add ingredient')}${sync}</div>`,
       {
         desc: any
           ? `When Group included ingredients is on in your brand’s configurations, Web App shows these together at the top of the product. Otherwise they stay in their groups. Locked ones cannot be removed.${fromPos ? ' Sync from POS updates the ones from POS and preselects them in this product. Ones you added stay as they are.' : ''}${sortable ? ' Drag ingredients to change their order.' : ''}`
-          : `Ingredients that come with the product, like the patty and bun.${fromPos ? ' Ones marked as included on POS come in when you import or sync.' : ''}`,
+          : sentences('Ingredients that come with the product, like the patty and bun', fromPos && 'Ones marked as included on POS come in when you import or sync'),
       },
     );
   }
@@ -277,7 +277,7 @@
 
   function substitutesSection(p) {
     const opts = productOptions(p, { noHalves: true });
-    if (!opts.length) return section('Substitutes', '<p class="field-help">Add a group with options to this product first.</p>');
+    if (!opts.length) return section('Substitutes', '<p class="field-help">Add a group with options to this product first</p>');
     const pb = productBind(p);
     const subsOf = (o) => substitutesAt(p, o.gid, o.pid).ids.filter((id) => entity('product', id));
     const groupOf = new Map();
@@ -316,7 +316,7 @@
   function halfWholeSection(p) {
     const modifiers = productOptions(p, { modifierOnly: true, noHalves: true });
     const opts = modifiers.filter((o) => !(halfMatches(o.g).halfIds.has(o.pid) && !o.g.halves[o.pid]));
-    if (!opts.length) return section('Half and whole', '<p class="field-help">Add a modifier group, like toppings, to this product first.</p>');
+    if (!opts.length) return section('Half and whole', '<p class="field-help">Add a modifier group, like toppings, to this product first</p>');
     const halfCount = productOptions(p, { modifierOnly: true }).length - opts.length;
     const nm = (id) => nameOf('product', entity('product', id));
     const hover = (id, gid) => {
@@ -398,10 +398,10 @@
         ? field('Title', inputText(pb('upsell.title'), p.upsell.title, { id: 'p-upsell-title' }), {
             id: 'p-upsell-title',
             error: titleErr,
-            help: 'Customers see it above the products.',
+            help: 'Customers see it above the products',
           })
         : '') +
-        productList(pb('upsell.products'), p.upsell.products, 'No products yet.') +
+        productList(pb('upsell.products'), p.upsell.products, 'No products yet') +
         addButton('pick-products', 'Add products', `data-bind="${esc(pb('upsell.products'))}" data-title="Add upsell products"`),
       { desc: 'When customers open this product, Web App and Kiosk offer these instead, like a combo. Customers can still carry on with this product. Delivery partners do not get upsells.' },
     );
@@ -411,7 +411,7 @@
     const pb = productBind(p);
     return section(
       'Cross-sell',
-      productList(pb('crossSell'), p.crossSell, 'No products yet.') + addButton('pick-products', 'Add products', `data-bind="${esc(pb('crossSell'))}" data-title="Add cross-sell products"`),
+      productList(pb('crossSell'), p.crossSell, 'No products yet') + addButton('pick-products', 'Add products', `data-bind="${esc(pb('crossSell'))}" data-title="Add cross-sell products"`),
       { desc: 'When customers open this product, Web App suggests these under People also added. Individual product suggestions needs to be on in your brand’s cross-sell settings. Applies in every menu.' },
     );
   }
@@ -423,7 +423,7 @@
     return section(
       'Groups',
       missing.length
-        ? `<p class="field-help">${p.children.length ? `${plural(missing.length, 'group', 'groups')} from ${esc(posLabel(p.posParentExt))} ${missing.length === 1 ? 'is' : 'are'} not added: ${esc(listJoin(missing.map(posLabel)))}.` : `Add the groups of ${esc(posLabel(p.posParentExt))}, or pick only the ones you need with the add button on this product.`}</p>
+        ? `<p class="field-help">${p.children.length ? `${plural(missing.length, 'group', 'groups')} from ${esc(posLabel(p.posParentExt))} ${missing.length === 1 ? 'is' : 'are'} not added: ${esc(listJoin(missing.map(posLabel)))}` : `Add the groups of ${esc(posLabel(p.posParentExt))}, or pick only the ones you need with the add button on this product`}</p>
            <button type="button" class="btn secondary sm" data-action="parent-groups" data-path="${esc(path)}">${icon('plus', 14)}Add all groups</button>`
         : `<p class="field-help">All groups from ${esc(posLabel(p.posParentExt))} are added. Set preselected options in each group.</p>`,
     );
@@ -458,7 +458,7 @@
     const pr = rulesOf(parentEnt);
     const groupPre = parentEnt.preselected[p.id] || 0;
     if (isAutoAdded(path))
-      html += field('Preselected', stepper(`pl|${path}|preselected`, 1, { label: 'preselected quantity', disabled: true }), { pos: true, help: 'POS adds this option automatically, so it’s always preselected.' });
+      html += field('Preselected', stepper(`pl|${path}|preselected`, 1, { label: 'preselected quantity', disabled: true }), { pos: true, help: 'POS adds this option automatically, so it’s always preselected' });
     else if (pr.type !== 1) {
       const rule = pr.type === 2 ? 'Size groups preselect one option' : 'Combo groups preselect one option at most';
       html += field('Preselected', `<p class="field-help">${groupPre ? 'Yes' : 'No'}. ${rule} everywhere they are used. Choose it on the Options tab of ${esc(parentName)}.</p>`);
@@ -491,15 +491,15 @@
     if (tab === 'general') {
       let html = placementSection(path) + section(
         '',
-        nameBlock('product', p, { error: lengthError(p.name, 'Add a name'), help: 'Customers see this name in the apps.' }) +
+        nameBlock('product', p, { error: lengthError(p.name, 'Add a name'), help: 'Customers see this name in the apps' }) +
           (p.ptype === 'linked'
             ? field(
                 'Rings up as',
                 `<div class="input is-readonly">${esc(p.posParentExt ? `${posLabel(p.posParentExt)} · ${p.posParentExt}` : 'Not chosen yet')}<span class="link-btns"><button type="button" class="link-btn" data-action="change-parent" data-path="${esc(path)}">${p.posParentExt ? 'Change' : 'Choose'}</button>${p.posParentExt ? `<button type="button" class="link-btn" data-action="unlink-parent">Unlink</button>` : ''}</span></div>`,
                 {
                   help: p.posParentExt
-                    ? 'The POS product this custom product rings up as, at its POS price.'
-                    : 'Choose a POS product so customers can order this custom product.',
+                    ? 'The POS product this custom product rings up as, at its POS price'
+                    : 'Choose a POS product so customers can order this custom product',
                   error: p.posParentExt ? '' : 'Choose what it rings up as',
                 },
               )
@@ -541,10 +541,10 @@
         'Allergens',
         chips(pb('allergens'), p.allergens, C.allergens.map((a) => [a, allergenLabel(a)])) +
           (choiceAllergens.length
-            ? `<div class="suggest-row"><span class="field-help">Choices contain ${esc(lowerAllergens(choiceAllergens))}.</span>
+            ? `<div class="suggest-row"><span class="field-help">Choices contain ${esc(lowerAllergens(choiceAllergens))}</span>
                 <button type="button" class="btn secondary sm" data-action="add-choice-allergens">Add to ${esc(nameOf('product', p))}</button></div>`
             : ''),
-        { desc: p.allergens.length ? `Contains ${esc(lowerAllergens(p.allergens))}.` : 'Listed in the product details in Web App and Kiosk, and sent to delivery partners.' },
+        { desc: p.allergens.length ? `Contains ${esc(lowerAllergens(p.allergens))}` : 'Listed in the product details in Web App and Kiosk, and sent to delivery partners' },
       );
       return (
         (p.ptype === 'size' ? callout('info', `Customers see these on ${esc(nameOf('product', p))} before they pick a choice. Each choice keeps its own. Set nutrition facts on each choice.`) : '') +
@@ -561,7 +561,7 @@
             field('Serves', range(pb('servingFrom'), p.servingFrom, pb('servingTo'), p.servingTo, 'people', 'p-serv'), {
               id: 'p-serv',
               error: rangeError(p.servingFrom, p.servingTo, 1),
-              help: 'Shown only for catering orders in Web App.',
+              help: 'Shown only for catering orders in Web App',
             }),
         ) +
         section(
@@ -570,7 +570,7 @@
             (p.isAlcoholic
               ? field('Alcohol by volume', inputNum(pb('alcoholVol'), p.alcoholVol, { suffix: '%', id: 'p-abv' }), {
                   id: 'p-abv',
-                  help: 'From 0 to 100%.',
+                  help: 'From 0 to 100%',
                 })
               : ''),
         ) +
@@ -606,7 +606,7 @@
         field('External ID', inputText(pb('reportingId'), p.reportingId, { id: 'p-ext', mono: true }), {
           id: 'p-ext',
           error: lengthError(p.reportingId),
-          help: 'Use it to match this product in reports outside this platform.',
+          help: 'Use it to match this product in reports outside this platform',
         }),
       ) +
       metadataSection(p) +
@@ -619,10 +619,10 @@
   function productDeleteSection(p) {
     const block = productDeleteBlock(p);
     const places = productParents(p);
-    const kids = p.ptype === 'size' ? ' Its choices are not deleted' : p.children.length ? ' Its groups are not deleted' : '';
-    const pos = p.source === 'pos' ? ' Nothing changes on POS.' : '';
-    const where = `Deletes it and its settings permanently${places.length === 1 ? `, from ${nameOf(places[0].kind, places[0].ent)}` : places.length ? `, from ${allOf(places.length, 'places it appears in')}` : ''}.`;
-    const help = block || `${where}${kids ? `${kids}.` : ''}${pos}`;
+    const kids = p.ptype === 'size' ? 'Its choices are not deleted' : p.children.length ? 'Its groups are not deleted' : '';
+    const pos = p.source === 'pos' && 'Nothing changes on POS';
+    const where = `Deletes it and its settings permanently${places.length === 1 ? `, from ${nameOf(places[0].kind, places[0].ent)}` : places.length ? `, from ${allOf(places.length, 'places it appears in')}` : ''}`;
+    const help = block || sentences(where, kids, pos);
     return section(
       '',
       `<button type="button" class="btn secondary tone-danger" data-action="prod-delete" data-id="${p.id}" ${block ? 'disabled' : ''}>${icon('trash', 15)}Delete product</button>
@@ -644,7 +644,7 @@
     let body = toggle(pb('availability.active'), a.active, {
       label: 'Custom availability',
       action: 'avail-toggle',
-      help: a.active ? 'Applies in every menu, within each menu’s serving times.' : `Same as ${esc(menu.name)}: ${esc(menuScheduleSummary(menu).replace(/^During/, 'during'))}`,
+      help: a.active ? 'Applies in every menu, within each menu’s serving times' : `Same as ${esc(menu.name)}: ${esc(menuScheduleSummary(menu).replace(/^During/, 'during'))}`,
     });
     if (a.active) {
       body += field(
@@ -667,21 +667,21 @@
         body += scheduleEditor(pb('availability.slots'), a.slots) + problems.map(slotError).join('');
       } else if (a.mode === 'lto') {
         body +=
-          dt('lto.from', 'p-lto-from', { label: 'Start', help: a.lto.from ? fmtDateTime(a.lto.from) : 'Required.' }) +
+          dt('lto.from', 'p-lto-from', { label: 'Start', help: a.lto.from ? fmtDateTime(a.lto.from) : 'Required' }) +
           dt('lto.to', 'p-lto-to', { label: 'End', error: e.ltoTo, help: a.lto.to ? fmtDateTime(a.lto.to) : 'Optional. Leave empty to keep it on sale.' });
       } else {
         const pre = a.preorder;
         body +=
           `<p class="field-label sub-head">Preorders</p>` +
-          dt('preorder.from', 'p-pre-from', { label: 'Open', help: pre.from ? fmtDateTime(pre.from) : 'Required.' }) +
-          dt('preorder.to', 'p-pre-to', { label: 'Close', error: e.preTo, help: pre.to ? fmtDateTime(pre.to) : 'Optional.' }) +
+          dt('preorder.from', 'p-pre-from', { label: 'Open', help: pre.from ? fmtDateTime(pre.from) : 'Required' }) +
+          dt('preorder.to', 'p-pre-to', { label: 'Close', error: e.preTo, help: pre.to ? fmtDateTime(pre.to) : 'Optional' }) +
           `<p class="field-label sub-head">Pickup</p>` +
           dt('preorder.pickupFrom', 'p-pick-from', {
             label: 'From',
             error: pre.pickupFrom ? e.pickFrom : '',
             help: pre.pickupFrom ? fmtDateTime(pre.pickupFrom) : 'Required. At least 24 hours after preorders open.',
           }) +
-          dt('preorder.pickupTo', 'p-pick-to', { label: 'Until', error: e.pickTo, help: pre.pickupTo ? fmtDateTime(pre.pickupTo) : 'Optional.' });
+          dt('preorder.pickupTo', 'p-pick-to', { label: 'Until', error: e.pickTo, help: pre.pickupTo ? fmtDateTime(pre.pickupTo) : 'Optional' });
       }
     }
     return section('Schedule', body);
@@ -771,7 +771,7 @@
       ? `<div class="segment-draft${taken ? ' has-error' : ''}">
           <label class="field-label" for="tag-draft-key">Key</label>
           <input id="tag-draft-key" type="text" class="input mono" list="tag-keys" data-tag-draft="key" data-focus-key="tag-draft-key" value="${esc(draft.key)}" autocomplete="off" spellcheck="false" ${editing ? 'disabled' : ''}>
-          ${taken ? slotError('This key is already added. Edit it to add values') : ''}
+          ${taken ? slotError('This key is already added. Edit it to add values.') : ''}
           <label class="field-label" for="tag-draft-values">Values</label>
           <input id="tag-draft-values" type="text" class="input" data-tag-draft="values" data-focus-key="tag-draft-values" value="${esc(draft.values)}" autocomplete="off" spellcheck="false">
           <p class="field-help">Separate values with commas. Keys and values are saved in lowercase, with hyphens for spaces.</p>
@@ -836,8 +836,8 @@
         field(
           'Second quantity',
           `<div class="qty-unit">${inputNum(pb('prep.qty2'), pr.qty2, { id: 'p-prep-q2', placeholder: 'None', disabled: !isNum(pr.qty) })}${selectInput(pb('prep.unit2'), pr.unit2, units, { label: 'Second unit', disabled: !isNum(pr.qty) })}</div>`,
-          { id: 'p-prep-q2', error: e.qty2 || e.unit2, help: isNum(pr.qty) ? 'For example, 2 ea and 8 oz.' : 'Available after you add a quantity.' },
+          { id: 'p-prep-q2', error: e.qty2 || e.unit2, help: isNum(pr.qty) ? 'For example, 2 ea and 8 oz' : 'Available after you add a quantity' },
         ) +
-        (e.group ? '<p class="field-help">Add a prep station or a quantity.</p>' : '');
+        (e.group ? '<p class="field-help">Add a prep station or a quantity</p>' : '');
     return section('Prep sheets', body);
   }

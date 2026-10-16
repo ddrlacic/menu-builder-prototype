@@ -3,7 +3,7 @@
   /* ---------- inspector ---------- */
 
   const scopePill = (where) => `<span class="scope" title="Applies only to ${esc(where)}">Only here</span>`;
-  const lockPill = (text = 'From POS') => `<span class="scope scope-pos" title="Set on POS. Change it on POS, then sync">${icon('lock', 11)}${esc(text)}</span>`;
+  const lockPill = (text = 'From POS') => `<span class="scope scope-pos" title="Set on POS. Change it on POS, then sync.">${icon('lock', 11)}${esc(text)}</span>`;
 
   function positionField(path) {
     const info = parsePath(path);
@@ -14,10 +14,10 @@
     if (index < 0 || count < 2) return '';
     const name = esc(nameOf(pInfo.kind, parent));
     const where = {
-      menu: `Order customers see in ${name}.`,
-      category: `Same order in every menu with ${name}.`,
-      group: `Same order in every product that uses ${name}.`,
-      product: `Same order everywhere ${name} is used.`,
+      menu: `Order customers see in ${name}`,
+      category: `Same order in every menu with ${name}`,
+      group: `Same order in every product that uses ${name}`,
+      product: `Same order everywhere ${name} is used`,
     }[pInfo.kind];
     const noun = { category: 'products', group: 'options', product: info.kind === 'group' ? 'groups' : 'choices' }[pInfo.kind];
     const anyHidden = noun && parent.children.some((id) => id !== info.id && groupHiddenAt(childPath(info.parentPath, info.kind, id)));
@@ -29,7 +29,7 @@
         <input type="number" id="pos-input" class="input tnum" inputmode="numeric" min="1" max="${count}" step="1" value="${index + 1}" data-pos-set data-path="${esc(path)}" data-focus-key="pos-input|${esc(path)}">
         <span class="muted tnum">of ${count}</span>${btn(-1, 'chevUp', 'Move up')}${btn(1, 'chevDown', 'Move down')}
       </div>`,
-      { id: 'pos-input', scope: pInfo.kind === 'menu' ? crumbText(path) : '', help: where + (anyHidden ? ` Hidden ${noun} keep their place.` : '') },
+      { id: 'pos-input', scope: pInfo.kind === 'menu' ? crumbText(path) : '', help: sentences(where, anyHidden && `Hidden ${noun} keep their place`) },
     );
   }
 
@@ -50,7 +50,7 @@
           <div class="nest-head" data-nest-row="section" tabindex="0" aria-label="${esc(label)}. Drag or use the arrow keys to move it">
             ${sections.length > 1 ? grip : ''}${inputText(bindOf(`sections.${i}.name`), s.name, { label: 'Section name' })}
             <span class="muted tnum">${plural(own.length, one, many)}</span>
-            <button type="button" class="icon-btn sm" data-action="nest-section-remove" data-nest="${esc(key)}" data-index="${i}" aria-label="Delete ${esc(label)}" title="${sections.length > 1 ? `Delete section. Its ${many} stay outside a section` : 'Delete section'}">${icon('x', 14)}</button>
+            <button type="button" class="icon-btn sm" data-action="nest-section-remove" data-nest="${esc(key)}" data-index="${i}" aria-label="Delete ${esc(label)}" title="${sections.length > 1 ? `Delete section. Its ${many} stay outside a section.` : 'Delete section'}">${icon('x', 14)}</button>
           </div>
           ${err ? slotError(err) : ''}
           ${rows}
@@ -178,7 +178,7 @@
     const posRow =
       posSrc && posSrc !== value
         ? `<div class="pos-image"><button type="button" class="image-open" data-action="image-view" data-src="${esc(posSrc)}" aria-label="Open POS image in new tab" title="Open POS image in new tab"><img class="pos-image-thumb" src="${esc(posSrc)}" alt=""></button>
-            <span class="field-help">${value ? 'POS has a different image.' : 'POS has an image.'}</span>
+            <span class="field-help">${value ? 'POS has a different image' : 'POS has an image'}</span>
             <button type="button" class="btn secondary sm" data-action="image-use-pos" data-bind="${esc(bind)}" data-src="${esc(posSrc)}">Use POS image</button></div>`
         : '';
     return field(
@@ -221,7 +221,7 @@
             <input type="time" class="input tnum" aria-label="End time" data-bind="${esc(base)}.${i}.to" data-type="text" data-focus-key="${esc(base)}.${i}.to" value="${esc(s.to)}">
             <button type="button" class="icon-btn sm" data-action="sched-remove" data-bind="${esc(base)}" data-index="${i}" aria-label="Remove time slot" title="Remove time slot">${icon('x', 14)}</button>
           </div>
-          ${s.days.length ? '' : '<p class="field-help">Choose the days for this time slot.</p>'}
+          ${s.days.length ? '' : '<p class="field-help">Choose the days for this time slot</p>'}
         </div>`,
         )
         .join('')}
@@ -232,13 +232,13 @@
 
   function nameBlock(kind, ent, { error = '', help = '' } = {}) {
     const bind = `e|${kind}|${ent.id}|name`;
-    if (ent.source !== 'pos') return field('Name', inputText(bind, ent.name, { id: 'insp-name' }), { id: 'insp-name', error, help });
+    if (ent.source !== 'pos') return field('Name', inputText(bind, ent.name, { id: 'insp-name' }), { id: 'insp-name', error, help: sentences(help) });
     const pos = posItem(ent);
     const posName = pos ? pos.name : ent.reviewed ? ent.reviewed.name : '';
     return field('Name', inputText(bind, ent.name, { id: 'insp-name' }), {
       id: 'insp-name',
       error,
-      help: `${help ? `${help} ` : ''}${ent.name === posName ? 'Same as the POS name.' : `POS name: ${esc(posName)}. POS keeps its own name.`}`,
+      help: sentences(help, ent.name === posName ? 'Same as the POS name' : [`POS name: ${esc(posName)}`, 'POS keeps its own name']),
     });
   }
 
@@ -403,7 +403,7 @@
         const required = live.filter((p) => !groupHiddenAt(p) && entity('group', parsePath(p).id).children.length && rulesOf(entity('group', parsePath(p).id)).min > 0).length;
         const empty = live.filter((p) => !entity('group', parsePath(p).id).children.length).length;
         if (required) notes.push(`${plural(required, 'required group', 'required groups')} cannot be hidden. Set the minimum to 0 first.`);
-        if (empty) notes.push(`${plural(empty, 'group has', 'groups have')} no options to hide.`);
+        if (empty) notes.push(`${plural(empty, 'group has', 'groups have')} no options to hide`);
       }
       html += section(
         where ? `In ${where}` : 'In each place',
@@ -443,7 +443,7 @@
     html += section(
       'Optimize',
       `<div class="hint-actions"><button type="button" class="btn secondary sm" data-action="bulk-optimize">${icon('sparkles', 14)}Optimize ${esc(noun(n))}</button></div>`,
-      { desc: kind === 'category' ? 'Suggests names and descriptions for them and what’s inside, and groups their sizes into choice products.' : 'Suggests names and descriptions for them and what’s inside.' },
+      { desc: kind === 'category' ? 'Suggests names and descriptions for them and what’s inside, and groups their sizes into choice products' : 'Suggests names and descriptions for them and what’s inside' },
     );
 
     const removable = removableRows(paths);
@@ -452,19 +452,19 @@
     const del = bulkDeleteState();
     const tooMany = del.ok.length > DELETE_MAX;
     const delHelp = tooMany
-      ? `Delete up to ${DELETE_MAX} at a time.`
+      ? `Delete up to ${DELETE_MAX} at a time`
       : del.blocked.length === 1
-        ? `${nameOf(kind, del.blocked[0])} is skipped. ${deleteBlockOf(kind, del.blocked[0])}`
+        ? sentences(`${nameOf(kind, del.blocked[0])} is skipped`, deleteBlockOf(kind, del.blocked[0]))
         : del.blocked.length
-          ? `${plural(del.blocked.length, one, many)} are skipped. ${nameOf(kind, del.blocked[0])}: ${deleteBlockOf(kind, del.blocked[0])}`
-          : 'Deletes them everywhere they’re used.';
+          ? sentences(`${plural(del.blocked.length, one, many)} are skipped`, `${nameOf(kind, del.blocked[0])}: ${deleteBlockOf(kind, del.blocked[0])}`)
+          : 'Deletes them everywhere they’re used';
     html += section(
       '',
       `<div class="hint-actions">
         <button type="button" class="btn secondary" data-action="bulk-remove" ${removable.length ? '' : 'disabled'}>${icon('x', 15)}${esc(removeLabel)}</button>
         <button type="button" class="btn secondary tone-danger" data-action="bulk-delete" ${del.ok.length && !tooMany ? '' : 'disabled'}>${icon('trash', 15)}Delete ${esc(noun(del.ok.length))}</button>
       </div>
-      ${inherited ? `<p class="field-help">${plural(inherited, `${one} is`, `${many} are`)} added by another group and cannot be removed here.</p>` : ''}
+      ${inherited ? `<p class="field-help">${plural(inherited, `${one} is`, `${many} are`)} added by another group and cannot be removed here</p>` : ''}
       <p class="field-help">${esc(delHelp)}</p>`,
     );
     $('#inspector-body').innerHTML = html;
@@ -526,7 +526,7 @@
           .join('')}</ul>`
       : `<p class="field-help">No ${esc(many)} yet, so customers do not see it. Drag ${esc(many)} onto it in the builder.</p>`;
     $('#inspector-body').innerHTML =
-      section('', field('Name', inputText(sectionNameBind(sc, index), s.name, { id: 'insp-name' }), { id: 'insp-name', error: nameError, help: sc.kind === 'group' ? 'Customers see it as a tab in Web App.' : 'Customers see it as a heading.' })) +
+      section('', field('Name', inputText(sectionNameBind(sc, index), s.name, { id: 'insp-name' }), { id: 'insp-name', error: nameError, help: sc.kind === 'group' ? 'Customers see it as a tab in Web App' : 'Customers see it as a heading' })) +
       section(
         `In ${hostName}`,
         field(

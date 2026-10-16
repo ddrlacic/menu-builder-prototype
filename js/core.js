@@ -42,6 +42,11 @@
     return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
   }
 
+  function sentences(...parts) {
+    const list = parts.flat().filter(Boolean).map((p) => String(p).trim().replace(/\.$/, ''));
+    return list.length > 1 ? list.map((p) => `${p}.`).join(' ') : list.join('');
+  }
+
   const searchTerm = (s) => {
     const q = String(s || '').trim().toLowerCase();
     return q.length >= 2 ? q : '';

@@ -513,7 +513,7 @@
         const p = entity('product', parsePath(S.ui.selected).id);
         const was = posLabel(p.posParentExt);
         commit(() => (p.posParentExt = null));
-        toast(`Unlinked from ${was}. Customers cannot order it until you choose what it rings up as.`, 'success', { action: { label: 'Undo', onClick: undo } });
+        toast(`Unlinked from ${was}. Customers cannot order it until you choose what it rings up as`, 'success', { action: { label: 'Undo', onClick: undo } });
         break;
       }
       case 'add-choice':
