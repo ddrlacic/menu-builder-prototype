@@ -431,7 +431,7 @@
     if (!anchor) return;
     const list = ctx.issues.list;
     const items = list.length
-      ? [{ heading: `${plural(ctx.issues.errors, 'error', 'errors')} · ${plural(ctx.issues.warnings, 'warning', 'warnings')}` }].concat(
+      ? [{ heading: [ctx.issues.errors && plural(ctx.issues.errors, 'error', 'errors'), ctx.issues.warnings && plural(ctx.issues.warnings, 'warning', 'warnings')].filter(Boolean).join(' · ') }].concat(
           list.map((i) => ({
             label: i.text,
             hint: i.path.includes('>') ? crumbText(parsePath(i.path).parentPath) : 'Menu settings',
@@ -666,7 +666,7 @@
     else if (!hidden && info.kind === 'group') {
       const g = entity('group', info.id);
       if (!g.children.length) why = 'It has no options to hide';
-      else if (rulesOf(g).min > 0) why = 'Required groups can’t be hidden. Set the minimum to 0 first.';
+      else if (rulesOf(g).min > 0) why = 'Required groups cannot be hidden. Set the minimum to 0 first.';
     }
     return [{ label: `${hidden ? 'Show' : 'Hide'} ${scope}`, icon: hidden ? 'eye' : 'eyeOff', disabled: !!why, hint: why, onClick: () => bulkSetHidden(!hidden, [path]) }];
   }
@@ -683,7 +683,7 @@
     if (!ent || ent.pending || pendingRoot(path)) return [];
     const block = deleteBlockOf(info.kind, ent);
     const run = () => (info.kind === 'product' ? confirmDeleteProduct(ent) : info.kind === 'group' ? confirmDeleteGroup(ent, path) : confirmDeleteCategory(ent));
-    return [{ label: `Delete ${KIND_LABEL[info.kind].toLowerCase()}`, icon: 'trash', tone: 'danger', disabled: !!block, hint: block, onClick: run }];
+    return [{ label: 'Delete', icon: 'trash', tone: 'danger', disabled: !!block, hint: block, onClick: run }];
   }
 
   function openReplaceCodes() {
