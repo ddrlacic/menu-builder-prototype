@@ -165,15 +165,12 @@
 
   function groupRulesSection(g, gb, rules) {
     const errs = rules.fixed ? {} : ruleErrors(g);
-    const hints = [webAppRuleHint(rules), webAppFreeHint(g, rules)].filter(Boolean);
+    const summary = [nameOf('group', g), webAppRuleHint(rules), webAppFreeHint(g, rules)].filter(Boolean).join(' · ');
     const preview = Object.values(errs).some(Boolean)
       ? ''
       : `<div class="rule-preview">
         <span class="rule-preview-kicker">${icon('phone', 13)}Customers see</span>
-        <div class="rule-preview-header">
-          <strong>${esc(nameOf('group', g))}</strong>
-          ${hints.length ? `<span class="rule-preview-hints">${hints.map((h) => `<span>${esc(h)}</span>`).join('')}</span>` : ''}
-        </div>
+        <strong>${esc(summary)}</strong>
         <p>${esc(groupRuleSentence(rules))}</p>
       </div>`;
     if (g.isSubstitutionContainer)
