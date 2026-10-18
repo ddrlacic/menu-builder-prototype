@@ -164,9 +164,16 @@
   }
 
   function groupRulesSection(g, gb, rules) {
-    const preview = `<div class="rule-preview">
+    const errs = rules.fixed ? {} : ruleErrors(g);
+    const hints = [webAppRuleHint(rules), webAppFreeHint(g, rules)].filter(Boolean);
+    const preview = Object.values(errs).some(Boolean)
+      ? ''
+      : `<div class="rule-preview">
         <span class="rule-preview-kicker">${icon('phone', 13)}Customers see</span>
-        <strong>${esc(customerRule(rules))}</strong>
+        <div class="rule-preview-header">
+          <strong>${esc(nameOf('group', g))}</strong>
+          ${hints.length ? `<span class="rule-preview-hints">${hints.map((h) => `<span>${esc(h)}</span>`).join('')}</span>` : ''}
+        </div>
         <p>${esc(groupRuleSentence(rules))}</p>
       </div>`;
     if (g.isSubstitutionContainer)
@@ -190,7 +197,6 @@
     const live = fromPos ? posRulesNow(g) : null;
     const now = live && live.groupType === rules.type ? live : null;
     const posR = fromPos ? { ...posRulesOf(g), ...(now ? { min: now.min, max: now.max } : {}) } : null;
-    const errs = ruleErrors(g);
     const bindOf = (k) => (fromPos ? gb(`ruleOverrides.${k}`) : gb(k));
     const posText = (k) => (k === 'max' && posR.max == null ? 'no limit' : posR[k]);
     const differs = (k) => hasOwn(g.ruleOverrides, k) || (now && (k === 'min' || k === 'max') && rules[k] !== now[k]);

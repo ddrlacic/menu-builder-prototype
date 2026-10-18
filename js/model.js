@@ -783,11 +783,22 @@
     return s;
   }
 
-  const customerRule = (r) =>
-    groupRuleShort(r)
-      .split(' · ')
-      .map(capitalize)
-      .join(' · ');
+  function webAppRuleHint(r) {
+    if (r.fixed) return 'Select 1';
+    const min = r.min || 0;
+    const max = limitOf(r.max);
+    if (min > 0 && max === min) return `Select ${min}`;
+    if (min > 0 && max != null) return `Select ${min} to ${max}`;
+    if (max != null) return `Select up to ${max}`;
+    if (min > 0) return `Select at least ${min}`;
+    return '';
+  }
+
+  function webAppFreeHint(g, r) {
+    if (r.fixed || !(r.freeCount > 0)) return '';
+    const picked = Object.values(g.preselected || {}).reduce((sum, n) => sum + (n || 0), 0);
+    return `${Math.max(0, r.freeCount - picked)} of ${r.freeCount} free remaining`;
+  }
 
   function groupRuleSentence(r) {
     const min = r.min || 0;
