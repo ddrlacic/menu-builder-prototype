@@ -786,7 +786,7 @@
       title: `Publish ${m.name}?`,
       body: `${publishBody(m)}
         <dl class="kv"><dt>Stores</dt><dd>${esc(storeCountLabel(m))}</dd><dt>Categories</dt><dd>${m.children.length}</dd><dt>Order types</dt><dd>${esc(listJoin(m.orderTypes.map((o) => (C.orderTypes.find((x) => x[0] === o) || [o, o])[1])))}</dd></dl>
-        <p class="field-help">Large menus can take a few minutes. You can keep editing, but adding, moving and removing items waits until it finishes.</p>
+        <p class="field-help">Large menus can take a few minutes. You can keep editing, but adding, moving, and removing items waits until it finishes.</p>
         ${ctx.issues.warnings ? callout('warning', `${plural(ctx.issues.warnings, 'warning remains', 'warnings remain')}. You can still publish.`) : ''}`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: closeModal },
@@ -869,7 +869,7 @@
       title: `Couldn’t publish at ${plural(n, 'store', 'stores')}`,
       body: `<p>${now} ${canRetry ? `Retry to send it to ${n === 1 ? 'this store' : 'them'} again.` : `Publishing failed ${tries} times. Contact support to publish it.`}</p>
         <div class="store-list">${rows}</div>
-        ${callout('info', `Until it’s published, adding, moving and removing items in ${esc(m.name)} is paused`)}`,
+        ${callout('info', `Until it’s published, adding, moving, and removing items in ${esc(m.name)} is paused`)}`,
       actions: [
         { label: 'Close', kind: 'secondary', onClick: closeModal },
         ...(canRetry ? [{ label: 'Retry publishing', kind: 'primary', onClick: () => { closeModal(); retryPublish(m); } }] : []),
