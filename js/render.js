@@ -119,8 +119,8 @@
     const [title, text] = T.newMenu
       ? ['New menu', 'Drag categories or products here from POS items. The menu is linked to their POS menu.']
       : none || !pm
-        ? ['No menus yet', 'Menus come from POS. Add a POS menu, category, or product from POS items, and its menu is added with it.']
-        : [`${pm.name} has no menu yet`, 'Drag categories or products here from POS items to create its menu'];
+        ? ['Add a menu from POS', 'Menus come from POS. Add a POS menu, category, or product from POS items, and its menu is added with it.']
+        : [`Add a menu to ${pm.name}`, 'Drag categories or products here from POS items to create its menu.'];
     $('#topbar').innerHTML = `
       <div class="brand">
         <span class="brand-mark">${icon('layers', 16)}</span>
@@ -148,7 +148,7 @@
     const stores = plural(total, 'store', 'stores');
     if (m.status === 'publishing') {
       const run = T.publishing[m.id] || { done: 0, total };
-      return [`Publishing · ${run.done} of ${plural(run.total, 'store', 'stores')}`, 'progress', 'Adding, moving and removing items is paused until it finishes'];
+      return [`Publishing · ${run.done} of ${plural(run.total, 'store', 'stores')}`, 'progress', 'Adding, moving, and removing items is paused until it finishes'];
     }
     if (m.status === 'failed') return [`Failed at ${plural(m.publishRun.failedStoreIds.length, 'store', 'stores')}`, 'error', 'View the stores and retry'];
     if (m.status === 'changed') return ['Unpublished changes', 'warn', 'New items and serving times reach stores when you publish. Other edits are already live.'];
@@ -723,8 +723,8 @@
           <h3>Build your first category</h3>
           <p>Add categories from POS or ones you made, or drag a POS menu here. Products keep their POS prices and options. To arrange products your own way, create a menu-only category.</p>
           <div class="blank-actions">
-            <button class="btn primary" data-action="add-category-dialog"${addable ? '' : ' disabled title="No categories to add"'}>${icon('plus', 15)}Add category</button>
             <button class="btn secondary" data-action="create-category">${icon('dashed', 15)}Create menu-only category</button>
+            <button class="btn primary" data-action="add-category-dialog"${addable ? '' : ' disabled title="No categories to add"'}>${icon('plus', 15)}Add category</button>
           </div>
         </div>`;
       return;

@@ -491,8 +491,8 @@
   };
   const MOVE_HINT = {
     category: 'Drop between categories to change the order',
-    product: 'Drop between products to change the order, or on a category or group to move it. Hold ⌥ to add it there too',
-    group: 'Drop between groups to change the order, or on a product to move it. Hold ⌥ to add it there too',
+    product: 'Drop between products to change the order, or on a category or group to move it. Hold ⌥ to add it there too.',
+    group: 'Drop between groups to change the order, or on a product to move it. Hold ⌥ to add it there too.',
     section: 'Drop between sections to change the order',
   };
   const DRAG_HINT_MANY = {
@@ -503,7 +503,7 @@
   const baseHint = (d) => {
     if (d.multi && d.origin === 'pos') return DRAG_HINT_MANY[d.kind];
     const hint = (d.origin === 'canvas' ? MOVE_HINT : DRAG_HINT)[d.kind];
-    return d.multi ? hint.replace('. Hold ⌥ to add it there too', '').replace(/\bit\b/, 'them') : hint;
+    return d.multi ? hint.replace('. Hold ⌥ to add it there too.', '').replace(/\bit\b/, 'them') : hint;
   };
 
   function autoPlaceManyHint(d) {

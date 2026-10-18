@@ -857,30 +857,30 @@
       if (d.ptype === 'size' && d.id && !isVirtual(parent)) {
         const off = entity('product', d.id).children.map((cid) => entity('product', cid)).filter((x) => x && x.source === 'pos' && !posChildren(parent.externalId).includes(x.externalId));
         if (off.length)
-          return `${listJoin(off.map((x) => nameOf('product', x)))} ${off.length > 1 ? 'are' : 'is'} not in ${pName} on POS, so ${d.name} cannot go here. Put it in a menu-only category`;
+          return `${listJoin(off.map((x) => nameOf('product', x)))} ${off.length > 1 ? 'are' : 'is'} not in ${pName} on POS, so ${d.name} cannot go here. Put it in a menu-only category.`;
       }
       if (d.source !== 'pos') return null;
       if (isVirtual(parent)) return standaloneError();
       if (posChildren(parent.externalId).includes(d.posId)) return null;
-      return `${d.name} is not in ${pName} on POS. To show it here, put it in a menu-only category`;
+      return `${d.name} is not in ${pName} on POS. To show it here, put it in a menu-only category.`;
     }
     if (pi.kind === 'product') {
       if (d.gtype === 'linked' && d.id) {
         const base = entity('group', d.id).posGroupExt;
         if (!allowedPosGroupsFor(parentPath).includes(base))
-          return `${d.name} is based on ${posLabel(base) === d.name ? 'a POS group' : posLabel(base)}, which ${pName} does not have on POS. To show these options here, use suggested products`;
+          return `${d.name} is based on ${posLabel(base) === d.name ? 'a POS group' : posLabel(base)}, which ${pName} does not have on POS. To show these options here, use suggested products.`;
       }
       if (d.source !== 'pos') return null;
       if (allowedPosGroupsFor(parentPath).includes(d.posId)) return null;
-      return `${d.name} is not a group of ${pName} on POS. To show these options here, use suggested products`;
+      return `${d.name} is not a group of ${pName} on POS. To show these options here, use suggested products.`;
     }
     if (d.ptype === 'container') return null;
     if (d.ptype === 'size') return 'Choice products go in a category';
     if (parent.gtype === 'standalone') return d.source === 'pos' ? standaloneError() : null;
-    if (d.source !== 'pos') return `Only POS products can be options in ${pName}. Put custom products in suggested products`;
+    if (d.source !== 'pos') return `Only POS products can be options in ${pName}. Put custom products in suggested products.`;
     const gpos = posIdOf('group', parent);
     if (posChildren(gpos).includes(d.posId)) return null;
-    return `${d.name} is not an option of ${posLabel(gpos)} on POS. To offer it here, use suggested products`;
+    return `${d.name} is not an option of ${posLabel(gpos)} on POS. To offer it here, use suggested products.`;
   }
 
   const SIZE_MEASURE = String.raw`\d+(?:\.\d+)?\s*-?\s*(?:fl\.?\s*oz|oz|ml|cl|liters?|litres?|l|inch(?:es)?|in|")(?:\s+(?:bottle|can|cup|glass|jug|pitcher))?`;
