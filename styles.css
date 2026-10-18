@@ -2285,7 +2285,7 @@ body[data-drag-kind='group'] .row[data-kind='product'] {
   margin-bottom: 10px;
 }
 
-.is-large-section-titles .insp-section > .section-title {
+.insp-section > .section-title {
   font-size: 17px;
   font-weight: 700;
   line-height: 22px;

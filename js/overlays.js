@@ -778,9 +778,7 @@
         '-',
         { label: 'Show POS IDs', icon: 'link', hint: 'In the menu tree and the POS items list', checked: !!S.ui.showPosIds, onClick: () => toggleView('showPosIds') },
         { label: 'Show internal names', icon: 'tag', hint: 'In the menu tree', checked: !S.ui.hideInternalNames, onClick: () => toggleView('hideInternalNames') },
-        { label: 'Show images', icon: 'image', hint: 'In the menu tree', checked: !S.ui.hideImages, onClick: () => toggleView('hideImages') },
-        { label: 'Large section titles', icon: 'rows', hint: 'In the inspector. Design test', checked: !!S.ui.largeSectionTitles, onClick: () => toggleView('largeSectionTitles') },
-      ],
+        { label: 'Show images', icon: 'image', hint: 'In the menu tree', checked: !S.ui.hideImages, onClick: () => toggleView('hideImages') },      ],
       { align: 'end', label: 'More actions' },
     );
   }
