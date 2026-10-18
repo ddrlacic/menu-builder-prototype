@@ -37,6 +37,7 @@
     hideTip();
     const focus = captureFocus();
     syncOpenMenu();
+    document.body.classList.toggle('is-large-section-titles', !!S.ui.largeSectionTitles);
     const menu = activeMenu();
     if (!menu) {
       renderNoMenus();
