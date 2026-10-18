@@ -2285,16 +2285,6 @@ body[data-drag-kind='group'] .row[data-kind='product'] {
   margin-bottom: 10px;
 }
 
-.insp-section > .section-title {
-  font-size: 17px;
-  font-weight: 700;
-  line-height: 22px;
-  letter-spacing: normal;
-  text-transform: none;
-  color: var(--ink);
-  text-wrap: balance;
-}
-
 .section-desc {
   color: var(--ink-2);
   font-size: var(--text-sm);
