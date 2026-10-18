@@ -169,7 +169,7 @@
     const preview = Object.values(errs).some(Boolean)
       ? ''
       : `<div class="rule-preview">
-        <span class="rule-preview-kicker">${icon('phone', 13)}Customers see</span>
+        <span class="rule-preview-kicker">Customers see</span>
         <strong>${esc(summary)}</strong>
         <p>${esc(groupRuleSentence(rules))}</p>
       </div>`;
