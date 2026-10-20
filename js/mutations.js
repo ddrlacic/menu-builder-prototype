@@ -1762,7 +1762,7 @@
   function canHideHere(path) {
     const info = parsePath(path);
     if (info.kind === 'category') return false;
-    if (info.kind === 'product') return !hiddenInProduct(path);
+    if (info.kind === 'product') return !hiddenInProduct(path) && !mustStayShown(path);
     const g = entity('group', info.id);
     return g.children.length > 0 && !(rulesOf(g).min > 0);
   }
@@ -1773,11 +1773,16 @@
     const list = paths.filter((p) => !pendingRoot(p) && groupHiddenAt(p) !== hide && (hide ? canHideHere(p) : canShowHere(p)));
     if (!list.length) return;
     const where = sharedParent(list);
+    let n = 0;
     const ok = commit(() => {
-      list.forEach((p) => setBind(`pl|${p}|hidden`, hide));
+      list.forEach((p) => {
+        if (hide && mustStayShown(p)) return;
+        setBind(`pl|${p}|hidden`, hide);
+        n++;
+      });
       T.focusRow = S.ui.selected;
     });
-    if (ok) toast(`${noun(list.length)} ${hide ? 'hidden' : 'shown'}${where ? ` in ${where}` : ''}`, 'success', { action: { label: 'Undo', onClick: undo } });
+    if (ok) toast(`${noun(n)} ${hide ? 'hidden' : 'shown'}${where ? ` in ${where}` : ''}`, 'success', { action: { label: 'Undo', onClick: undo } });
   }
 
   function removableRows(paths) {

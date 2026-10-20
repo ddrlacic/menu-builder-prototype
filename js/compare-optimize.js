@@ -83,7 +83,7 @@
               (c) => `<div class="cmp-row"><span class="kind-glyph kind-${c.kind}">${icon(KIND_ICON[c.kind], 13)}</span>
                 <span class="cmp-main"><span class="cmp-name">${esc(nameOf(c.kind, c.ent))}</span><span class="cmp-meta tnum">${c.diffs.map(esc).join(' · ')}</span>${c.type ? '<span class="cmp-meta">A group’s type can’t change here. To use the POS type, delete the group, then import it again from POS.</span>' : ''}</span>
                 ${c.name && c.ent.name !== posItem(c.ent).name ? `<button type="button" class="btn secondary sm" data-action="cmp-use-name" data-path="${esc(c.path)}">Use POS name</button>` : ''}
-                ${c.rules && rulesDifferFromPos(c.ent) ? `<button type="button" class="btn secondary sm" data-action="cmp-use-rules" data-path="${esc(c.path)}">Use POS rules</button>` : ''}
+                ${c.rules && rulesDifferFromPos(c.ent) ? disabledTip(`<button type="button" class="btn secondary sm" data-action="cmp-use-rules" data-path="${esc(c.path)}"${posRulesResetBlock(c.ent) ? ' disabled' : ''}>Use POS rules</button>`, posRulesResetBlock(c.ent)) : ''}
                 <button type="button" class="btn ghost sm" data-action="cmp-goto" data-path="${esc(c.path)}">Show</button></div>`,
             )
             .join('')}</div>
@@ -191,11 +191,21 @@
   function usePosRules(g) {
     const now = posRulesNow(g);
     if (!now || now.groupType !== groupTypeOf(g)) return commit(() => (g.ruleOverrides = {}));
-    return commit(() => {
+    if (posRulesResetBlock(g)) return false;
+    const cap = now.max;
+    const lowered = cap != null && rulesOf(g).maxSingle > cap;
+    const ok = commit(() => {
       g.posRules = { ...(g.posRules || {}), min: now.min, max: now.max };
-      g.ruleOverrides = {};
+      const kept = { ...g.ruleOverrides };
+      delete kept.min;
+      delete kept.max;
+      if (lowered) kept.maxSingle = cap;
+      g.ruleOverrides = kept;
+      if (cap != null) Object.values(g.optionSettings).forEach((s) => isNum(s.maxQty) && s.maxQty > cap && (s.maxQty = cap));
       if (g.reviewed) g.reviewed = { ...g.reviewed, rules: { ...(g.reviewed.rules || now), min: now.min, max: now.max } };
     });
+    if (ok) toast(lowered ? `Rules reset to POS and per option set to ${cap}` : 'Rules reset to POS', 'success', { action: { label: 'Undo', onClick: undo } });
+    return ok;
   }
 
   /* ---------- optimize ---------- */

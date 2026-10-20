@@ -216,7 +216,7 @@
       ? live && !now
         ? `<p class="field-help">On POS this is now a ${esc(C.groupTypes[live.groupType].label)} group. A group’s type can’t change here. To use the POS type, delete the group, then import it again from POS.</p>`
         : rulesDifferFromPos(g)
-        ? `<p class="field-help">Changed from the POS rules. <button type="button" class="link-btn" data-action="rules-reset">Reset to POS rules</button></p>`
+        ? `<p class="field-help">Changed from the POS rules. ${disabledTip(`<button type="button" class="link-btn" data-action="rules-reset"${posRulesResetBlock(g) ? ' disabled' : ''}>Reset to POS rules</button>`, posRulesResetBlock(g))}</p>`
         : '<p class="field-help">Same as the POS rules. A change applies to every product that uses this group.</p>'
       : g.gtype === 'linked'
         ? `<p class="field-help">Started from the rules of ${esc(posLabel(g.posGroupExt))} on POS</p>`
@@ -258,8 +258,12 @@
         const changed = host && (preselectDiffers(op) || codesOverridden(op) || hiddenInProduct(op));
         const halves = halvesNote(g, pid);
         const sub = [esc(subs.join(' · ')), changed && !onlyHere && `<span class="half-meta">Changed in ${pName}</span>`, halves && `<span class="half-meta">${icon('halves', 11)}${esc(halves)}</span>`].filter(Boolean).join(' · ');
+        const keep = onlyHere && mustStayShown(op, hiddenInProduct);
         const shownCell = onlyHere
-          ? `<button type="button" class="switch" role="switch" aria-checked="${!hiddenInProduct(op)}" aria-label="Show ${esc(name)} in ${pName}" data-toggle="pl|${esc(productScopePath(op))}|hidden" data-focus-key="pl|${esc(productScopePath(op))}|hidden"><span class="switch-thumb"></span></button>`
+          ? disabledTip(
+              `<button type="button" class="switch" role="switch" aria-checked="${!hiddenInProduct(op)}" aria-label="Show ${esc(name)} in ${pName}" data-toggle="pl|${esc(productScopePath(op))}|hidden" data-focus-key="pl|${esc(productScopePath(op))}|hidden"${keep ? ' disabled' : ''}><span class="switch-thumb"></span></button>`,
+              keep,
+            )
           : '';
         const row = `<div class="opt-row${groupHiddenAt(op) ? ' is-muted' : ''}">
             <button type="button" class="opt-name" data-action="goto" data-path="${esc(op)}">${thumb('product', p, 'thumb-sm')}<span class="opt-name-text"><span class="opt-name-label" title="${esc(name)}">${esc(name)}</span>${sub ? `<span class="opt-name-sub">${sub}</span>` : ''}</span></button>

@@ -140,7 +140,10 @@
           ? scheduleEditor(mb('schedule'), m.schedule) +
             (overlap.length ? slotError(`Time slots overlap on ${listJoin(overlap.map((d) => DAYS[d]))}`) : '') +
             (sameTimes ? slotError('Each time slot needs different start and end times') : '') +
-            '<p class="field-help">Customers can order only when the store is open too</p>'
+            `<p class="field-help">${sentences(
+              'Customers can order only when the store is open too',
+              m.publishedStoreIds.length > 0 && ['Removed time slots stop applying at stores right away', 'Other changes reach stores when you publish'],
+            )}</p>`
           : '<p class="field-help">Customers can order from this menu whenever the store is open</p>'
       }`;
 

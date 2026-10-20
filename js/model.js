@@ -290,7 +290,7 @@
     const now = posRulesNow(g);
     if (!now || groupTypeOf(g) !== 1 || now.groupType !== 1) return ruleOverridden(g);
     const r = rulesOf(g);
-    return r.min !== now.min || r.max !== now.max || ruleOverridden(g);
+    return r.min !== now.min || r.max !== now.max;
   }
 
   function rulesOf(g) {
@@ -335,6 +335,29 @@
   function optionMaxOf(g, pid, r = rulesOf(g)) {
     const s = g.optionSettings && g.optionSettings[pid];
     return r.type === 1 && s && isNum(s.maxQty) ? s.maxQty : r.maxSingle;
+  }
+
+  function mustStayShown(path, isHidden = groupHiddenAt) {
+    const info = parsePath(path);
+    const gp = info.parentPath && parsePath(info.parentPath);
+    const g = gp && gp.kind === 'group' && entity('group', gp.id);
+    if (!g || isHidden(path)) return '';
+    const r = rulesOf(g);
+    if (!(r.min > 0)) return '';
+    const others = listedOptions(g).filter((pid) => pid !== info.id);
+    const shown = others.filter((pid) => !isHidden(childPath(info.parentPath, 'product', pid)));
+    if (shown.reduce((s, pid) => s + optionMaxOf(g, pid, r), 0) >= r.min) return '';
+    const fix = shown.length < others.length ? 'show another option first, or lower the minimum' : 'lower the minimum';
+    return `${nameOf('group', g)} needs at least ${plural(r.min, 'choice', 'choices')}, so this option has to stay shown. To hide it, ${fix}.`;
+  }
+
+  const preselectedTotal = (g) => g.children.reduce((s, pid) => s + (g.preselected[pid] || 0), 0);
+
+  function posRulesResetBlock(g) {
+    const now = posRulesNow(g);
+    const total = preselectedTotal(g);
+    if (!now || now.max == null || total <= now.max) return '';
+    return `Preselected options add up to ${total}, more than the POS maximum of ${now.max}. Lower the preselection first, then reset.`;
   }
 
   function bulkPreselect(g, path) {

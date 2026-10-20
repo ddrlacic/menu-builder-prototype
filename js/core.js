@@ -29,6 +29,7 @@
   const allOf = (n, noun) => (n === 2 ? `both ${noun}` : `all ${n} ${noun}`);
   const esc = (s) =>
     String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const disabledTip = (html, tip) => (tip ? `<span class="tip-wrap" title="${esc(tip)}">${html}</span>` : html);
   const cssEsc = (s) => (window.CSS && CSS.escape ? CSS.escape(s) : s.replace(/"/g, '\\"'));
   const allergenLabel = (id) => C.allergenLabels[id] || id.charAt(0).toUpperCase() + id.slice(1).replace(/_/g, ' ');
   const hashHue = (s) => [...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % 360;

@@ -327,6 +327,7 @@ window.MENU_CONSTANTS = {
     { id: 'sg-cravewave', name: 'Cravewave Pizza', pos: 'PAR Brink', dataset: 'cravewave' },
     { id: 'sg-cravewave-empty', name: 'Cravewave Pizza (empty)', pos: 'PAR Brink', dataset: 'cravewave-empty' },
     { id: 'sg-cravewave-express', name: 'Cravewave Express', pos: 'PAR Brink', dataset: 'cravewave-halves' },
+    { id: 'sg-cravewave-fails', name: 'Cravewave Pizza (fails to load)', pos: 'PAR Brink', dataset: 'cravewave', loadFails: true },
   ],
   groupTypes: {
     1: { label: 'Modifier', help: 'Extras and choices that change the product.' },

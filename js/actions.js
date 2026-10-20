@@ -105,6 +105,10 @@
       case 'sync-pos':
         syncPos();
         break;
+      case 'load-retry':
+        loadPos('store-group', render);
+        render();
+        break;
       case 'pos-menu': {
         S.ui.posMenuId = el.dataset.id;
         const linked = menuOfPosMenu(posMenu());
@@ -571,11 +575,9 @@
       case 'group-delete':
         confirmDeleteGroup(entity('group', parsePath(el.dataset.path).id), el.dataset.path);
         break;
-      case 'rules-reset': {
-        const g = entity('group', parsePath(S.ui.selected).id);
-        if (usePosRules(g)) toast('Rules reset to POS', 'success', { action: { label: 'Undo', onClick: undo } });
+      case 'rules-reset':
+        usePosRules(entity('group', parsePath(S.ui.selected).id));
         break;
-      }
       case 'pre-pick': {
         const g = entity('group', parsePath(S.ui.selected).id);
         const pid = el.dataset.id;

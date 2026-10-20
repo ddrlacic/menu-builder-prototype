@@ -36,6 +36,12 @@
   function render() {
     hideTip();
     const focus = captureFocus();
+    if (storeGroup().loadFails) {
+      renderLoadFailed();
+      restoreFocus(focus);
+      schedulePersist();
+      return;
+    }
     syncOpenMenu();
     const menu = activeMenu();
     if (!menu) {
@@ -121,11 +127,7 @@
       : none || !pm
         ? ['Add a menu from POS', 'Menus come from POS. Add a POS menu, category, or product from POS items, and its menu is added with it.']
         : [`Add a menu to ${pm.name}`, 'Drag categories or products here from POS items to create its menu.'];
-    $('#topbar').innerHTML = `
-      <div class="brand">
-        <span class="brand-mark">${icon('layers', 16)}</span>
-        <span class="brand-name">Menu builder</span>
-      </div>
+    $('#topbar').innerHTML = `${brandHtml()}
       <nav class="menu-tabs" role="tablist" aria-label="Menus">${menuTabs(null)}</nav>`;
     renderPos();
     $('#canvas').classList.add('is-no-menu');
@@ -137,6 +139,39 @@
         <p>${esc(text)}</p>
         ${S.ui.posCollapsed ? `<div class="blank-actions"><button class="btn primary" data-action="pos-panel">${icon('panelOpen', 15)}Show POS items</button></div>` : ''}
       </div>`;
+    clearInspector();
+  }
+
+  function renderLoadFailed() {
+    ctx = null;
+    T.cmp = null;
+    T.shownMenuId = null;
+    const name = esc(storeGroup().name);
+    $('#topbar').innerHTML = brandHtml();
+    renderPos();
+    $('#canvas').classList.add('is-no-menu');
+    $('#canvas-head').innerHTML = posShowButton();
+    $('#canvas-tree').innerHTML = T.posLoading
+      ? `<div class="blank">
+          <div class="blank-art"><span class="spinner"></span></div>
+          <h3>Loading ${name}</h3>
+          <p>Large menus can take a few minutes</p>
+        </div>`
+      : `<div class="blank">
+          <div class="blank-art is-error">${icon('alertCircle', 22)}</div>
+          <h3>Couldn’t load ${name}</h3>
+          <p>Try again in a few minutes</p>
+          <div class="blank-actions"><button class="btn primary" data-action="load-retry" data-focus-key="load-retry">${icon('refresh', 15)}Try again</button></div>
+        </div>`;
+    clearInspector();
+  }
+
+  const brandHtml = () => `<div class="brand">
+        <span class="brand-mark">${icon('layers', 16)}</span>
+        <span class="brand-name">Menu builder</span>
+      </div>`;
+
+  function clearInspector() {
     $('#inspector-head').innerHTML = '';
     $('#inspector-tabs').innerHTML = '';
     $('#inspector-body').innerHTML = '';
@@ -193,11 +228,7 @@
     const { errors, warnings } = ctx.issues;
     const issueTone = errors ? 'error' : warnings ? 'warning' : 'ok';
     const issueLabel = errors ? plural(errors, 'error', 'errors') : warnings ? plural(warnings, 'warning', 'warnings') : 'No issues';
-    $('#topbar').innerHTML = `
-      <div class="brand">
-        <span class="brand-mark">${icon('layers', 16)}</span>
-        <span class="brand-name">Menu builder</span>
-      </div>
+    $('#topbar').innerHTML = `${brandHtml()}
       <nav class="menu-tabs" role="tablist" aria-label="Menus">${menuTabs(menu.id)}</nav>
       <div class="topbar-actions">
         <div class="btn-pair">
@@ -251,14 +282,16 @@
     const pos = S.data.pos;
     const pm = posMenu();
     const loading = T.posLoading;
+    const failed = !!storeGroup().loadFails;
     const syncLabel = loading === 'sync' ? 'Syncing' : 'Sync POS';
     $('.workspace').classList.toggle('is-pos-collapsed', !!S.ui.posCollapsed);
+    $('.workspace').classList.toggle('is-load-failed', failed);
     $('#pos-head').innerHTML = `
       <div class="panel-title-row">
         <h2 class="panel-title">POS items</h2>
         <button class="icon-btn sm" data-action="pos-panel" data-focus-key="pos-hide" title="Hide POS items" data-tip-kbd="⌘B">${icon('panelClose', 16)}</button>
       </div>
-      <p class="panel-sub">${esc(posSubText())}</p>
+      ${failed ? '' : `<p class="panel-sub">${esc(posSubText())}</p>`}
       <div class="pos-store">
         <label class="sr-only" for="store-group">POS store group</label>
         <div class="select-wrap">
@@ -266,14 +299,22 @@
             .map((g) => `<option value="${g.id}"${g.id === storeGroup().id ? ' selected' : ''}>${esc(g.name)} · ${esc(g.pos)}</option>`)
             .join('')}</select>${icon('chevDown', 14)}
         </div>
-        <button class="btn secondary pos-sync" data-action="sync-pos" data-focus-key="sync-pos" aria-label="${syncLabel}" title="${syncLabel}" ${loading || T.importing ? 'disabled' : ''}>${loading === 'sync' ? '<span class="spinner"></span>' : icon('refresh', 15)}</button>
+        <button class="btn secondary pos-sync" data-action="sync-pos" data-focus-key="sync-pos" aria-label="${syncLabel}" title="${syncLabel}" ${loading || failed || T.importing ? 'disabled' : ''}>${loading === 'sync' ? '<span class="spinner"></span>' : icon('refresh', 15)}</button>
       </div>
-      <div class="pos-menus" role="tablist" aria-label="POS menus">${pos.menus
-        .map((m) => `<button type="button" role="tab" class="pos-menu-tab" aria-selected="${m.id === pm.id}" data-action="pos-menu" data-id="${m.id}">${esc(m.name)}</button>`)
-        .join('')}</div>`;
+      ${
+        failed
+          ? ''
+          : `<div class="pos-menus" role="tablist" aria-label="POS menus">${pos.menus
+              .map((m) => `<button type="button" role="tab" class="pos-menu-tab" aria-selected="${m.id === pm.id}" data-action="pos-menu" data-id="${m.id}">${esc(m.name)}</button>`)
+              .join('')}</div>`
+      }`;
 
     if (loading) {
       $('#pos-tree').innerHTML = `<div class="empty-small"><span class="spinner"></span><strong>${loading === 'sync' ? 'Syncing with POS' : `Loading ${esc(storeGroup().name)}`}</strong><span>Large menus can take a few minutes</span></div>`;
+      return;
+    }
+    if (failed) {
+      $('#pos-tree').innerHTML = '<div class="empty-small"><strong>Couldn’t load POS items</strong></div>';
       return;
     }
 

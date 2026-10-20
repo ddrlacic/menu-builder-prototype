@@ -214,15 +214,17 @@
           it.source === 'pos_auto_added'
             ? `<span class="scope scope-pos" title="POS adds it automatically, so customers cannot remove it">${icon('lock', 11)}Locked by POS</span>`
             : it.source === 'pos_included'
-              ? `<span class="scope scope-pos" title="Marked as included on POS. You can lock it, but not remove it.">From POS</span>${lock}`
+              ? `<span class="scope scope-pos" title="Marked as included on POS, so customers get one for free and cannot add more. You can lock it, but not remove it.">From POS</span>${lock}`
               : lock + removeButton(pb('included'), i, name);
+        const sub = it.source === 'pos_included' ? `${nameOf('group', g)} · Free, 1 at most` : nameOf('group', g);
         return `<div class="store-row list-row" data-sort-index="${i}"${sortable ? ` tabindex="0" aria-label="${esc(name)}. Drag or use the arrow keys to move it"` : ''}>
-          <span class="store-name list-name"><span>${esc(name)}</span><span class="muted">${esc(nameOf('group', g))}</span></span>
+          <span class="store-name list-name"><span>${esc(name)}</span><span class="muted">${esc(sub)}</span></span>
           <span class="row-tools">${tools}</span>${sortable ? `<span class="sort-grip" aria-hidden="true">${icon('grip', 14)}</span>` : ''}
         </div>`;
       })
       .join('');
     const any = p.included.length > 0;
+    const hasFree = p.included.some((it) => it.source === 'pos_included' && entity('group', it.gid) && entity('product', it.pid));
     const sync = fromPos && !p.pending ? `<button type="button" class="btn ghost sm" data-action="included-sync">${icon('refresh', 14)}Sync from POS</button>` : '';
     return section(
       'Included ingredients',
@@ -235,7 +237,7 @@
         : '') + `<div class="hint-actions">${addButton('add-included', 'Add ingredient')}${sync}</div>`,
       {
         desc: any
-          ? `When Group included ingredients is on in your brand’s configurations, Web App shows these together at the top of the product. Otherwise they stay in their groups. Locked ones cannot be removed.${fromPos ? ' Sync from POS updates the ones from POS and preselects them in this product. Ones you added stay as they are.' : ''}${sortable ? ' Drag ingredients to change their order.' : ''}`
+          ? `When Group included ingredients is on in your brand’s configurations, Web App shows these together at the top of the product. Otherwise they stay in their groups. Locked ones cannot be removed.${fromPos ? ' Sync from POS updates the ones from POS and preselects them in this product. Ones you added stay as they are.' : ''}${hasFree ? ' Only ones marked From POS are free. Others keep their price.' : ''}${sortable ? ' Drag ingredients to change their order.' : ''}`
           : sentences('Ingredients that come with the product, like the patty and bun', fromPos && 'Ones marked as included on POS come in when you import or sync'),
       },
     );
@@ -426,15 +428,18 @@
     const menuName = nameOf('menu', menuById(info.menuId));
     const pl = placement(path);
     const inProduct = hiddenInProduct(path) && nameOf('product', entity('product', productScopePath(path).split('>')[1].slice(2)));
+    const keep = mustStayShown(path);
     let html = toggle(`pl|${path}|hidden`, !pl.hidden && !inProduct, {
       label: `Show in ${parentName}`,
       scope: inChoice ? `${parentName} in ${menuName}` : crumbText(path),
-      disabled: !!inProduct,
+      disabled: !!inProduct || !!keep,
       help: inProduct
         ? `Hidden in ${esc(inProduct)}, in every menu. Show it on the Options tab of ${esc(parentName)}, with ${esc(inProduct)} chosen.`
-        : (inChoice
-            ? `Hide it here without removing it. Applies everywhere ${esc(parentName)} is in ${esc(menuName)}.`
-            : 'Hide it here without removing it. Other places stay as they are.') + liveNote(info.menuId),
+        : keep
+          ? esc(keep)
+          : (inChoice
+              ? `Hide it here without removing it. Applies everywhere ${esc(parentName)} is in ${esc(menuName)}.`
+              : 'Hide it here without removing it. Other places stay as they are.') + liveNote(info.menuId),
     });
     if (parent.kind !== 'group' || p.ptype === 'container') return html;
 

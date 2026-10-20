@@ -1968,6 +1968,11 @@ body[data-drag-kind='group'] .row[data-kind='product'] {
   margin-bottom: 6px;
 }
 
+.blank-art.is-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
 .blank h3 {
   font-size: var(--text-lg);
   font-weight: 600;
@@ -3540,6 +3545,19 @@ input[type='number']::-webkit-inner-spin-button {
   text-underline-offset: 2px;
 }
 
+.link-btn:disabled {
+  color: var(--ink-3);
+  text-decoration-color: currentColor;
+}
+
+.tip-wrap {
+  display: inline-flex;
+}
+
+.tip-wrap > :disabled {
+  pointer-events: none;
+}
+
 .link-btns {
   display: flex;
   gap: 12px;
@@ -3748,6 +3766,10 @@ input[type='number']::-webkit-inner-spin-button {
 
 .canvas.is-no-menu .canvas-foot {
   visibility: hidden;
+}
+
+.workspace.is-load-failed .pos-search {
+  display: none;
 }
 
 .delete-warning-list {
