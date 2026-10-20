@@ -663,6 +663,7 @@
     const hidden = groupHiddenAt(path);
     let why = '';
     if (hidden && !canShowHere(path)) why = 'Hidden only in one product. Change it on the Options tab of its group.';
+    else if (!hidden && info.kind === 'product') why = mustStayShown(path);
     else if (!hidden && info.kind === 'group') {
       const g = entity('group', info.id);
       if (!g.children.length) why = 'It has no options to hide';
