@@ -473,7 +473,7 @@
   function renderEmptyInspector() {
     $('#inspector-head').innerHTML = '';
     $('#inspector-tabs').innerHTML = '';
-    $('#inspector-body').innerHTML = `<div class="empty-small insp-empty">${icon('cursorClick', 20)}<strong>Nothing selected</strong><span>Select a category, product, or group to edit it. Shift-click or ⌘-click to select several.</span></div>`;
+    $('#inspector-body').innerHTML = `<div class="empty-small insp-empty">${icon('cursorClick', 20)}<strong>Nothing selected</strong><span>Select the <button type="button" class="link-btn" data-action="select-menu">menu</button>, a category, product, or group to edit it. Shift-click or ⌘-click to select several.</span></div>`;
   }
 
   function sectionNameBind(sc, i) {

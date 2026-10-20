@@ -754,6 +754,7 @@
     openPopover(
       anchor,
       [
+        { label: 'Edit menu', icon: 'pencil', onClick: () => handleAction({ dataset: { action: 'switch-menu', id } }) },
         { label: 'Duplicate menu', icon: 'copy', disabled: !!dupBlock, hint: dupBlock, onClick: () => duplicateMenu(id) },
         '-',
         { label: 'Move left', icon: 'chevLeft', disabled: i === 0, onClick: () => moveMenu(id, i - 1) },
